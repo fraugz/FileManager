@@ -20,6 +20,7 @@ public class SettingsActivity extends AppCompatActivity {
     private TextView uiScaleSubtitle;
     private TextView languageSubtitle;
     private TextView defaultAppsSubtitle;
+    private TextView versionValue;
 
     private static class AppChoice {
         final String packageName;
@@ -41,10 +42,12 @@ public class SettingsActivity extends AppCompatActivity {
         uiScaleSubtitle = findViewById(R.id.ui_scale_subtitle);
         languageSubtitle = findViewById(R.id.language_subtitle);
         defaultAppsSubtitle = findViewById(R.id.default_apps_subtitle);
+        versionValue = findViewById(R.id.version_value);
 
         themeSubtitle.setText(ThemeManager.getThemeName(this));
         uiScaleSubtitle.setText(ThemeManager.getUiScaleName(this));
         languageSubtitle.setText(LocaleManager.getLanguageDisplayName(this));
+        if (versionValue != null) versionValue.setText(BuildConfig.VERSION_NAME);
         updateDefaultAppsSubtitle();
         applyUiScalePreview();
 
@@ -162,6 +165,7 @@ public class SettingsActivity extends AppCompatActivity {
         if (languageSubtitle != null) languageSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
         if (defaultAppsTitle != null) defaultAppsTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * scale);
         if (defaultAppsSubtitle != null) defaultAppsSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
+        if (versionValue != null) versionValue.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f * scale);
 
         setSquareSize(findViewById(R.id.btn_back), dp(48f * scale));
         setSquareSize(findViewById(R.id.theme_icon), dp(28f * scale));
