@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import android.app.Activity;
 import android.content.Context;
@@ -62,3 +62,4 @@ public class ThemeManager {
         return "Muy grande";
     }
 }
+

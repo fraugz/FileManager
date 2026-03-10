@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import android.content.Context;
 
@@ -344,3 +344,4 @@ public class TrashManager {
                 android.os.Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() + File.separator + baseName;
     }
 }
+

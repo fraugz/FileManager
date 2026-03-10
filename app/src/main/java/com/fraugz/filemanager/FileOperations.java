@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -124,3 +124,4 @@ public class FileOperations {
         return dest;
     }
 }
+

@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -224,3 +224,4 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         }
     }
 }
+

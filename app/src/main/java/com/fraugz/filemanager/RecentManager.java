@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -62,3 +62,4 @@ public class RecentManager {
         return sb.toString();
     }
 }
+

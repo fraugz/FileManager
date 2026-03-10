@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import android.Manifest;
 import android.app.AlertDialog;
@@ -1423,3 +1423,4 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void toast(String msg) { Toast.makeText(this, msg, Toast.LENGTH_SHORT).show(); }
 }
+

@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import android.app.Application;
 import android.content.Intent;
@@ -28,3 +28,4 @@ public class App extends Application {
         });
     }
 }
+

@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
@@ -144,3 +144,4 @@ public class TrashActivity extends AppCompatActivity {
         @Override public int getItemCount() { return trashFiles.size(); }
     }
 }
+

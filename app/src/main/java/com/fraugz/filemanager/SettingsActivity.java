@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import android.app.AlertDialog;
 import android.content.pm.ApplicationInfo;
@@ -280,3 +280,4 @@ public class SettingsActivity extends AppCompatActivity {
         }
     }
 }
+

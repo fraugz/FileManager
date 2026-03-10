@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -209,3 +209,4 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         }
     }
 }
+

@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -94,3 +94,4 @@ public class CrashActivity extends AppCompatActivity {
         setContentView(root);
     }
 }
+

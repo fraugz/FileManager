@@ -1,1 +1,2 @@
--keep class com.tuempresa.gestorarchivos.** { *; }
+-keep class com.fraugz.filemanager.** { *; }
+

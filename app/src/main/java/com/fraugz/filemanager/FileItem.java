@@ -1,4 +1,4 @@
-package com.tuempresa.gestorarchivos;
+package com.fraugz.filemanager;
 
 import java.io.File;
 
@@ -41,3 +41,4 @@ public class FileItem {
         return sdf.format(new java.util.Date(file.lastModified()));
     }
 }
+

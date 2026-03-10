@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace "com.tuempresa.gestorarchivos"
+    namespace "com.fraugz.filemanager"
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.tuempresa.gestorarchivos"
+        applicationId "com.fraugz.filemanager"
         minSdk 24
         targetSdk 34
         versionCode 2
@@ -35,3 +35,4 @@ dependencies {
     implementation 'androidx.coordinatorlayout:coordinatorlayout:1.2.0'
     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
 }
+
