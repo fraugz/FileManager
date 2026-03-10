@@ -54,14 +54,14 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         items.clear();
         // Group by date
         Map<String, List<File>> groups = new LinkedHashMap<>();
-        SimpleDateFormat sdf = new SimpleDateFormat("dd MMM yyyy", new Locale("es"));
+        SimpleDateFormat sdf = new SimpleDateFormat("dd MMM yyyy", Locale.getDefault());
         SimpleDateFormat today = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
         String todayStr = today.format(new Date());
 
         for (File f : files) {
             String d = today.format(new Date(f.lastModified()));
             String label;
-            if (d.equals(todayStr)) label = "Hoy";
+            if (d.equals(todayStr)) label = ctx.getString(R.string.today);
             else label = sdf.format(new Date(f.lastModified()));
             if (!groups.containsKey(label)) groups.put(label, new ArrayList<>());
             groups.get(label).add(f);
@@ -70,7 +70,7 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         for (Map.Entry<String, List<File>> e : groups.entrySet()) {
             String key = e.getKey();
             List<File> group = e.getValue();
-            items.add(key + "  |  " + group.size() + " elemento" + (group.size() != 1 ? "s" : ""));
+            items.add(key + "  |  " + ctx.getString(R.string.items_count, group.size()));
             items.addAll(group);
         }
         notifyDataSetChanged();
@@ -120,7 +120,7 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             h.name.setTextColor(darkTheme ? 0xFFFFFFFF : 0xFF1C1C1E);
             h.name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
             FileItem fi = new FileItem(file);
-            h.size.setText(fi.getFormattedSize());
+            h.size.setText(fi.getFormattedSize(ctx));
             h.size.setTextColor(darkTheme ? 0xFF666666 : 0xFF5E6C7A);
             h.size.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
             String parent = file.getParentFile() != null ? file.getParentFile().getName() : "";

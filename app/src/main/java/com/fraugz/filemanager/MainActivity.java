@@ -470,7 +470,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (v != null) v.setOnClickListener(v2 -> {
             try { l.onClick(v2); } catch (Exception e) {
                 Log.e(TAG, "click error " + getResources().getResourceEntryName(id), e);
-                toast("Error: " + e.getMessage());
+                toast(getString(R.string.error_with_reason, e.getMessage()));
             }
         });
     }
@@ -528,16 +528,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                     loadRootDirectory();
                 } else {
                     new AlertDialog.Builder(this)
-                        .setTitle("Permiso necesario")
-                        .setMessage("Esta app necesita acceso completo al almacenamiento.")
-                        .setPositiveButton("Conceder", (d, w) -> {
+                        .setTitle(R.string.required_permission)
+                        .setMessage(R.string.full_storage_permission_message)
+                        .setPositiveButton(R.string.allow, (d, w) -> {
                             try {
                                 startActivityForResult(new Intent(
                                     Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
                                     Uri.parse("package:" + getPackageName())), REQ_MANAGE_FILES);
                             } catch (Exception e) { loadRootDirectory(); }
                         })
-                        .setNegativeButton("Solo lectura", (d, w) -> loadRootDirectory())
+                        .setNegativeButton(R.string.read_only, (d, w) -> loadRootDirectory())
                         .show();
                 }
             } else {
@@ -574,7 +574,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             loadDirectory(root);
         } catch (Exception e) {
             Log.e(TAG, "loadRootDirectory", e);
-            toast("Error cargando almacenamiento: " + e.getMessage());
+            toast(getString(R.string.error_loading_storage, e.getMessage()));
         }
     }
 
@@ -594,7 +594,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 swipeRefresh.setRefreshing(true);
             }
             if (emptyView != null) emptyView.setVisibility(View.GONE);
-            showLoadingStatus("Cargando...");
+            showLoadingStatus(getString(R.string.loading));
 
             updateBreadcrumb();
             updatePasteBar();
@@ -606,7 +606,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             directoryLoadThread.start();
         } catch (Exception e) {
             Log.e(TAG, "loadDirectory error", e);
-            toast("Error: " + e.getMessage());
+            toast(getString(R.string.error_with_reason, e.getMessage()));
         }
     }
 
@@ -660,7 +660,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             mainHandler.post(() -> {
                 if (requestId == directoryLoadRequestId) {
                     finishDirectoryLoading();
-                    toast("Error cargando carpeta: " + e.getMessage());
+                    toast(getString(R.string.error_loading_folder, e.getMessage()));
                 }
             });
         }
@@ -674,7 +674,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             if (adapter != null) adapter.notifyItemRangeInserted(start, batch.size());
             if (emptyView != null) emptyView.setVisibility(View.GONE);
             if (swipeRefresh != null) swipeRefresh.setVisibility(View.VISIBLE);
-            showLoadingStatus("Cargando... " + fileItems.size());
+            showLoadingStatus(getString(R.string.loading) + " " + fileItems.size());
         });
     }
 
@@ -778,7 +778,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         cancelDirectoryLoad();
         final int requestId = ++searchRequestId;
         recursiveSearchCancelled = false;
-        showSearchProgress(true, "Buscando...");
+        showSearchProgress(true, getString(R.string.searching));
 
         final String q = query.toLowerCase();
         final File rootDir = currentDir;
@@ -821,7 +821,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 int currentScanned = scanned[0];
                 mainHandler.post(() -> {
                     if (!recursiveSearchCancelled && requestId == searchRequestId) {
-                        showSearchProgress(true, "Buscando... " + currentScanned);
+                        showSearchProgress(true, getString(R.string.searching) + " " + currentScanned);
                     }
                 });
             }
@@ -852,7 +852,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
 
         showSearchProgress(false, "");
-        if (notifyUser) toast("Busqueda cancelada");
+        if (notifyUser) toast(getString(R.string.search_cancelled));
     }
 
     // ─────────────────────── BREADCRUMB ──────────────────────────────
@@ -864,7 +864,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             boolean isRoot = currentDir.equals(root);
             breadcrumbScroll.setVisibility(isRoot ? View.GONE : View.VISIBLE);
             if (sectionHeaderLabel != null)
-                sectionHeaderLabel.setText(isRoot ? "Almacenamiento interno"
+                sectionHeaderLabel.setText(isRoot ? getString(R.string.internal_storage)
                         : currentDir.getAbsolutePath().replace(root.getAbsolutePath() + "/", ""));
             if (isRoot || breadcrumbContainer == null) return;
 
@@ -882,7 +882,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 final File part = parts.get(i);
                 boolean isLast = (i == parts.size() - 1);
                 TextView tv = new TextView(this);
-                String label = part.equals(root) ? "Interno" : part.getName();
+                String label = part.equals(root) ? getString(R.string.internal_short) : part.getName();
                 tv.setText(isLast ? label : label + "  ›  ");
                 tv.setTextSize(12);
                 tv.setTextColor(isLast ? muted : accent);
@@ -927,7 +927,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 RecentManager.add(this, item.getFile().getAbsolutePath());
                 openFile(item.getFile());
             }
-        } catch (Exception e) { Log.e(TAG, "onItemClick", e); toast("Error: " + e.getMessage()); }
+        } catch (Exception e) { Log.e(TAG, "onItemClick", e); toast(getString(R.string.error_with_reason, e.getMessage())); }
     }
 
     @Override
@@ -971,35 +971,35 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private void markSelectionForMove() {
         List<File> sel = getSelectedFiles();
         if (sel.isEmpty()) {
-            toast("No hay elementos seleccionados");
+            toast(getString(R.string.no_items_selected));
             return;
         }
         clipboardFiles.clear();
         clipboardFiles.addAll(sel);
         clipboardIsCopy = false;
         updatePasteBar();
-        toast("Mover preparado: " + sel.size());
+        toast(getString(R.string.move_prepared, sel.size()));
         exitSelectionMode();
     }
 
     private void copySelection() {
         List<File> sel = getSelectedFiles();
         if (sel.isEmpty()) {
-            toast("No hay elementos seleccionados");
+            toast(getString(R.string.no_items_selected));
             return;
         }
         clipboardFiles.clear();
         clipboardFiles.addAll(sel);
         clipboardIsCopy = true;
         updatePasteBar();
-        toast("Copiado: " + sel.size());
+        toast(getString(R.string.copied_count, sel.size()));
         exitSelectionMode();
     }
 
     private void renameSelection() {
         List<File> sel = getSelectedFiles();
         if (sel.size() != 1) {
-            toast("Selecciona solo 1 elemento para renombrar");
+            toast(getString(R.string.select_single_for_rename));
             return;
         }
         showRenameDialog(sel.get(0), true);
@@ -1008,13 +1008,13 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private void deleteSelectionToTrash() {
         List<File> sel = getSelectedFiles();
         if (sel.isEmpty()) {
-            toast("No hay elementos seleccionados");
+            toast(getString(R.string.no_items_selected));
             return;
         }
         new AlertDialog.Builder(this)
-                .setTitle("Confirmar eliminacion")
-                .setMessage("Mover " + sel.size() + " elemento(s) a la papelera?")
-                .setPositiveButton("Eliminar", (d, w) -> {
+                .setTitle(R.string.confirm_delete_title)
+                .setMessage(getString(R.string.confirm_delete_selected_message, sel.size()))
+                .setPositiveButton(R.string.delete, (d, w) -> {
                     int moved = 0;
                     String firstError = null;
                     for (File f : sel) {
@@ -1025,24 +1025,24 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         }
                     }
                     if (moved == sel.size()) {
-                        toast("Movidos a papelera: " + moved);
+                        toast(getString(R.string.moved_to_trash_count, moved));
                     } else {
                         String reason = (firstError == null || firstError.trim().isEmpty())
-                                ? "motivo no disponible"
+                            ? getString(R.string.unknown_reason)
                                 : firstError;
-                        toast("Movidos " + moved + " de " + sel.size() + ". Error: " + reason);
+                        toast(getString(R.string.moved_partial_error, moved, sel.size(), reason));
                     }
                     exitSelectionMode();
                     loadDirectory(currentDir);
                 })
-                .setNegativeButton("Cancelar", null)
+                    .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
     private void shareSelectedFiles() {
         List<File> sel = getSelectedFiles();
         if (sel.isEmpty()) {
-            toast("No hay elementos seleccionados");
+            toast(getString(R.string.no_items_selected));
             return;
         }
         try {
@@ -1053,7 +1053,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 }
             }
             if (uris.isEmpty()) {
-                toast("Solo se pueden compartir archivos");
+                toast(getString(R.string.only_files_can_be_shared));
                 return;
             }
 
@@ -1061,10 +1061,10 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             i.setType("*/*");
             i.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(i, "Compartir via..."));
+            startActivity(Intent.createChooser(i, getString(R.string.share_via)));
         } catch (Exception e) {
             Log.e(TAG, "shareSelectedFiles", e);
-            toast("Error al compartir seleccion");
+            toast(getString(R.string.error_sharing_selection));
         }
     }
 
@@ -1072,13 +1072,13 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void showFileMenu(FileItem item, View anchor) {
         PopupMenu p = new PopupMenu(this, anchor);
-        p.getMenu().add(0, 1, 0, "Abrir");
-        p.getMenu().add(0, 2, 0, "Copiar");
-        p.getMenu().add(0, 3, 0, "Cortar");
-        p.getMenu().add(0, 4, 0, "Renombrar");
-        p.getMenu().add(0, 5, 0, "Compartir");
-        p.getMenu().add(0, 6, 0, "Detalles");
-        p.getMenu().add(0, 7, 0, "Mover a papelera");
+        p.getMenu().add(0, 1, 0, getString(R.string.open));
+        p.getMenu().add(0, 2, 0, getString(R.string.copy));
+        p.getMenu().add(0, 3, 0, getString(R.string.cut));
+        p.getMenu().add(0, 4, 0, getString(R.string.rename));
+        p.getMenu().add(0, 5, 0, getString(R.string.share));
+        p.getMenu().add(0, 6, 0, getString(R.string.details));
+        p.getMenu().add(0, 7, 0, getString(R.string.move_to_trash));
         p.setOnMenuItemClickListener(mi -> {
             try {
                 switch (mi.getItemId()) {
@@ -1088,21 +1088,21 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         clipboardFiles.add(item.getFile());
                         clipboardIsCopy = true;
                         updatePasteBar();
-                        toast("Copiado");
+                        toast(getString(R.string.copied_simple));
                         break;
                     case 3:
                         clipboardFiles.clear();
                         clipboardFiles.add(item.getFile());
                         clipboardIsCopy = false;
                         updatePasteBar();
-                        toast("Cortado");
+                        toast(getString(R.string.cut_simple));
                         break;
                     case 4: showRenameDialog(item.getFile(), false); break;
                     case 5: shareFile(item.getFile()); break;
                     case 6: showDetails(item); break;
                     case 7: moveToTrash(item.getFile()); break;
                 }
-            } catch (Exception e) { Log.e(TAG, "fileMenu", e); toast("Error: " + e.getMessage()); }
+            } catch (Exception e) { Log.e(TAG, "fileMenu", e); toast(getString(R.string.error_with_reason, e.getMessage())); }
             return true;
         });
         p.show();
@@ -1111,10 +1111,10 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private void showSelectionMenu(View anchor) {
         List<File> sel = getSelectedFiles();
         PopupMenu p = new PopupMenu(this, anchor);
-        p.getMenu().add(0, 1, 0, "Copiar (" + sel.size() + ")");
-        p.getMenu().add(0, 2, 0, "Cortar (" + sel.size() + ")");
-        p.getMenu().add(0, 3, 0, "Mover a papelera (" + sel.size() + ")");
-        p.getMenu().add(0, 4, 0, "Compartir");
+        p.getMenu().add(0, 1, 0, getString(R.string.copy) + " (" + sel.size() + ")");
+        p.getMenu().add(0, 2, 0, getString(R.string.cut) + " (" + sel.size() + ")");
+        p.getMenu().add(0, 3, 0, getString(R.string.move_to_trash) + " (" + sel.size() + ")");
+        p.getMenu().add(0, 4, 0, getString(R.string.share));
         p.setOnMenuItemClickListener(mi -> {
             try {
                 switch (mi.getItemId()) {
@@ -1125,7 +1125,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                             clipboardIsCopy = true;
                             updatePasteBar();
                         }
-                            toast("Copiado: " + sel.size()); exitSelectionMode(); break;
+                            toast(getString(R.string.copied_count, sel.size())); exitSelectionMode(); break;
                     case 2:
                         if (!sel.isEmpty()) {
                             clipboardFiles.clear();
@@ -1133,7 +1133,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                             clipboardIsCopy = false;
                             updatePasteBar();
                         }
-                            toast("Cortado: " + sel.size()); exitSelectionMode(); break;
+                            toast(getString(R.string.cut_count, sel.size())); exitSelectionMode(); break;
                     case 3:
                         int n = 0;
                         String firstError = null;
@@ -1145,12 +1145,12 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                             }
                         }
                         if (n == sel.size()) {
-                            toast("Movidos: " + n);
+                                toast(getString(R.string.moved_count, n));
                         } else {
                             String reason = (firstError == null || firstError.trim().isEmpty())
-                                    ? "motivo no disponible"
+                                    ? getString(R.string.unknown_reason)
                                     : firstError;
-                            toast("Movidos " + n + " de " + sel.size() + ". Error: " + reason);
+                                toast(getString(R.string.moved_partial_error, n, sel.size(), reason));
                         }
                         exitSelectionMode(); loadDirectory(currentDir); break;
                     case 4: if (!sel.isEmpty()) shareFile(sel.get(0)); break;
@@ -1163,7 +1163,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void showSortMenu(View anchor) {
         PopupMenu p = new PopupMenu(this, anchor);
-        String[] labels = {"Nombre", "Fecha", "Tamaño"};
+        String[] labels = {getString(R.string.name), getString(R.string.date), getString(R.string.size)};
         for (int i = 0; i < labels.length; i++)
             p.getMenu().add(0, i, i, (sortMode == i ? "✓ " : "") + labels[i]);
         p.setOnMenuItemClickListener(mi -> { sortMode = mi.getItemId(); if (currentDir != null) loadDirectory(currentDir); return true; });
@@ -1172,8 +1172,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void showOverflowMenu(View anchor) {
         PopupMenu p = new PopupMenu(this, anchor);
-        p.getMenu().add(0, 1, 0, "Seleccionar todo");
-        p.getMenu().add(0, 2, 0, "Ajustes");
+        p.getMenu().add(0, 1, 0, getString(R.string.select_all));
+        p.getMenu().add(0, 2, 0, getString(R.string.settings));
         p.setOnMenuItemClickListener(mi -> {
             if (mi.getItemId() == 1 && adapter != null) {
                 adapter.setSelectionMode(true);
@@ -1195,9 +1195,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             pasteBar.setVisibility(View.VISIBLE);
             if (pasteLabel != null) {
                 if (clipboardFiles.size() == 1) {
-                    pasteLabel.setText((clipboardIsCopy ? "Copiar: " : "Mover: ") + clipboardFiles.get(0).getName());
+                    pasteLabel.setText((clipboardIsCopy ? getString(R.string.copy) + ": " : getString(R.string.move) + ": ") + clipboardFiles.get(0).getName());
                 } else {
-                    pasteLabel.setText((clipboardIsCopy ? "Copiar: " : "Mover: ") + clipboardFiles.size() + " elementos");
+                    pasteLabel.setText((clipboardIsCopy ? getString(R.string.copy) + ": " : getString(R.string.move) + ": ") + getString(R.string.items_count, clipboardFiles.size()));
                 }
             }
         } else {
@@ -1207,7 +1207,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void pasteClipboard() {
         if (clipboardFiles.isEmpty() || currentDir == null) {
-            toast("Portapapeles vacio");
+            toast(getString(R.string.clipboard_empty));
             return;
         }
 
@@ -1232,10 +1232,10 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 clipboardFiles.clear();
                 updatePasteBar();
                 if (copiedCount > 0) {
-                    toast((clipboardIsCopy ? "Copiados: " : "Movidos: ") + copiedCount);
+                    toast(getString(clipboardIsCopy ? R.string.copied_result : R.string.moved_result, copiedCount));
                 }
                 if (error != null) {
-                    toast("Algunos elementos no se pudieron pegar: " + error);
+                    toast(getString(R.string.paste_partial_error, error));
                 }
             });
         }).start();
@@ -1245,19 +1245,19 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void moveToTrash(File file) {
         new AlertDialog.Builder(this)
-                .setTitle("Confirmar eliminacion")
-                .setMessage("Mover \"" + file.getName() + "\" a la papelera?")
-                .setPositiveButton("Eliminar", (d, w) -> {
+                .setTitle(R.string.confirm_delete_title)
+                .setMessage(getString(R.string.confirm_delete_single_message, file.getName()))
+                .setPositiveButton(R.string.delete, (d, w) -> {
                     if (TrashManager.moveToTrash(this, file)) {
                         loadDirectory(currentDir);
-                        toast("Movido a papelera");
+                        toast(getString(R.string.moved_to_trash_done));
                     } else {
                         String reason = TrashManager.getLastError();
-                        if (reason == null || reason.trim().isEmpty()) reason = "motivo no disponible";
-                        toast("Error al mover a papelera: " + reason);
+                        if (reason == null || reason.trim().isEmpty()) reason = getString(R.string.unknown_reason);
+                        toast(getString(R.string.error_moving_to_trash, reason));
                     }
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -1279,7 +1279,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             }
 
             startActivity(i);
-        } catch (Exception e) { Log.e(TAG, "openFile", e); toast("No se puede abrir: " + file.getName()); }
+        } catch (Exception e) { Log.e(TAG, "openFile", e); toast(getString(R.string.cannot_open_file, file.getName())); }
     }
 
     private void shareFile(File file) {
@@ -1289,8 +1289,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             i.setType(getMimeType(file));
             i.putExtra(Intent.EXTRA_STREAM, uri);
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(i, "Compartir via..."));
-        } catch (Exception e) { Log.e(TAG, "shareFile", e); toast("Error al compartir"); }
+            startActivity(Intent.createChooser(i, getString(R.string.share_via)));
+        } catch (Exception e) { Log.e(TAG, "shareFile", e); toast(getString(R.string.error_sharing)); }
     }
 
     private String getMimeType(File file) {
@@ -1325,8 +1325,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         wrap.addView(et, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        new AlertDialog.Builder(this).setTitle("Renombrar").setView(wrap)
-            .setPositiveButton("Aceptar", (d, w) -> {
+        new AlertDialog.Builder(this).setTitle(R.string.rename_title).setView(wrap)
+            .setPositiveButton(R.string.accept, (d, w) -> {
                 String n = et.getText().toString().trim();
                 if (!n.isEmpty() && !n.equals(file.getName())) {
                     String oldExt = getExtensionPart(file.getName());
@@ -1334,19 +1334,19 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                     if (!oldExt.isEmpty() && !oldExt.equalsIgnoreCase(newExt)) {
                         String onlyName = replaceNameKeepingOriginalExtension(n, oldExt);
                         new AlertDialog.Builder(this)
-                                .setTitle("La extension ha cambiado")
-                                .setMessage("Quieres cambiar tambien la extension del fichero?")
-                                .setPositiveButton("Nombre y extension", (d2, w2) ->
+                                .setTitle(R.string.extension_changed_title)
+                                .setMessage(R.string.extension_changed_message)
+                                .setPositiveButton(R.string.rename_name_and_extension, (d2, w2) ->
                                         applyRename(file, n, clearSelectionOnSuccess))
-                                .setNeutralButton("Solo nombre", (d2, w2) ->
+                                .setNeutralButton(R.string.rename_only_name, (d2, w2) ->
                                         applyRename(file, onlyName, clearSelectionOnSuccess))
-                                .setNegativeButton("Cancelar", null)
+                                .setNegativeButton(R.string.cancel, null)
                                 .show();
                     } else {
                         applyRename(file, n, clearSelectionOnSuccess);
                     }
                 }
-            }).setNegativeButton("Cancelar", null).show();
+            }).setNegativeButton(R.string.cancel, null).show();
     }
 
     private void applyRename(File source, String newName, boolean clearSelectionOnSuccess) {
@@ -1355,9 +1355,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 exitSelectionMode();
             }
             loadDirectory(currentDir);
-            toast("Renombrado");
+            toast(getString(R.string.renamed));
         } else {
-            toast("Error al renombrar");
+            toast(getString(R.string.rename_error));
         }
     }
 
@@ -1375,26 +1375,28 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void showDetails(FileItem item) {
         File f = item.getFile();
-        new AlertDialog.Builder(this).setTitle("Detalles")
-            .setMessage("Nombre: " + f.getName()
-                + "\nTipo: " + (f.isDirectory() ? "Carpeta" : "Archivo")
-                + "\nTamanyo: " + item.getFormattedSize()
-                + "\nFecha: " + item.getFormattedDate()
-                + "\nRuta: " + f.getAbsolutePath())
-            .setPositiveButton("Cerrar", null).show();
+        String type = f.isDirectory() ? getString(R.string.folder) : getString(R.string.file);
+        new AlertDialog.Builder(this).setTitle(R.string.details_title)
+            .setMessage(getString(R.string.details_message,
+                    f.getName(),
+                    type,
+                    item.getFormattedSize(this),
+                    item.getFormattedDate(),
+                    f.getAbsolutePath()))
+            .setPositiveButton(R.string.close, null).show();
     }
 
     private void showNewFolderDialog() {
         EditText et = new EditText(this);
-        et.setHint("Nombre de la carpeta");
-        new AlertDialog.Builder(this).setTitle("Nueva carpeta").setView(et)
-            .setPositiveButton("Crear", (d, w) -> {
+        et.setHint(R.string.folder_name_hint);
+        new AlertDialog.Builder(this).setTitle(R.string.new_folder).setView(et)
+            .setPositiveButton(R.string.create, (d, w) -> {
                 String n = et.getText().toString().trim();
                 if (!n.isEmpty()) {
-                    if (FileOperations.createDirectory(currentDir, n)) { loadDirectory(currentDir); toast("Carpeta creada"); }
-                    else toast("Error: ya existe o sin permisos");
+                    if (FileOperations.createDirectory(currentDir, n)) { loadDirectory(currentDir); toast(getString(R.string.folder_created)); }
+                    else toast(getString(R.string.folder_create_error));
                 }
-            }).setNegativeButton("Cancelar", null).show();
+            }).setNegativeButton(R.string.cancel, null).show();
     }
 
     private void toggleSearch() {

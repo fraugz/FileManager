@@ -83,14 +83,14 @@ public class TrashActivity extends AppCompatActivity {
 
     private void confirmEmptyTrash() {
         new AlertDialog.Builder(this)
-            .setTitle("Vaciar papelera")
-            .setMessage("Se eliminaran permanentemente " + trashFiles.size() + " archivo(s).")
-            .setPositiveButton("Vaciar", (d, w) -> {
+            .setTitle(R.string.empty_trash_title)
+            .setMessage(getString(R.string.empty_trash_message, trashFiles.size()))
+            .setPositiveButton(R.string.empty_trash, (d, w) -> {
                 TrashManager.emptyTrash(this);
                 loadTrash();
-                android.widget.Toast.makeText(this, "Papelera vaciada", android.widget.Toast.LENGTH_SHORT).show();
+                android.widget.Toast.makeText(this, R.string.trash_emptied, android.widget.Toast.LENGTH_SHORT).show();
             })
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(R.string.cancel, null)
             .show();
     }
 
@@ -117,7 +117,7 @@ public class TrashActivity extends AppCompatActivity {
             File f = entry.getTrashFile();
             FileItem fi = new FileItem(f);
             h.name.setText(entry.getOriginalName());
-            h.size.setText(fi.getFormattedSize() + "  ·  " + fi.getFormattedDate());
+            h.size.setText(fi.getFormattedSize(TrashActivity.this) + "  ·  " + fi.getFormattedDate());
             h.name.setTextColor(isDark ? 0xFFFFFFFF : 0xFF1C1C1E);
             h.size.setTextColor(isDark ? 0xFF888888 : 0xFF6B6B6B);
             h.itemView.setBackgroundColor(isDark ? 0xFF000000 : 0xFFFFFFFF);
@@ -125,14 +125,14 @@ public class TrashActivity extends AppCompatActivity {
             h.itemView.findViewById(R.id.btn_more).setOnClickListener(v -> {
                 new AlertDialog.Builder(TrashActivity.this)
                     .setTitle(entry.getOriginalName())
-                    .setItems(new String[]{"Restaurar", "Eliminar definitivamente"}, (d, w) -> {
+                    .setItems(new String[]{getString(R.string.restore), getString(R.string.delete_forever)}, (d, w) -> {
                         if (w == 0) {
                             if (TrashManager.restore(TrashActivity.this, entry)) {
-                                android.widget.Toast.makeText(TrashActivity.this, "Elemento restaurado", android.widget.Toast.LENGTH_SHORT).show();
+                                android.widget.Toast.makeText(TrashActivity.this, R.string.item_restored, android.widget.Toast.LENGTH_SHORT).show();
                             } else {
                                 String reason = TrashManager.getLastError();
-                                if (reason == null || reason.trim().isEmpty()) reason = "motivo no disponible";
-                                android.widget.Toast.makeText(TrashActivity.this, "No se pudo restaurar: " + reason, android.widget.Toast.LENGTH_LONG).show();
+                                if (reason == null || reason.trim().isEmpty()) reason = getString(R.string.unknown_reason);
+                                android.widget.Toast.makeText(TrashActivity.this, getString(R.string.restore) + ": " + reason, android.widget.Toast.LENGTH_LONG).show();
                             }
                         } else {
                             TrashManager.deleteEntry(entry);

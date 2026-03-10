@@ -16,10 +16,11 @@ public class CrashActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeManager.apply(this);
         super.onCreate(savedInstanceState);
 
         String error = getIntent().getStringExtra("error");
-        if (error == null) error = "Error desconocido";
+        if (error == null) error = getString(R.string.crash_unknown_error);
 
         // Build UI programmatically (no layout dependency)
         LinearLayout root = new LinearLayout(this);
@@ -28,7 +29,7 @@ public class CrashActivity extends AppCompatActivity {
         root.setPadding(32, 64, 32, 32);
 
         TextView title = new TextView(this);
-        title.setText("La app encontro un error");
+        title.setText(R.string.crash_title);
         title.setTextColor(0xFFFF453A);
         title.setTextSize(20);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -36,7 +37,7 @@ public class CrashActivity extends AppCompatActivity {
         root.addView(title);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("Copia el error y reportalo para ayudar a solucionarlo:");
+        subtitle.setText(R.string.crash_subtitle);
         subtitle.setTextColor(0xFF999999);
         subtitle.setTextSize(14);
         subtitle.setPadding(0, 0, 0, 16);
@@ -63,7 +64,7 @@ public class CrashActivity extends AppCompatActivity {
 
         final String finalError = error;
         Button btnCopy = new Button(this);
-        btnCopy.setText("Copiar error");
+        btnCopy.setText(R.string.copy_error);
         btnCopy.setTextColor(0xFFFFFFFF);
         btnCopy.setBackgroundColor(0xFF2C2C2E);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
@@ -73,12 +74,12 @@ public class CrashActivity extends AppCompatActivity {
         btnCopy.setOnClickListener(v -> {
             ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             cm.setPrimaryClip(ClipData.newPlainText("error", finalError));
-            Toast.makeText(this, "Error copiado al portapapeles", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.error_copied, Toast.LENGTH_SHORT).show();
         });
         btns.addView(btnCopy);
 
         Button btnRestart = new Button(this);
-        btnRestart.setText("Reiniciar");
+        btnRestart.setText(R.string.restart);
         btnRestart.setTextColor(0xFFFFFFFF);
         btnRestart.setBackgroundColor(0xFF1E88E5);
         btnRestart.setLayoutParams(new LinearLayout.LayoutParams(0,

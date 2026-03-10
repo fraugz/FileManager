@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FileManager</string>
+    <string name="back">Volver</string>
+    <string name="close">Cerrar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="delete">Eliminar</string>
+
+    <string name="settings">Ajustes</string>
+    <string name="customize">Personaliza</string>
+    <string name="appearance_upper">APARIENCIA</string>
+    <string name="about_upper">ACERCA DE</string>
+    <string name="version">Version</string>
+
+    <string name="theme_title">Tema</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="theme_light">Claro</string>
+
+    <string name="ui_scale_title">Tamano de interfaz</string>
+    <string name="ui_scale_small">Pequeno</string>
+    <string name="ui_scale_normal">Normal</string>
+    <string name="ui_scale_large">Grande</string>
+    <string name="ui_scale_xlarge">Muy grande</string>
+
+    <string name="language_title">Idioma</string>
+    <string name="language_spanish">Espanol</string>
+    <string name="language_english">Ingles</string>
+
+    <string name="default_apps_title">Apps por defecto</string>
+    <string name="default_apps_none">Sin apps guardadas</string>
+    <string name="default_apps_count">%1$d app(s) guardada(s)</string>
+    <string name="default_apps_empty_message">Aun no se han detectado apps abiertas por defecto.</string>
+    <string name="clear_all">Limpiar todas</string>
+    <string name="confirm_clear_title">Confirmar limpieza</string>
+    <string name="confirm_clear_message">Se eliminaran todas las apps guardadas. Quieres continuar?</string>
+    <string name="change_app">Cambiar app</string>
+    <string name="no_apps_found">No se encontraron apps instaladas para seleccionar.</string>
+
+    <string name="storage">Almacenamiento</string>
+    <string name="internal_storage">Almacenamiento interno</string>
+    <string name="recent">Recientes</string>
+    <string name="search_files">Buscar archivos...</string>
+    <string name="filter">Filtrar</string>
+    <string name="searching">Buscando...</string>
+    <string name="loading">Cargando...</string>
+    <string name="empty_folder">Esta carpeta esta vacia</string>
+    <string name="recent_empty">Los ficheros recientes apareceran aqui</string>
+    <string name="paste">Pegar</string>
+    <string name="send">Enviar</string>
+    <string name="move">Mover</string>
+    <string name="copy">Copiar</string>
+    <string name="rename">Renombrar</string>
+    <string name="select_all">Seleccionar todo</string>
+    <string name="open">Abrir</string>
+    <string name="cut">Cortar</string>
+    <string name="share">Compartir</string>
+    <string name="details">Detalles</string>
+    <string name="options">Opciones</string>
+    <string name="collapse">Colapsar</string>
+    <string name="move_to_trash">Mover a papelera</string>
+    <string name="name">Nombre</string>
+    <string name="date">Fecha</string>
+    <string name="size">Tamano</string>
+    <string name="new_folder">Nueva carpeta</string>
+    <string name="folder_name_hint">Nombre de la carpeta</string>
+    <string name="create">Crear</string>
+    <string name="accept">Aceptar</string>
+    <string name="allow">Conceder</string>
+    <string name="read_only">Solo lectura</string>
+    <string name="required_permission">Permiso necesario</string>
+    <string name="full_storage_permission_message">Esta app necesita acceso completo al almacenamiento.</string>
+
+    <string name="trash">Papelera</string>
+    <string name="empty_trash">Vaciar</string>
+    <string name="trash_empty">La papelera esta vacia</string>
+    <string name="empty_trash_title">Vaciar papelera</string>
+    <string name="empty_trash_message">Se eliminaran permanentemente %1$d archivo(s).</string>
+    <string name="trash_emptied">Papelera vaciada</string>
+    <string name="item_restored">Elemento restaurado</string>
+    <string name="restore">Restaurar</string>
+    <string name="delete_forever">Eliminar definitivamente</string>
+
+    <string name="crash_unknown_error">Error desconocido</string>
+    <string name="crash_title">La app encontro un error</string>
+    <string name="crash_subtitle">Copia el error y reportalo para ayudar a solucionarlo:</string>
+    <string name="copy_error">Copiar error</string>
+    <string name="error_copied">Error copiado al portapapeles</string>
+    <string name="restart">Reiniciar</string>
+
+    <string name="items_count">%1$d elemento(s)</string>
+    <string name="today">Hoy</string>
+    <string name="unknown_reason">motivo no disponible</string>
+    <string name="error_with_reason">Error: %1$s</string>
+    <string name="error_loading_storage">Error cargando almacenamiento: %1$s</string>
+    <string name="error_loading_folder">Error cargando carpeta: %1$s</string>
+    <string name="search_cancelled">Busqueda cancelada</string>
+    <string name="no_items_selected">No hay elementos seleccionados</string>
+    <string name="move_prepared">Mover preparado: %1$d</string>
+    <string name="copied_count">Copiado: %1$d</string>
+    <string name="cut_count">Cortado: %1$d</string>
+    <string name="select_single_for_rename">Selecciona solo 1 elemento para renombrar</string>
+    <string name="confirm_delete_title">Confirmar eliminacion</string>
+    <string name="confirm_delete_selected_message">Mover %1$d elemento(s) a la papelera?</string>
+    <string name="confirm_delete_single_message">Mover \"%1$s\" a la papelera?</string>
+    <string name="moved_to_trash_count">Movidos a papelera: %1$d</string>
+    <string name="moved_partial_error">Movidos %1$d de %2$d. Error: %3$s</string>
+    <string name="only_files_can_be_shared">Solo se pueden compartir archivos</string>
+    <string name="share_via">Compartir via...</string>
+    <string name="error_sharing_selection">Error al compartir seleccion</string>
+    <string name="copied_simple">Copiado</string>
+    <string name="cut_simple">Cortado</string>
+    <string name="moved_count">Movidos: %1$d</string>
+    <string name="clipboard_empty">Portapapeles vacio</string>
+    <string name="copied_result">Copiados: %1$d</string>
+    <string name="moved_result">Movidos: %1$d</string>
+    <string name="paste_partial_error">Algunos elementos no se pudieron pegar: %1$s</string>
+    <string name="moved_to_trash_done">Movido a papelera</string>
+    <string name="error_moving_to_trash">Error al mover a papelera: %1$s</string>
+    <string name="cannot_open_file">No se puede abrir: %1$s</string>
+    <string name="error_sharing">Error al compartir</string>
+    <string name="rename_title">Renombrar</string>
+    <string name="extension_changed_title">La extension ha cambiado</string>
+    <string name="extension_changed_message">Quieres cambiar tambien la extension del fichero?</string>
+    <string name="rename_name_and_extension">Nombre y extension</string>
+    <string name="rename_only_name">Solo nombre</string>
+    <string name="renamed">Renombrado</string>
+    <string name="rename_error">Error al renombrar</string>
+    <string name="details_title">Detalles</string>
+    <string name="details_message">Nombre: %1$s\nTipo: %2$s\nTamano: %3$s\nFecha: %4$s\nRuta: %5$s</string>
+    <string name="folder">Carpeta</string>
+    <string name="file">Archivo</string>
+    <string name="folder_created">Carpeta creada</string>
+    <string name="folder_create_error">Error: ya existe o sin permisos</string>
+    <string name="internal_short">Interno</string>
+</resources>

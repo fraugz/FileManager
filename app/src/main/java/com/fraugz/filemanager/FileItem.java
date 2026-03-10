@@ -1,5 +1,7 @@
 package com.fraugz.filemanager;
 
+import android.content.Context;
+
 import java.io.File;
 
 public class FileItem {
@@ -24,10 +26,17 @@ public class FileItem {
     }
 
     public String getFormattedSize() {
+        return getFormattedSize(null);
+    }
+
+    public String getFormattedSize(Context context) {
         if (file.isDirectory()) {
             String[] children = file.list();
             int count = (children != null) ? children.length : 0;
-            return count + " elemento" + (count != 1 ? "s" : "");
+            if (context != null) {
+                return context.getString(R.string.items_count, count);
+            }
+            return count + " item(s)";
         }
         long size = file.length();
         if (size < 1024) return size + " B";

@@ -39,6 +39,6 @@
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/ic_more_vert"
         android:tint="#555555"
-        android:contentDescription="Opciones"/>
+        android:contentDescription="@string/options"/>
 
 </LinearLayout>

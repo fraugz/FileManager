@@ -20,22 +20,22 @@
             android:layout_width="44dp" android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_search"
-            android:tint="#FFFFFF" android:contentDescription="Buscar"/>
+            android:tint="#FFFFFF" android:contentDescription="@string/search_files"/>
         <ImageButton android:id="@+id/btn_filter"
             android:layout_width="44dp" android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_filter"
-            android:tint="#FFFFFF" android:contentDescription="Filtrar"/>
+            android:tint="#FFFFFF" android:contentDescription="@string/filter"/>
         <ImageButton android:id="@+id/btn_trash"
             android:layout_width="44dp" android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_trash"
-            android:tint="#FFFFFF" android:contentDescription="Papelera"/>
+            android:tint="#FFFFFF" android:contentDescription="@string/trash"/>
         <ImageButton android:id="@+id/btn_overflow"
             android:layout_width="44dp" android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_settings"
-            android:tint="#FFFFFF" android:contentDescription="Ajustes"/>
+            android:tint="#FFFFFF" android:contentDescription="@string/settings"/>
     </LinearLayout>
 
     <!-- Search bar -->
@@ -47,7 +47,7 @@
         <EditText android:id="@+id/search_input"
             android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1"
             android:background="@drawable/bg_search_dark"
-            android:hint="Buscar archivos..."
+            android:hint="@string/search_files"
             android:textColor="#FFFFFF"
             android:imeOptions="actionSearch" android:inputType="text"
             android:paddingStart="12dp" android:paddingEnd="12dp"
@@ -65,7 +65,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
-            android:text="Buscando..."
+            android:text="@string/searching"
             android:textColor="#888888"
             android:textSize="12sp"
             android:visibility="gone"/>
@@ -76,7 +76,7 @@
             android:layout_marginStart="10dp"
             android:paddingStart="6dp"
             android:paddingEnd="6dp"
-            android:text="Cancelar"
+            android:text="@string/cancel"
             android:textColor="#1E88E5"
             android:textSize="13sp"
             android:textStyle="bold"
@@ -101,7 +101,7 @@
             <TextView android:id="@+id/page_title"
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:layout_marginStart="20dp" android:layout_marginTop="6dp"
-                android:layout_marginBottom="4dp" android:text="Almacenamiento"
+                android:layout_marginBottom="4dp" android:text="@string/storage"
                 android:textColor="#FFFFFF" android:textSize="30sp" android:textStyle="bold"/>
 
             <!-- Section header row -->
@@ -111,14 +111,14 @@
                 android:paddingStart="20dp" android:paddingEnd="8dp">
                 <TextView android:id="@+id/section_header_label"
                     android:layout_width="0dp" android:layout_height="wrap_content"
-                    android:layout_weight="1" android:text="Almacenamiento interno"
+                    android:layout_weight="1" android:text="@string/internal_storage"
                     android:textColor="#1E88E5" android:textSize="13sp" android:textStyle="bold"
                     android:ellipsize="end" android:maxLines="1"/>
                 <ImageButton android:id="@+id/btn_new_folder_inline"
                     android:layout_width="38dp" android:layout_height="38dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_add_folder" android:tint="#FFFFFF"
-                    android:contentDescription="Nueva carpeta"/>
+                    android:contentDescription="@string/new_folder"/>
             </LinearLayout>
 
             <!-- Breadcrumb -->
@@ -138,7 +138,7 @@
                 android:paddingStart="20dp"
                 android:paddingEnd="16dp"
                 android:paddingBottom="6dp"
-                android:text="Cargando..."
+                android:text="@string/loading"
                 android:textColor="#888888"
                 android:textSize="12sp"
                 android:visibility="gone"/>
@@ -159,7 +159,7 @@
                 <Button android:id="@+id/btn_paste"
                     android:layout_width="wrap_content" android:layout_height="36dp"
                     android:layout_gravity="center_vertical"
-                    android:text="Pegar" android:textColor="#FFFFFF" android:textSize="13sp"
+                    android:text="@string/paste" android:textColor="#FFFFFF" android:textSize="13sp"
                     android:textAllCaps="false"
                     android:minHeight="0dp"
                     android:background="@drawable/bg_paste_btn"
@@ -170,7 +170,7 @@
                     android:layout_width="36dp" android:layout_height="36dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@android:drawable/ic_menu_close_clear_cancel"
-                    android:tint="#666666" android:contentDescription="Cancelar"/>
+                    android:tint="#666666" android:contentDescription="@string/cancel"/>
             </LinearLayout>
 
             <!-- FrameLayout: RecyclerView + empty state overlap correctly -->
@@ -197,7 +197,7 @@
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="&#128193;" android:textSize="56sp"/>
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp" android:text="Esta carpeta esta vacia"
+                        android:layout_marginTop="8dp" android:text="@string/empty_folder"
                         android:textColor="#666666" android:textSize="15sp"/>
                 </LinearLayout>
 
@@ -212,7 +212,7 @@
 
             <TextView android:id="@+id/recent_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:layout_marginStart="20dp" android:layout_marginTop="6dp"
-                android:layout_marginBottom="8dp" android:text="Recientes"
+                android:layout_marginBottom="8dp" android:text="@string/recent"
                 android:textColor="#FFFFFF" android:textSize="30sp" android:textStyle="bold"/>
 
             <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
@@ -225,7 +225,7 @@
                         android:text="&#128337;" android:textSize="64sp"/>
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="Los ficheros recientes apareceran aqui"
+                        android:text="@string/recent_empty"
                         android:textColor="#666666" android:textSize="15sp" android:gravity="center"
                         android:paddingStart="40dp" android:paddingEnd="40dp"/>
                 </LinearLayout>
@@ -271,7 +271,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Enviar"
+                android:text="@string/send"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp"/>
         </LinearLayout>
@@ -295,7 +295,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Mover"
+                android:text="@string/move"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp"/>
         </LinearLayout>
@@ -319,7 +319,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Copiar"
+                android:text="@string/copy"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp"/>
         </LinearLayout>
@@ -343,7 +343,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Eliminar"
+                android:text="@string/delete"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp"/>
         </LinearLayout>
@@ -367,7 +367,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Renombrar"
+                android:text="@string/rename"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp"/>
         </LinearLayout>
@@ -401,7 +401,7 @@
                 android:id="@+id/tab_recent_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Recientes"
+                android:text="@string/recent"
                 android:textSize="10sp"
                 android:textColor="#666666"
                 android:layout_marginTop="2dp"/>
@@ -426,7 +426,7 @@
                 android:id="@+id/tab_storage_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Almacenamiento"
+                android:text="@string/storage"
                 android:textSize="10sp"
                 android:textColor="#1E88E5"
                 android:layout_marginTop="2dp"/>

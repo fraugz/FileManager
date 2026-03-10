@@ -30,6 +30,7 @@ public class ThemeManager {
      * need to override when the user chose Light.
      */
     public static void apply(Activity activity) {
+        LocaleManager.apply(activity);
         if (getTheme(activity) == THEME_LIGHT) {
             activity.setTheme(R.style.AppTheme_Light);
         }
@@ -37,7 +38,9 @@ public class ThemeManager {
     }
 
     public static String getThemeName(Context ctx) {
-        return getTheme(ctx) == THEME_LIGHT ? "Claro" : "Oscuro";
+        return getTheme(ctx) == THEME_LIGHT
+            ? ctx.getString(R.string.theme_light)
+            : ctx.getString(R.string.theme_dark);
     }
 
     public static float getUiScale(Context ctx) {
@@ -56,10 +59,10 @@ public class ThemeManager {
 
     public static String getUiScaleName(Context ctx) {
         float scale = getUiScale(ctx);
-        if (scale <= 0.95f) return "Pequeno";
-        if (scale <= 1.07f) return "Normal";
-        if (scale <= 1.20f) return "Grande";
-        return "Muy grande";
+        if (scale <= 0.95f) return ctx.getString(R.string.ui_scale_small);
+        if (scale <= 1.07f) return ctx.getString(R.string.ui_scale_normal);
+        if (scale <= 1.20f) return ctx.getString(R.string.ui_scale_large);
+        return ctx.getString(R.string.ui_scale_xlarge);
     }
 }
 

@@ -21,13 +21,13 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_arrow_back"
             android:tint="?android:attr/textColorPrimary"
-            android:contentDescription="Volver"/>
+            android:contentDescription="@string/back"/>
         <TextView
             android:id="@+id/settings_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="Ajustes"
+            android:text="@string/settings"
             android:textColor="?android:attr/textColorPrimary"
             android:textSize="20sp"
             android:textStyle="bold"/>
@@ -42,7 +42,7 @@
                 android:paddingTop="2dp"
                 android:paddingEnd="8dp"
                 android:paddingBottom="2dp"
-                android:text="Personaliza"
+                android:text="@string/customize"
                 android:textColor="?android:attr/textColorSecondary"
                 android:textSize="11sp"/>
     </LinearLayout>
@@ -61,7 +61,7 @@
             android:paddingEnd="14dp"
             android:paddingBottom="24dp">
 
-            <!-- Section: Apariencia -->
+            <!-- Section: Appearance -->
             <TextView
                 android:id="@+id/label_appearance"
                 android:layout_width="match_parent"
@@ -69,7 +69,7 @@
                 android:paddingStart="20dp"
                 android:paddingTop="20dp"
                 android:paddingBottom="8dp"
-                android:text="APARIENCIA"
+                android:text="@string/appearance_upper"
                 android:textColor="?attr/colorPrimary"
                 android:textSize="12sp"
                 android:textStyle="bold"
@@ -102,14 +102,14 @@
                         android:id="@+id/theme_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Tema"
+                        android:text="@string/theme_title"
                         android:textColor="?android:attr/textColorPrimary"
                         android:textSize="15sp"/>
                     <TextView
                         android:id="@+id/theme_subtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Oscuro"
+                        android:text="@string/theme_dark"
                         android:textColor="?android:attr/textColorSecondary"
                         android:textSize="13sp"/>
                 </LinearLayout>
@@ -147,14 +147,14 @@
                         android:id="@+id/ui_scale_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Tamano de interfaz"
+                        android:text="@string/ui_scale_title"
                         android:textColor="?android:attr/textColorPrimary"
                         android:textSize="15sp"/>
                     <TextView
                         android:id="@+id/ui_scale_subtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Normal"
+                        android:text="@string/ui_scale_normal"
                         android:textColor="?android:attr/textColorSecondary"
                         android:textSize="13sp"/>
                 </LinearLayout>
@@ -167,10 +167,56 @@
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/row_default_apps"
+                android:id="@+id/row_language"
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:layout_marginTop="12dp"
+                android:layout_marginBottom="4dp"
+                android:background="@drawable/bg_settings_card"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp">
+                <ImageView
+                    android:id="@+id/language_icon"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginEnd="16dp"
+                    android:src="@drawable/ic_theme"
+                    android:tint="?android:attr/textColorPrimary"/>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:id="@+id/language_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/language_title"
+                        android:textColor="?android:attr/textColorPrimary"
+                        android:textSize="15sp"/>
+                    <TextView
+                        android:id="@+id/language_subtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/language_english"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:textSize="13sp"/>
+                </LinearLayout>
+                <ImageView
+                    android:id="@+id/language_chevron"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_chevron_right"
+                    android:tint="?android:attr/textColorSecondary"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/row_default_apps"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:layout_marginTop="8dp"
                 android:layout_marginBottom="4dp"
                 android:background="@drawable/bg_settings_card"
                 android:gravity="center_vertical"
@@ -193,14 +239,14 @@
                         android:id="@+id/default_apps_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Apps por defecto"
+                        android:text="@string/default_apps_title"
                         android:textColor="?android:attr/textColorPrimary"
                         android:textSize="15sp"/>
                     <TextView
                         android:id="@+id/default_apps_subtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Sin apps registradas"
+                        android:text="@string/default_apps_none"
                         android:textColor="?android:attr/textColorSecondary"
                         android:textSize="13sp"/>
                 </LinearLayout>
@@ -212,7 +258,7 @@
                     android:tint="?android:attr/textColorSecondary"/>
             </LinearLayout>
 
-            <!-- Section: Acerca de -->
+            <!-- Section: About -->
             <TextView
                 android:id="@+id/label_about"
                 android:layout_width="match_parent"
@@ -220,7 +266,7 @@
                 android:paddingStart="20dp"
                 android:paddingTop="24dp"
                 android:paddingBottom="8dp"
-                android:text="ACERCA DE"
+                android:text="@string/about_upper"
                 android:textColor="?attr/colorPrimary"
                 android:textSize="12sp"
                 android:textStyle="bold"
@@ -237,7 +283,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Versión"
+                    android:text="@string/version"
                     android:textColor="?android:attr/textColorPrimary"
                     android:textSize="15sp"/>
                 <TextView

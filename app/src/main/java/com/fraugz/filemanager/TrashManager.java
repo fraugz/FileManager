@@ -56,11 +56,11 @@ public class TrashManager {
     public static boolean moveToTrash(Context ctx, File file) {
         setLastError("");
         if (file == null) {
-            setLastError("El elemento es nulo.");
+            setLastError("The item is null.");
             return false;
         }
         if (!file.exists()) {
-            setLastError("El elemento ya no existe.");
+            setLastError("The item no longer exists.");
             return false;
         }
 
@@ -86,18 +86,18 @@ public class TrashManager {
                     copyFile(file, dest);
                 }
                 if (!dest.exists() || !FileOperations.delete(file)) {
-                    setLastError("No se pudo eliminar el elemento original tras copiarlo a la papelera.");
+                    setLastError("Could not delete the original item after copying it to trash.");
                     return false;
                 }
             } catch (Exception e) {
-                setLastError("Error moviendo a papelera: " + e.getMessage());
+                setLastError("Error moving to trash: " + e.getMessage());
                 return false;
             }
         }
 
         boolean ok = writeMetadata(dest, file.getAbsolutePath(), file.getName(), System.currentTimeMillis());
         if (!ok && getLastError().isEmpty()) {
-            setLastError("No se pudo guardar la metadata de la papelera.");
+            setLastError("Could not save trash metadata.");
         }
         return ok;
     }
@@ -105,18 +105,18 @@ public class TrashManager {
     public static boolean restore(Context ctx, TrashEntry entry) {
         setLastError("");
         if (entry == null || entry.getTrashFile() == null) {
-            setLastError("Entrada de papelera invalida.");
+            setLastError("Invalid trash entry.");
             return false;
         }
         if (!entry.getTrashFile().exists()) {
-            setLastError("El elemento en papelera ya no existe.");
+            setLastError("The item in trash no longer exists.");
             return false;
         }
 
         File target = new File(entry.getOriginalPath());
         File parent = target.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) {
-            setLastError("No se pudo crear la carpeta de destino: " + parent.getAbsolutePath());
+            setLastError("Could not create destination folder: " + parent.getAbsolutePath());
             return false;
         }
 
@@ -136,16 +136,16 @@ public class TrashManager {
                 }
                 restored = FileOperations.delete(source);
                 if (!restored) {
-                    setLastError("Restaurado por copia, pero no se pudo limpiar el elemento en papelera.");
+                    setLastError("Restored by copy, but could not clean the item in trash.");
                 }
             } catch (Exception e) {
-                setLastError("Error al restaurar: " + e.getMessage());
+                setLastError("Error restoring: " + e.getMessage());
                 restored = false;
             }
         }
 
         if (!restored && getLastError().isEmpty()) {
-            setLastError("No se pudo mover ni copiar el elemento al destino original.");
+            setLastError("Could not move or copy the item to the original destination.");
         }
 
         if (restored) {
@@ -233,7 +233,7 @@ public class TrashManager {
             return true;
         } catch (IOException e) {
             FileOperations.delete(trashedFile);
-            setLastError("No se pudo guardar metadata: " + e.getMessage());
+            setLastError("Could not save metadata: " + e.getMessage());
             return false;
         }
     }
@@ -272,7 +272,7 @@ public class TrashManager {
 
     private static void copyDirectory(File src, File dst) throws IOException {
         if (!dst.exists() && !dst.mkdirs()) {
-            throw new IOException("No se pudo crear carpeta destino: " + dst.getAbsolutePath());
+            throw new IOException("Could not create destination folder: " + dst.getAbsolutePath());
         }
 
         File[] children = src.listFiles();

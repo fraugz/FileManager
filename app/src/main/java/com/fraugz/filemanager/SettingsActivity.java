@@ -18,6 +18,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private TextView themeSubtitle;
     private TextView uiScaleSubtitle;
+    private TextView languageSubtitle;
     private TextView defaultAppsSubtitle;
 
     private static class AppChoice {
@@ -38,10 +39,12 @@ public class SettingsActivity extends AppCompatActivity {
 
         themeSubtitle = findViewById(R.id.theme_subtitle);
         uiScaleSubtitle = findViewById(R.id.ui_scale_subtitle);
+        languageSubtitle = findViewById(R.id.language_subtitle);
         defaultAppsSubtitle = findViewById(R.id.default_apps_subtitle);
 
         themeSubtitle.setText(ThemeManager.getThemeName(this));
         uiScaleSubtitle.setText(ThemeManager.getUiScaleName(this));
+        languageSubtitle.setText(LocaleManager.getLanguageDisplayName(this));
         updateDefaultAppsSubtitle();
         applyUiScalePreview();
 
@@ -50,10 +53,10 @@ public class SettingsActivity extends AppCompatActivity {
 
         // Theme selector
         findViewById(R.id.row_theme).setOnClickListener(v -> {
-            String[] options = {"Oscuro", "Claro"};
+            String[] options = {getString(R.string.theme_dark), getString(R.string.theme_light)};
             int current = ThemeManager.getTheme(this);
             new AlertDialog.Builder(this)
-                .setTitle("Tema")
+                .setTitle(R.string.theme_title)
                 .setSingleChoiceItems(options, current, (d, which) -> {
                     ThemeManager.setTheme(this, which);
                     d.dismiss();
@@ -63,11 +66,12 @@ public class SettingsActivity extends AppCompatActivity {
                     startActivity(intent);
                     finish();
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
         });
 
         findViewById(R.id.row_ui_scale).setOnClickListener(v -> showUiScaleDialog());
+            findViewById(R.id.row_language).setOnClickListener(v -> showLanguageDialog());
         findViewById(R.id.row_default_apps).setOnClickListener(v -> showDefaultAppsDialog());
 
     }
@@ -75,11 +79,19 @@ public class SettingsActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (languageSubtitle != null) {
+            languageSubtitle.setText(LocaleManager.getLanguageDisplayName(this));
+        }
         updateDefaultAppsSubtitle();
     }
 
     private void showUiScaleDialog() {
-        String[] labels = {"Pequeno", "Normal", "Grande", "Muy grande"};
+        String[] labels = {
+            getString(R.string.ui_scale_small),
+            getString(R.string.ui_scale_normal),
+            getString(R.string.ui_scale_large),
+            getString(R.string.ui_scale_xlarge)
+        };
         float[] scales = {0.90f, 1.00f, 1.15f, 1.30f};
         float currentScale = ThemeManager.getUiScale(this);
         int currentIndex = 1;
@@ -92,13 +104,30 @@ public class SettingsActivity extends AppCompatActivity {
 
         final int selectedIndex = currentIndex;
         new AlertDialog.Builder(this)
-                .setTitle("Tamano de interfaz")
+                .setTitle(R.string.ui_scale_title)
                 .setSingleChoiceItems(labels, selectedIndex, (dialog, which) -> {
                     ThemeManager.setUiScale(this, scales[which]);
                     dialog.dismiss();
                     restartToApplyUiScale();
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void showLanguageDialog() {
+        String[] labels = {getString(R.string.language_spanish), getString(R.string.language_english)};
+        String current = LocaleManager.resolveLanguage(this);
+        int selected = LocaleManager.LANG_ES.equals(current) ? 0 : 1;
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.language_title)
+                .setSingleChoiceItems(labels, selected, (dialog, which) -> {
+                    String target = which == 0 ? LocaleManager.LANG_ES : LocaleManager.LANG_EN;
+                    LocaleManager.setLanguage(this, target);
+                    dialog.dismiss();
+                    restartToApplyUiScale();
+                })
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -118,6 +147,7 @@ public class SettingsActivity extends AppCompatActivity {
         TextView about = findViewById(R.id.label_about);
         TextView themeTitle = findViewById(R.id.theme_title);
         TextView uiScaleTitle = findViewById(R.id.ui_scale_title);
+        TextView languageTitle = findViewById(R.id.language_title);
         TextView defaultAppsTitle = findViewById(R.id.default_apps_title);
 
         if (title != null) title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f * scale);
@@ -128,12 +158,15 @@ public class SettingsActivity extends AppCompatActivity {
         if (themeSubtitle != null) themeSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
         if (uiScaleTitle != null) uiScaleTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * scale);
         if (uiScaleSubtitle != null) uiScaleSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
+        if (languageTitle != null) languageTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * scale);
+        if (languageSubtitle != null) languageSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
         if (defaultAppsTitle != null) defaultAppsTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * scale);
         if (defaultAppsSubtitle != null) defaultAppsSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
 
         setSquareSize(findViewById(R.id.btn_back), dp(48f * scale));
         setSquareSize(findViewById(R.id.theme_icon), dp(28f * scale));
         setSquareSize(findViewById(R.id.ui_scale_icon), dp(28f * scale));
+        setSquareSize(findViewById(R.id.language_icon), dp(28f * scale));
         setSquareSize(findViewById(R.id.default_apps_icon), dp(28f * scale));
     }
 
@@ -141,19 +174,19 @@ public class SettingsActivity extends AppCompatActivity {
         if (defaultAppsSubtitle == null) return;
         int count = DefaultAppsManager.getEntries(this).size();
         if (count == 0) {
-            defaultAppsSubtitle.setText("Sin apps registradas");
+            defaultAppsSubtitle.setText(R.string.default_apps_none);
         } else {
-            defaultAppsSubtitle.setText(count + " app" + (count == 1 ? "" : "s") + " guardada" + (count == 1 ? "" : "s"));
+            defaultAppsSubtitle.setText(getString(R.string.default_apps_count, count));
         }
     }
 
     private void showDefaultAppsDialog() {
         List<String> entries = DefaultAppsManager.getEntries(this);
         if (entries.isEmpty()) {
-            new AlertDialog.Builder(this)
-                    .setTitle("Apps por defecto")
-                    .setMessage("Aun no se han detectado apps abiertas por defecto.")
-                    .setPositiveButton("Cerrar", null)
+                new AlertDialog.Builder(this)
+                    .setTitle(R.string.default_apps_title)
+                    .setMessage(R.string.default_apps_empty_message)
+                    .setPositiveButton(R.string.close, null)
                     .show();
             return;
         }
@@ -171,22 +204,22 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         new AlertDialog.Builder(this)
-                .setTitle("Apps por defecto")
+            .setTitle(R.string.default_apps_title)
                 .setItems(labels.toArray(new String[0]), (d, which) -> showDefaultAppItemActions(entries.get(which)))
-                .setNeutralButton("Limpiar todas", (d, w) -> confirmClearAllDefaultApps())
-                .setPositiveButton("Cerrar", null)
+            .setNeutralButton(R.string.clear_all, (d, w) -> confirmClearAllDefaultApps())
+            .setPositiveButton(R.string.close, null)
                 .show();
     }
 
     private void confirmClearAllDefaultApps() {
         new AlertDialog.Builder(this)
-                .setTitle("Confirmar limpieza")
-                .setMessage("Se eliminaran todas las apps guardadas. Quieres continuar?")
-                .setPositiveButton("Limpiar todas", (d, w) -> {
+                .setTitle(R.string.confirm_clear_title)
+                .setMessage(R.string.confirm_clear_message)
+                .setPositiveButton(R.string.clear_all, (d, w) -> {
                     DefaultAppsManager.clear(this);
                     updateDefaultAppsSubtitle();
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -195,7 +228,7 @@ public class SettingsActivity extends AppCompatActivity {
         String pkg = sep >= 0 ? entry.substring(0, sep) : entry;
         String label = (sep >= 0 && sep < entry.length() - 1) ? entry.substring(sep + 1) : pkg;
 
-        String[] options = {"Cambiar app", "Eliminar"};
+        String[] options = {getString(R.string.change_app), getString(R.string.delete)};
         new AlertDialog.Builder(this)
                 .setTitle(label)
                 .setItems(options, (d, which) -> {
@@ -207,7 +240,7 @@ public class SettingsActivity extends AppCompatActivity {
                         showDefaultAppsDialog();
                     }
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -215,9 +248,9 @@ public class SettingsActivity extends AppCompatActivity {
         List<AppChoice> candidates = getInstalledLaunchableApps();
         if (candidates.isEmpty()) {
             new AlertDialog.Builder(this)
-                    .setTitle("Cambiar app")
-                    .setMessage("No se encontraron apps instaladas para seleccionar.")
-                    .setPositiveButton("Cerrar", null)
+                    .setTitle(R.string.change_app)
+                    .setMessage(R.string.no_apps_found)
+                    .setPositiveButton(R.string.close, null)
                     .show();
             return;
         }
@@ -234,7 +267,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         final int currentIndex = preselect;
         new AlertDialog.Builder(this)
-                .setTitle("Cambiar app")
+                .setTitle(R.string.change_app)
                 .setSingleChoiceItems(labels, currentIndex, (d, which) -> {
                     AppChoice selected = candidates.get(which);
                     DefaultAppsManager.replacePackage(this, oldPackageName, selected.packageName, selected.label);
@@ -242,7 +275,7 @@ public class SettingsActivity extends AppCompatActivity {
                     d.dismiss();
                     showDefaultAppsDialog();
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 

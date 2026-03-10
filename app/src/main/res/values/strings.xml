@@ -1,4 +1,135 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FileManager</string>
+    <string name="back">Back</string>
+    <string name="close">Close</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+
+    <string name="settings">Settings</string>
+    <string name="customize">Customize</string>
+    <string name="appearance_upper">APPEARANCE</string>
+    <string name="about_upper">ABOUT</string>
+    <string name="version">Version</string>
+
+    <string name="theme_title">Theme</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light">Light</string>
+
+    <string name="ui_scale_title">Interface size</string>
+    <string name="ui_scale_small">Small</string>
+    <string name="ui_scale_normal">Normal</string>
+    <string name="ui_scale_large">Large</string>
+    <string name="ui_scale_xlarge">Extra large</string>
+
+    <string name="language_title">Language</string>
+    <string name="language_spanish">Spanish</string>
+    <string name="language_english">English</string>
+
+    <string name="default_apps_title">Default apps</string>
+    <string name="default_apps_none">No apps saved</string>
+    <string name="default_apps_count">%1$d app(s) saved</string>
+    <string name="default_apps_empty_message">No default opened apps have been detected yet.</string>
+    <string name="clear_all">Clear all</string>
+    <string name="confirm_clear_title">Confirm clear</string>
+    <string name="confirm_clear_message">All saved apps will be removed. Continue?</string>
+    <string name="change_app">Change app</string>
+    <string name="no_apps_found">No installed apps were found to select.</string>
+
+    <string name="storage">Storage</string>
+    <string name="internal_storage">Internal storage</string>
+    <string name="recent">Recent</string>
+    <string name="search_files">Search files...</string>
+    <string name="filter">Filter</string>
+    <string name="searching">Searching...</string>
+    <string name="loading">Loading...</string>
+    <string name="empty_folder">This folder is empty</string>
+    <string name="recent_empty">Recent files will appear here</string>
+    <string name="paste">Paste</string>
+    <string name="send">Send</string>
+    <string name="move">Move</string>
+    <string name="copy">Copy</string>
+    <string name="rename">Rename</string>
+    <string name="select_all">Select all</string>
+    <string name="open">Open</string>
+    <string name="cut">Cut</string>
+    <string name="share">Share</string>
+    <string name="details">Details</string>
+    <string name="options">Options</string>
+    <string name="collapse">Collapse</string>
+    <string name="move_to_trash">Move to trash</string>
+    <string name="name">Name</string>
+    <string name="date">Date</string>
+    <string name="size">Size</string>
+    <string name="new_folder">New folder</string>
+    <string name="folder_name_hint">Folder name</string>
+    <string name="create">Create</string>
+    <string name="accept">OK</string>
+    <string name="allow">Allow</string>
+    <string name="read_only">Read-only</string>
+    <string name="required_permission">Permission required</string>
+    <string name="full_storage_permission_message">This app needs full storage access.</string>
+
+    <string name="trash">Trash</string>
+    <string name="empty_trash">Empty</string>
+    <string name="trash_empty">Trash is empty</string>
+    <string name="empty_trash_title">Empty trash</string>
+    <string name="empty_trash_message">%1$d file(s) will be permanently deleted.</string>
+    <string name="trash_emptied">Trash emptied</string>
+    <string name="item_restored">Item restored</string>
+    <string name="restore">Restore</string>
+    <string name="delete_forever">Delete permanently</string>
+
+    <string name="crash_unknown_error">Unknown error</string>
+    <string name="crash_title">The app encountered an error</string>
+    <string name="crash_subtitle">Copy the error and report it to help fix it:</string>
+    <string name="copy_error">Copy error</string>
+    <string name="error_copied">Error copied to clipboard</string>
+    <string name="restart">Restart</string>
+
+    <string name="items_count">%1$d item(s)</string>
+    <string name="today">Today</string>
+    <string name="unknown_reason">reason unavailable</string>
+    <string name="error_with_reason">Error: %1$s</string>
+    <string name="error_loading_storage">Error loading storage: %1$s</string>
+    <string name="error_loading_folder">Error loading folder: %1$s</string>
+    <string name="search_cancelled">Search canceled</string>
+    <string name="no_items_selected">No items selected</string>
+    <string name="move_prepared">Move prepared: %1$d</string>
+    <string name="copied_count">Copied: %1$d</string>
+    <string name="cut_count">Cut: %1$d</string>
+    <string name="select_single_for_rename">Select only 1 item to rename</string>
+    <string name="confirm_delete_title">Confirm delete</string>
+    <string name="confirm_delete_selected_message">Move %1$d item(s) to trash?</string>
+    <string name="confirm_delete_single_message">Move \"%1$s\" to trash?</string>
+    <string name="moved_to_trash_count">Moved to trash: %1$d</string>
+    <string name="moved_partial_error">Moved %1$d of %2$d. Error: %3$s</string>
+    <string name="only_files_can_be_shared">Only files can be shared</string>
+    <string name="share_via">Share via...</string>
+    <string name="error_sharing_selection">Error sharing selection</string>
+    <string name="copied_simple">Copied</string>
+    <string name="cut_simple">Cut</string>
+    <string name="moved_count">Moved: %1$d</string>
+    <string name="clipboard_empty">Clipboard is empty</string>
+    <string name="copied_result">Copied: %1$d</string>
+    <string name="moved_result">Moved: %1$d</string>
+    <string name="paste_partial_error">Some items could not be pasted: %1$s</string>
+    <string name="moved_to_trash_done">Moved to trash</string>
+    <string name="error_moving_to_trash">Error moving to trash: %1$s</string>
+    <string name="cannot_open_file">Cannot open: %1$s</string>
+    <string name="error_sharing">Error sharing</string>
+    <string name="rename_title">Rename</string>
+    <string name="extension_changed_title">The extension has changed</string>
+    <string name="extension_changed_message">Do you want to change the file extension too?</string>
+    <string name="rename_name_and_extension">Name and extension</string>
+    <string name="rename_only_name">Name only</string>
+    <string name="renamed">Renamed</string>
+    <string name="rename_error">Error renaming</string>
+    <string name="details_title">Details</string>
+    <string name="details_message">Name: %1$s\nType: %2$s\nSize: %3$s\nDate: %4$s\nPath: %5$s</string>
+    <string name="folder">Folder</string>
+    <string name="file">File</string>
+    <string name="folder_created">Folder created</string>
+    <string name="folder_create_error">Error: already exists or no permission</string>
+    <string name="internal_short">Internal</string>
 </resources>

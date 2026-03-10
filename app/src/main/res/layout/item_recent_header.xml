@@ -24,6 +24,6 @@
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/ic_chevron_up"
         android:tint="#5E6C7A"
-        android:contentDescription="Colapsar"/>
+        android:contentDescription="@string/collapse"/>
 
 </LinearLayout>
