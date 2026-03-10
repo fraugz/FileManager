@@ -3,6 +3,8 @@ package com.fraugz.filemanager;
 import android.app.AlertDialog;
 import android.content.pm.ApplicationInfo;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.View;
@@ -47,7 +49,7 @@ public class SettingsActivity extends AppCompatActivity {
         themeSubtitle.setText(ThemeManager.getThemeName(this));
         uiScaleSubtitle.setText(ThemeManager.getUiScaleName(this));
         languageSubtitle.setText(LocaleManager.getLanguageDisplayName(this));
-        if (versionValue != null) versionValue.setText(BuildConfig.VERSION_NAME);
+        if (versionValue != null) versionValue.setText(getAppVersionName());
         updateDefaultAppsSubtitle();
         applyUiScalePreview();
 
@@ -314,6 +316,16 @@ public class SettingsActivity extends AppCompatActivity {
             lp.width = sizePx;
             lp.height = sizePx;
             v.setLayoutParams(lp);
+        }
+    }
+
+    private String getAppVersionName() {
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            String version = info.versionName;
+            return (version == null || version.trim().isEmpty()) ? "-" : version;
+        } catch (PackageManager.NameNotFoundException e) {
+            return "-";
         }
     }
 }
