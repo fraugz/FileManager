@@ -13,6 +13,8 @@ Android file manager application with a modern UI, trash support, recent files v
 - Versions and changelog
 - Recommended Git workflow
 - Recommended testing
+- Default Apps Behavior
+- Trash Behavior
 - Common issues
 - Roadmap
 - Contributing
@@ -146,6 +148,42 @@ Minimum functional checks before publishing:
 - Trash actions: move, restore, empty.
 - Language changes in settings and persistence after restart.
 - Theme and UI scale changes.
+
+## Default Apps Behavior
+
+The app stores "default app" entries based on file open handlers detected at runtime.
+
+- When opening a file, FileManager tries to capture the resolved external app handler.
+- System chooser/resolver activities are ignored.
+- If there is no explicit default but only one valid external handler exists, FileManager stores that handler as the effective app.
+- The list in `Settings > Default apps` is ordered by most recently detected app.
+
+Per-entry management:
+
+- Change app
+- Delete one entry
+- Clear all (with confirmation)
+
+Notes:
+
+- If Android displays a chooser and multiple handlers exist, no single app may be stored for that action.
+- Behavior can vary slightly by Android version and OEM customizations.
+
+## Trash Behavior
+
+FileManager uses an app-scoped trash directory instead of immediate hard delete.
+
+- Deleted items are moved to a hidden app trash location.
+- Each trash entry stores metadata (original path, original name, deletion timestamp).
+- Restore tries to move back to original location.
+- If original path already exists, a unique sibling name is generated.
+- Empty Trash permanently deletes all trash entries.
+- A retention cleanup policy removes old entries automatically.
+
+Error handling details:
+
+- If direct move fails, fallback copy/delete logic is used where possible.
+- Restore and move operations expose detailed failure reasons in UI toasts.
 
 ## Common Issues
 

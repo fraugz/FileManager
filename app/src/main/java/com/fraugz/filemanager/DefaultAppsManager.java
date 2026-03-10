@@ -92,11 +92,13 @@ public class DefaultAppsManager {
             }
         }
 
+        removePackage(list, oldPkg);
         removePackage(list, newPkg);
         String replacement = newPkg + "|" + label;
 
-        if (oldIndex >= 0 && oldIndex <= list.size() - 1) {
-            list.set(oldIndex, replacement);
+        if (oldIndex >= 0) {
+            int targetIndex = Math.min(oldIndex, list.size());
+            list.add(targetIndex, replacement);
         } else {
             list.add(0, replacement);
         }

@@ -1268,18 +1268,57 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             i.setDataAndType(uri, getMimeType(file));
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
-            // Capture the currently resolved default app to expose it in settings.
-            ResolveInfo resolved = getPackageManager().resolveActivity(i, PackageManager.MATCH_DEFAULT_ONLY);
-            if (resolved != null && resolved.activityInfo != null) {
-                String pkg = resolved.activityInfo.packageName;
-                if (pkg != null && !pkg.equals(getPackageName())) {
-                    CharSequence label = resolved.loadLabel(getPackageManager());
-                    DefaultAppsManager.add(this, pkg, label != null ? label.toString() : pkg);
-                }
-            }
+            captureDefaultHandler(i);
 
             startActivity(i);
         } catch (Exception e) { Log.e(TAG, "openFile", e); toast(getString(R.string.cannot_open_file, file.getName())); }
+    }
+
+    private void captureDefaultHandler(Intent viewIntent) {
+        PackageManager pm = getPackageManager();
+
+        ResolveInfo resolvedDefault = pm.resolveActivity(viewIntent, PackageManager.MATCH_DEFAULT_ONLY);
+        if (isUsableExternalHandler(resolvedDefault)) {
+            saveResolvedHandler(pm, resolvedDefault);
+            return;
+        }
+
+        // Fallback: if there is only one real handler, treat it as effective default.
+        List<ResolveInfo> handlers = pm.queryIntentActivities(viewIntent, 0);
+        ResolveInfo singleUsable = null;
+        for (ResolveInfo info : handlers) {
+            if (!isUsableExternalHandler(info)) continue;
+            if (singleUsable != null) {
+                // More than one candidate and no explicit default => unknown selection.
+                return;
+            }
+            singleUsable = info;
+        }
+        if (singleUsable != null) {
+            saveResolvedHandler(pm, singleUsable);
+        }
+    }
+
+    private boolean isUsableExternalHandler(ResolveInfo info) {
+        if (info == null || info.activityInfo == null) return false;
+        String pkg = info.activityInfo.packageName;
+        if (pkg == null || pkg.trim().isEmpty()) return false;
+        if (pkg.equals(getPackageName())) return false;
+
+        String className = info.activityInfo.name == null ? "" : info.activityInfo.name;
+        String lowerClass = className.toLowerCase();
+        String lowerPkg = pkg.toLowerCase();
+
+        // Ignore system choosers/resolvers.
+        if ("android".equals(lowerPkg)) return false;
+        if (lowerClass.contains("resolveractivity") || lowerClass.contains("chooseractivity")) return false;
+        return true;
+    }
+
+    private void saveResolvedHandler(PackageManager pm, ResolveInfo info) {
+        String pkg = info.activityInfo.packageName;
+        CharSequence label = info.loadLabel(pm);
+        DefaultAppsManager.add(this, pkg, label != null ? label.toString() : pkg);
     }
 
     private void shareFile(File file) {
