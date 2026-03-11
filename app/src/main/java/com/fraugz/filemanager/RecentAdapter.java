@@ -1,9 +1,16 @@
 package com.fraugz.filemanager;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.media.MediaMetadataRetriever;
 import android.media.ThumbnailUtils;
 import android.os.Handler;
 import android.os.Looper;
@@ -31,6 +38,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import android.util.LruCache;
 
 public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
@@ -47,6 +55,12 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     private List<Object> items = new ArrayList<>(); // String (header) or File
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final LruCache<String, Bitmap> previewCache = new LruCache<String, Bitmap>(32) {
+        @Override
+        protected int sizeOf(String key, Bitmap value) {
+            return Math.max(1, value.getByteCount() / 1024);
+        }
+    };
     private boolean darkTheme = true;
     private float uiScale = 1.0f;
 
@@ -138,6 +152,9 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             File file = (File) items.get(pos);
             FileVH h = (FileVH) holder;
             h.name.setText(file.getName());
+            h.name.setSingleLine(false);
+            h.name.setEllipsize(null);
+            h.name.setMaxLines(Integer.MAX_VALUE);
             h.name.setTextColor(darkTheme ? 0xFFFFFFFF : 0xFF1C1C1E);
             h.name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
             FileItem fi = new FileItem(file);
@@ -148,8 +165,12 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             h.path.setText(parent);
             h.path.setTextColor(darkTheme ? 0xFF555555 : 0xFF768394);
             h.path.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f * uiScale);
-            h.thumbnail.setImageResource(getIconRes(fi.getExtension()));
+            String ext = fi.getExtension().toLowerCase(Locale.ROOT);
+            h.thumbnail.setImageResource(getIconRes(ext));
             h.thumbnail.setBackgroundColor(darkTheme ? 0xFF1C1C1E : 0xFFE7EDF4);
+            int thumbPadding = dp(8f * uiScale);
+            h.thumbnail.setPadding(thumbPadding, thumbPadding, thumbPadding, thumbPadding);
+            h.thumbnail.setScaleType(ImageView.ScaleType.FIT_CENTER);
             setSquareSize(h.thumbnail, dp(88f * uiScale));
             h.itemView.setOnClickListener(v -> listener.onClick(file));
 
@@ -182,27 +203,210 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                 }
             });
 
-            // Load thumbnail async for images/videos
-            String ext = fi.getExtension().toLowerCase();
-            if (ext.equals("jpg") || ext.equals("jpeg") || ext.equals("png") || ext.equals("webp")) {
+            // Load rich previews and fallbacks.
+            if (ext.equals("jpg") || ext.equals("jpeg") || ext.equals("png") || ext.equals("webp") || ext.equals("bmp") || ext.equals("gif")) {
                 executor.execute(() -> {
                     try {
+                        String key = "rimg#" + file.getAbsolutePath() + "#" + file.lastModified();
+                        mainHandler.post(() -> h.thumbnail.setTag(key));
+
+                        Bitmap cached = previewCache.get(key);
+                        if (cached != null) {
+                            mainHandler.post(() -> {
+                                Object tag = h.thumbnail.getTag();
+                                if (tag != null && key.equals(tag)) {
+                                    setBitmapPreview(h.thumbnail, cached);
+                                }
+                            });
+                            return;
+                        }
+
                         BitmapFactory.Options opts = new BitmapFactory.Options();
                         opts.inSampleSize = 4;
                         Bitmap bmp = BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
-                        if (bmp != null) mainHandler.post(() -> h.thumbnail.setImageBitmap(bmp));
-                    } catch (Exception ignored) {}
+                        if (bmp != null) {
+                            previewCache.put(key, bmp);
+                            mainHandler.post(() -> {
+                                Object tag = h.thumbnail.getTag();
+                                if (tag != null && key.equals(tag)) {
+                                    setBitmapPreview(h.thumbnail, bmp);
+                                }
+                            });
+                        } else {
+                            mainHandler.post(() -> applyConfiguredAppIconFallback(file, h.thumbnail));
+                        }
+                    } catch (Exception ignored) {
+                        mainHandler.post(() -> applyConfiguredAppIconFallback(file, h.thumbnail));
+                    }
                 });
             } else if (ext.equals("mp4") || ext.equals("3gp") || ext.equals("mkv")) {
                 executor.execute(() -> {
                     try {
+                        String key = "rvid#" + file.getAbsolutePath() + "#" + file.lastModified();
+                        mainHandler.post(() -> h.thumbnail.setTag(key));
+
+                        Bitmap cached = previewCache.get(key);
+                        if (cached != null) {
+                            mainHandler.post(() -> {
+                                Object tag = h.thumbnail.getTag();
+                                if (tag != null && key.equals(tag)) {
+                                    setBitmapPreview(h.thumbnail, cached);
+                                }
+                            });
+                            return;
+                        }
+
                         Bitmap bmp = ThumbnailUtils.createVideoThumbnail(
                                 file.getAbsolutePath(), MediaStore.Images.Thumbnails.MINI_KIND);
-                        if (bmp != null) mainHandler.post(() -> h.thumbnail.setImageBitmap(bmp));
-                    } catch (Exception ignored) {}
+                        if (bmp != null) {
+                            previewCache.put(key, bmp);
+                            mainHandler.post(() -> {
+                                Object tag = h.thumbnail.getTag();
+                                if (tag != null && key.equals(tag)) {
+                                    setBitmapPreview(h.thumbnail, bmp);
+                                }
+                            });
+                        } else {
+                            mainHandler.post(() -> applyConfiguredAppIconFallback(file, h.thumbnail));
+                        }
+                    } catch (Exception ignored) {
+                        mainHandler.post(() -> applyConfiguredAppIconFallback(file, h.thumbnail));
+                    }
                 });
+            } else if (ext.equals("mp3") || ext.equals("wav") || ext.equals("flac") || ext.equals("aac") || ext.equals("ogg") || ext.equals("m4a")) {
+                executor.execute(() -> {
+                    String key = "raud#" + file.getAbsolutePath() + "#" + file.lastModified();
+                    mainHandler.post(() -> h.thumbnail.setTag(key));
+
+                    Bitmap cached = previewCache.get(key);
+                    if (cached != null) {
+                        mainHandler.post(() -> {
+                            Object tag = h.thumbnail.getTag();
+                            if (tag != null && key.equals(tag)) {
+                                setBitmapPreview(h.thumbnail, cached);
+                            }
+                        });
+                        return;
+                    }
+
+                    MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+                    try {
+                        retriever.setDataSource(file.getAbsolutePath());
+                        byte[] art = retriever.getEmbeddedPicture();
+                        if (art == null || art.length == 0) throw new IllegalStateException("no-audio-art");
+                        Bitmap bmp = BitmapFactory.decodeByteArray(art, 0, art.length);
+                        if (bmp != null) {
+                            previewCache.put(key, bmp);
+                            mainHandler.post(() -> {
+                                Object tag = h.thumbnail.getTag();
+                                if (tag != null && key.equals(tag)) {
+                                    setBitmapPreview(h.thumbnail, bmp);
+                                }
+                            });
+                        } else {
+                            mainHandler.post(() -> applyConfiguredAppIconFallback(file, h.thumbnail));
+                        }
+                    } catch (Exception ignored) {
+                        mainHandler.post(() -> applyConfiguredAppIconFallback(file, h.thumbnail));
+                    } finally {
+                        try { retriever.release(); } catch (Exception ignored) {}
+                    }
+                });
+            } else if (ext.equals("apk")) {
+                executor.execute(() -> {
+                    String key = "rapk#" + file.getAbsolutePath() + "#" + file.lastModified();
+                    mainHandler.post(() -> h.thumbnail.setTag(key));
+
+                    Bitmap cached = previewCache.get(key);
+                    if (cached != null) {
+                        mainHandler.post(() -> {
+                            Object tag = h.thumbnail.getTag();
+                            if (tag != null && key.equals(tag)) {
+                                setBitmapPreview(h.thumbnail, cached);
+                            }
+                        });
+                        return;
+                    }
+
+                    try {
+                        PackageManager pm = ctx.getPackageManager();
+                        PackageInfo pkgInfo = pm.getPackageArchiveInfo(file.getAbsolutePath(), 0);
+                        if (pkgInfo == null || pkgInfo.applicationInfo == null) throw new IllegalStateException("invalid-apk");
+
+                        ApplicationInfo appInfo = pkgInfo.applicationInfo;
+                        appInfo.sourceDir = file.getAbsolutePath();
+                        appInfo.publicSourceDir = file.getAbsolutePath();
+                        Drawable drawable = appInfo.loadIcon(pm);
+                        Bitmap bmp = drawableToBitmap(drawable, dp(88f * uiScale));
+
+                        if (bmp != null) {
+                            previewCache.put(key, bmp);
+                            mainHandler.post(() -> {
+                                Object tag = h.thumbnail.getTag();
+                                if (tag != null && key.equals(tag)) {
+                                    setBitmapPreview(h.thumbnail, bmp);
+                                }
+                            });
+                        } else {
+                            mainHandler.post(() -> applyConfiguredAppIconFallback(file, h.thumbnail));
+                        }
+                    } catch (Exception ignored) {
+                        mainHandler.post(() -> applyConfiguredAppIconFallback(file, h.thumbnail));
+                    }
+                });
+            } else {
+                applyConfiguredAppIconFallback(file, h.thumbnail);
             }
         }
+    }
+
+    private void applyConfiguredAppIconFallback(File file, ImageView imageView) {
+        try {
+            String extensionKey = getExtensionKey(file);
+            String preferredPkg = DefaultAppsManager.getPackageForExtension(ctx, extensionKey);
+            if (preferredPkg == null || preferredPkg.trim().isEmpty()) return;
+
+            PackageManager pm = ctx.getPackageManager();
+            Drawable appIcon = pm.getApplicationIcon(preferredPkg);
+            if (appIcon == null) return;
+
+            int iconPadding = dp(8f * uiScale);
+            imageView.setPadding(iconPadding, iconPadding, iconPadding, iconPadding);
+            imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            imageView.setImageDrawable(appIcon);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String getExtensionKey(File file) {
+        if (file == null) return "*";
+        String name = file.getName();
+        int dot = name.lastIndexOf('.');
+        if (dot <= 0 || dot >= name.length() - 1) return "*";
+        return ("." + name.substring(dot + 1)).toLowerCase(Locale.ROOT);
+    }
+
+    private Bitmap drawableToBitmap(Drawable drawable, int targetSizePx) {
+        if (drawable == null) return null;
+        if (drawable instanceof BitmapDrawable) {
+            Bitmap bmp = ((BitmapDrawable) drawable).getBitmap();
+            if (bmp != null) return bmp;
+        }
+
+        int w = drawable.getIntrinsicWidth() > 0 ? drawable.getIntrinsicWidth() : targetSizePx;
+        int h = drawable.getIntrinsicHeight() > 0 ? drawable.getIntrinsicHeight() : targetSizePx;
+        Bitmap bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+        return bitmap;
+    }
+
+    private void setBitmapPreview(ImageView imageView, Bitmap bmp) {
+        if (bmp == null) return;
+        imageView.setPadding(0, 0, 0, 0);
+        imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        imageView.setImageBitmap(bmp);
     }
 
     private int getIconRes(String ext) {

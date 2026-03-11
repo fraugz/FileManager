@@ -38,12 +38,13 @@ FileManager permite navegar almacenamiento interno, buscar archivos, gestionar p
 - Gesto de arrastrar hacia abajo en la vista Archivos para refrescar el directorio actual.
 - Acciones rapidas en Recientes:
   - limpiar todos los recientes con confirmacion
-  - pulsacion prolongada en un fichero reciente para Abrir con... o Quitar de recientes
-- Renombrado con control de extension (nombre completo o solo nombre).
+  - pulsacion prolongada en un fichero reciente para definir App por defecto o Quitar de recientes
+- Renombrado con control de extension (nombre completo o solo nombre), sin preseleccion forzada en el campo.
 - Acciones en multiseleccion: copiar, mover, compartir y enviar a papelera.
-- La barra de acciones de seleccion incluye Abrir con... cuando hay exactamente un fichero seleccionado.
+- La barra de acciones de seleccion incluye accion directa de App por defecto cuando hay exactamente un fichero seleccionado.
 - Papelera con restauracion y borrado permanente.
-- Miniaturas de imagen asincronas con cache.
+- Previsualizaciones enriquecidas con cache: miniaturas de imagen, frame de video, cover embebido en audio, icono de APK y fallback al icono de la app configurada cuando no hay preview.
+- Los nombres largos de fichero se muestran en tantas lineas como haga falta en Archivos y Recientes.
 - Ajustes de apariencia: tema, escala UI e idioma.
 - Gestion de apps predeterminadas para apertura de archivos.
 
@@ -117,6 +118,7 @@ Ruta: Settings
 - Las reglas de app predeterminada se guardan por extension (por ejemplo: .txt -> paquete de app).
 - El flujo de Anadir extension y app ahora prioriza extensiones comunes pendientes y ofrece opcion de extension personalizada.
 - Los dialogos de seleccion de app incluyen buscador e iconos de aplicaciones.
+- El mismo selector con buscador e iconos tambien se usa desde Archivos/Recientes para definir la app predeterminada al momento.
 - En Android 11+, la visibilidad de apps se apoya en queries del manifiesto (launcher y VIEW).
 
 Acciones disponibles por entrada:
@@ -169,7 +171,7 @@ Tags publicados:
 - v1.2.2: correcciones sobre flujos de gestion de archivos.
 - v1.2.3: mejoras incrementales de UX y robustez.
 - v1.2.4: ajustes recientes de papelera/errores y mantenimiento.
-- v1.2.5: refinamientos en UX de recientes/seleccion, flujo de apps por extension con selector buscable, aviso de seguridad para instalar APK, nuevo icono de idioma y correcciones de visibilidad de apps en Android 11+.
+- v1.2.5: refinamientos en UX de recientes/seleccion, accion directa de app predeterminada desde Archivos/Recientes, flujo de apps por extension con selector buscable, previsualizaciones enriquecidas (audio/video/APK + fallback por icono de app), aviso de seguridad para instalar APK, nuevo icono de idioma y correcciones de visibilidad de apps en Android 11+.
 
 Siguiente version sugerida:
 
@@ -185,11 +187,15 @@ Checklist minimo antes de publicar:
 - Arrastre hacia abajo en vista Archivos para refrescar el directorio actual.
 - Renombrado con y sin cambio de extension.
 - Vista de recientes y orden por acceso.
-- Pulsacion prolongada en Recientes (aprox. medio segundo): Abrir con... y Quitar de recientes.
+- Pulsacion prolongada en Recientes (aprox. medio segundo): App por defecto y Quitar de recientes.
 - Accion Limpiar recientes y dialogo de confirmacion.
 - Barra de acciones de seleccion:
   - aparece al seleccionar ficheros/carpetas
-  - Abrir con... solo aparece para seleccion de un unico fichero
+  - App por defecto solo aparece para seleccion de un unico fichero
+- Comprobar previsualizaciones enriquecidas:
+  - imagen/video/audio/APK cuando exista contenido de preview
+  - fallback al icono de la app configurada si no hay preview
+- Comprobar que nombres extremadamente largos se parten en varias lineas.
 - Apertura de archivos y registro de apps predeterminadas.
 - Papelera: mover, restaurar y vaciar.
 - Cambio de idioma y persistencia tras reinicio.

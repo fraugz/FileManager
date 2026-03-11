@@ -62,7 +62,11 @@
     <string name="select_all">Seleccionar todo</string>
     <string name="open">Abrir</string>
     <string name="open_with">Abrir con...</string>
+    <string name="set_default_app">App por defecto</string>
+    <string name="set_default_app_short">App</string>
     <string name="select_single_file_for_open_with">Selecciona un único fichero para Abrir con</string>
+    <string name="select_single_file_for_default_app">Selecciona un único fichero para definir app por defecto</string>
+    <string name="default_app_set_for_extension">App por defecto guardada para %1$s</string>
     <string name="remove_from_recent">Quitar de recientes</string>
     <string name="removed_from_recent">Quitado de recientes</string>
     <string name="cut">Cortar</string>

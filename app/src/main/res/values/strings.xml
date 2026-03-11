@@ -62,7 +62,11 @@
     <string name="select_all">Select all</string>
     <string name="open">Open</string>
     <string name="open_with">Open with...</string>
+    <string name="set_default_app">Set default app</string>
+    <string name="set_default_app_short">App</string>
     <string name="select_single_file_for_open_with">Select a single file to use Open with</string>
+    <string name="select_single_file_for_default_app">Select a single file to set the default app</string>
+    <string name="default_app_set_for_extension">Default app set for %1$s</string>
     <string name="remove_from_recent">Remove from recents</string>
     <string name="removed_from_recent">Removed from recents</string>
     <string name="cut">Cut</string>

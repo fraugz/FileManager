@@ -1,7 +1,15 @@
 package com.fraugz.filemanager;
 
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.media.MediaMetadataRetriever;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
@@ -18,6 +26,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
+import java.util.Locale;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,6 +76,8 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull ViewHolder h, int pos) {
         FileItem item = items.get(pos);
+        File file = item.getFile();
+        String ext = item.getExtension().toLowerCase(Locale.ROOT);
 
         // Theme colors
         int colorBg        = darkTheme ? 0xFF000000 : 0xFFFFFFFF;
@@ -96,12 +107,15 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
 
         // File name
         h.name.setText(item.getName());
+        h.name.setSingleLine(false);
+        h.name.setEllipsize(null);
+        h.name.setMaxLines(Integer.MAX_VALUE);
 
         // Icon resource
         if (item.isDirectory()) {
             h.icon.setImageResource(R.drawable.ic_folder);
         } else {
-            switch (item.getExtension()) {
+            switch (ext) {
                 case "jpg": case "jpeg": case "png": case "gif": case "webp": case "bmp":
                     h.icon.setImageResource(R.drawable.ic_image); break;
                 case "mp4": case "avi": case "mov": case "mkv": case "3gp":
@@ -117,10 +131,18 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
                 default:
                     h.icon.setImageResource(R.drawable.ic_file); break;
             }
-        }
 
-        if (!item.isDirectory() && isImageExtension(item.getExtension())) {
-            bindImagePreview(item.getFile(), h.icon);
+            if (isImageExtension(ext)) {
+                bindImagePreview(file, h.icon);
+            } else if (isVideoExtension(ext)) {
+                bindVideoPreview(file, h.icon);
+            } else if (isAudioExtension(ext)) {
+                bindAudioCoverPreview(file, h.icon);
+            } else if ("apk".equals(ext)) {
+                bindApkIconPreview(file, h.icon);
+            } else {
+                applyConfiguredAppIconFallback(file, h.icon);
+            }
         }
 
         // Selection
@@ -163,6 +185,184 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         return e.equals("jpg") || e.equals("jpeg") || e.equals("png") || e.equals("webp") || e.equals("bmp") || e.equals("gif");
     }
 
+    private boolean isVideoExtension(String ext) {
+        String e = ext == null ? "" : ext.toLowerCase();
+        return e.equals("mp4") || e.equals("avi") || e.equals("mov") || e.equals("mkv") || e.equals("3gp") || e.equals("webm");
+    }
+
+    private boolean isAudioExtension(String ext) {
+        String e = ext == null ? "" : ext.toLowerCase();
+        return e.equals("mp3") || e.equals("wav") || e.equals("flac") || e.equals("aac") || e.equals("ogg") || e.equals("m4a");
+    }
+
+    private void applyConfiguredAppIconFallback(File file, ImageView iconView) {
+        try {
+            Context context = iconView.getContext();
+            PackageManager pm = context.getPackageManager();
+            String preferredPkg = DefaultAppsManager.getPackageForExtension(context, getExtensionKey(file));
+            if (preferredPkg == null || preferredPkg.trim().isEmpty()) return;
+
+            Drawable appIcon = pm.getApplicationIcon(preferredPkg);
+            if (appIcon == null) return;
+
+            int iconPadding = dp(8f * uiScale);
+            iconView.setPadding(iconPadding, iconPadding, iconPadding, iconPadding);
+            iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            iconView.setImageDrawable(appIcon);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String getExtensionKey(File file) {
+        if (file == null) return "*";
+        String name = file.getName();
+        int dot = name.lastIndexOf('.');
+        if (dot <= 0 || dot >= name.length() - 1) return "*";
+        return ("." + name.substring(dot + 1)).toLowerCase(Locale.ROOT);
+    }
+
+    private void bindVideoPreview(File file, ImageView iconView) {
+        String key = "video#" + file.getAbsolutePath() + "#" + file.lastModified();
+        iconView.setTag(key);
+
+        Bitmap cached = previewCache.get(key);
+        if (cached != null) {
+            setBitmapPreview(iconView, cached);
+            return;
+        }
+
+        thumbExecutor.execute(() -> {
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            try {
+                retriever.setDataSource(file.getAbsolutePath());
+                Bitmap frame = retriever.getFrameAtTime(0);
+                if (frame == null) return;
+                previewCache.put(key, frame);
+                mainHandler.post(() -> {
+                    Object tag = iconView.getTag();
+                    if (tag != null && key.equals(tag)) {
+                        setBitmapPreview(iconView, frame);
+                    }
+                });
+            } catch (Exception ignored) {
+                mainHandler.post(() -> {
+                    Object tag = iconView.getTag();
+                    if (tag != null && key.equals(tag)) {
+                        applyConfiguredAppIconFallback(file, iconView);
+                    }
+                });
+            } finally {
+                try { retriever.release(); } catch (Exception ignored) {}
+            }
+        });
+    }
+
+    private void bindAudioCoverPreview(File file, ImageView iconView) {
+        String key = "audio#" + file.getAbsolutePath() + "#" + file.lastModified();
+        iconView.setTag(key);
+
+        Bitmap cached = previewCache.get(key);
+        if (cached != null) {
+            setBitmapPreview(iconView, cached);
+            return;
+        }
+
+        thumbExecutor.execute(() -> {
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            try {
+                retriever.setDataSource(file.getAbsolutePath());
+                byte[] art = retriever.getEmbeddedPicture();
+                if (art == null || art.length == 0) throw new IllegalStateException("no-embedded-art");
+                Bitmap bmp = BitmapFactory.decodeByteArray(art, 0, art.length);
+                if (bmp == null) return;
+                previewCache.put(key, bmp);
+                mainHandler.post(() -> {
+                    Object tag = iconView.getTag();
+                    if (tag != null && key.equals(tag)) {
+                        setBitmapPreview(iconView, bmp);
+                    }
+                });
+            } catch (Exception ignored) {
+                mainHandler.post(() -> {
+                    Object tag = iconView.getTag();
+                    if (tag != null && key.equals(tag)) {
+                        applyConfiguredAppIconFallback(file, iconView);
+                    }
+                });
+            } finally {
+                try { retriever.release(); } catch (Exception ignored) {}
+            }
+        });
+    }
+
+    private void bindApkIconPreview(File file, ImageView iconView) {
+        String key = "apk#" + file.getAbsolutePath() + "#" + file.lastModified();
+        iconView.setTag(key);
+
+        Bitmap cached = previewCache.get(key);
+        if (cached != null) {
+            setBitmapPreview(iconView, cached);
+            return;
+        }
+
+        thumbExecutor.execute(() -> {
+            try {
+                Context context = iconView.getContext();
+                PackageManager pm = context.getPackageManager();
+                PackageInfo info = pm.getPackageArchiveInfo(file.getAbsolutePath(), 0);
+                if (info == null || info.applicationInfo == null) throw new IllegalStateException("invalid-apk");
+
+                ApplicationInfo appInfo = info.applicationInfo;
+                appInfo.sourceDir = file.getAbsolutePath();
+                appInfo.publicSourceDir = file.getAbsolutePath();
+
+                Drawable drawable = appInfo.loadIcon(pm);
+                if (drawable == null) throw new IllegalStateException("no-apk-icon");
+
+                Bitmap bmp = drawableToBitmap(drawable, Math.max(96, dp(44f * uiScale)));
+                if (bmp == null) return;
+
+                previewCache.put(key, bmp);
+                mainHandler.post(() -> {
+                    Object tag = iconView.getTag();
+                    if (tag != null && key.equals(tag)) {
+                        setBitmapPreview(iconView, bmp);
+                    }
+                });
+            } catch (Exception ignored) {
+                mainHandler.post(() -> {
+                    Object tag = iconView.getTag();
+                    if (tag != null && key.equals(tag)) {
+                        applyConfiguredAppIconFallback(file, iconView);
+                    }
+                });
+            }
+        });
+    }
+
+    private Bitmap drawableToBitmap(Drawable drawable, int targetSizePx) {
+        if (drawable == null) return null;
+        if (drawable instanceof BitmapDrawable) {
+            Bitmap bmp = ((BitmapDrawable) drawable).getBitmap();
+            if (bmp != null) return bmp;
+        }
+
+        int w = drawable.getIntrinsicWidth() > 0 ? drawable.getIntrinsicWidth() : targetSizePx;
+        int h = drawable.getIntrinsicHeight() > 0 ? drawable.getIntrinsicHeight() : targetSizePx;
+        Bitmap bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+        return bitmap;
+    }
+
+    private void setBitmapPreview(ImageView iconView, Bitmap bmp) {
+        if (bmp == null) return;
+        iconView.setPadding(0, 0, 0, 0);
+        iconView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        iconView.setImageBitmap(bmp);
+    }
+
     private void bindImagePreview(File file, ImageView iconView) {
         String key = file.getAbsolutePath() + "#" + file.lastModified();
         iconView.setTag(key);
@@ -196,12 +396,16 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
                 mainHandler.post(() -> {
                     Object tag = iconView.getTag();
                     if (tag != null && key.equals(tag)) {
-                        iconView.setPadding(0, 0, 0, 0);
-                        iconView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                        iconView.setImageBitmap(bmp);
+                        setBitmapPreview(iconView, bmp);
                     }
                 });
             } catch (Exception ignored) {
+                mainHandler.post(() -> {
+                    Object tag = iconView.getTag();
+                    if (tag != null && key.equals(tag)) {
+                        applyConfiguredAppIconFallback(file, iconView);
+                    }
+                });
             }
         });
     }

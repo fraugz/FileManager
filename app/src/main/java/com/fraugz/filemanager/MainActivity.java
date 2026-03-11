@@ -3,6 +3,7 @@ package com.fraugz.filemanager;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.graphics.drawable.Drawable;
 import android.content.pm.ResolveInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -17,15 +18,18 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.GestureDetector;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.MimeTypeMap;
+import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -50,6 +54,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
@@ -57,6 +62,18 @@ import java.util.Stack;
 import android.content.res.ColorStateList;
 
 public class MainActivity extends AppCompatActivity implements FileAdapter.Listener {
+
+    private static class AppChoice {
+        final String packageName;
+        final String label;
+        final Drawable icon;
+
+        AppChoice(String packageName, String label, Drawable icon) {
+            this.packageName = packageName;
+            this.label = label;
+            this.icon = icon;
+        }
+    }
 
     private static final String TAG = "MainActivity";
     private static final int REQ_PERMISSION = 100;
@@ -428,7 +445,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             updatePasteBar();
         });
         setClickSafe(R.id.action_send,           v -> shareSelectedFiles());
-        setClickSafe(R.id.action_open_with,      v -> openWithSelection());
+        setClickSafe(R.id.action_open_with,      v -> setDefaultAppFromSelection());
         setClickSafe(R.id.action_move,           v -> markSelectionForMove());
         setClickSafe(R.id.action_copy,           v -> copySelection());
         setClickSafe(R.id.action_delete,         v -> deleteSelectionToTrash());
@@ -1036,13 +1053,13 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
     }
 
-    private void openWithSelection() {
+    private void setDefaultAppFromSelection() {
         List<File> sel = getSelectedFiles();
         if (sel.size() != 1 || !sel.get(0).isFile()) {
-            toast(getString(R.string.select_single_file_for_open_with));
+            toast(getString(R.string.select_single_file_for_default_app));
             return;
         }
-        openFileWithChooser(sel.get(0));
+        showSetDefaultAppDialog(sel.get(0));
     }
 
     private void markSelectionForMove() {
@@ -1157,7 +1174,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             p.getMenu().add(0, 6, 0, getString(R.string.delete));
         } else {
             p.getMenu().add(0, 7, 0, getString(R.string.send));
-            p.getMenu().add(0, 8, 0, getString(R.string.open_with));
+            p.getMenu().add(0, 8, 0, getString(R.string.set_default_app));
             p.getMenu().add(0, 3, 0, getString(R.string.move));
             p.getMenu().add(0, 2, 0, getString(R.string.copy));
             p.getMenu().add(0, 5, 0, getString(R.string.rename));
@@ -1195,7 +1212,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         shareFile(item.getFile());
                         break;
                     case 8:
-                        openFileWithSystemResolver(item.getFile());
+                        showSetDefaultAppDialog(item.getFile());
                         break;
                 }
             } catch (Exception e) { Log.e(TAG, "fileMenu", e); toast(getString(R.string.error_with_reason, e.getMessage())); }
@@ -1216,7 +1233,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
         PopupMenu p = new PopupMenu(this, anchor);
         p.getMenu().add(0, 1, 0, getString(R.string.send));
-        if (singleFile) p.getMenu().add(0, 2, 0, getString(R.string.open_with));
+        if (singleFile) p.getMenu().add(0, 2, 0, getString(R.string.set_default_app));
         p.getMenu().add(0, 3, 0, getString(R.string.move));
         p.getMenu().add(0, 4, 0, getString(R.string.copy));
         if (single) p.getMenu().add(0, 5, 0, getString(R.string.rename));
@@ -1229,7 +1246,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         shareSelectedFiles();
                         break;
                     case 2:
-                        if (singleFile) openFileWithSystemResolver(sel.get(0));
+                        if (singleFile) showSetDefaultAppDialog(sel.get(0));
                         break;
                     case 3:
                         markSelectionForMove();
@@ -1427,28 +1444,15 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
     }
 
-    private void openFileWithChooser(File file) {
-        try {
-            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
-            Intent i = new Intent(Intent.ACTION_VIEW);
-            i.setDataAndType(uri, getMimeType(file));
-            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(i, getString(R.string.open_with)));
-        } catch (Exception e) {
-            Log.e(TAG, "openFileWithChooser", e);
-            toast(getString(R.string.cannot_open_file, file.getName()));
-        }
-    }
-
     private void showRecentItemMenu(File file, View anchor) {
         PopupMenu p = new PopupMenu(this, anchor);
-        p.getMenu().add(0, 1, 0, getString(R.string.open_with));
+        p.getMenu().add(0, 1, 0, getString(R.string.set_default_app));
         p.getMenu().add(0, 2, 0, getString(R.string.remove_from_recent));
 
         p.setOnMenuItemClickListener(mi -> {
             switch (mi.getItemId()) {
                 case 1:
-                    openFileWithChooser(file);
+                    showSetDefaultAppDialog(file);
                     return true;
                 case 2:
                     RecentManager.remove(this, file.getAbsolutePath());
@@ -1460,6 +1464,189 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             }
         });
         p.show();
+    }
+
+    private void showSetDefaultAppDialog(File file) {
+        List<AppChoice> candidates = getAllAppsForDefaultPicker();
+        if (candidates.isEmpty()) {
+            toast(getString(R.string.no_apps_found));
+            return;
+        }
+        String ext = getExtensionKey(file);
+        String currentPackage = DefaultAppsManager.getPackageForExtension(this, ext);
+        showAppChoiceDialog(
+                getString(R.string.set_default_app),
+                candidates,
+                currentPackage,
+                selected -> {
+                    DefaultAppsManager.add(this, ext, selected.packageName, selected.label);
+                    toast(getString(R.string.default_app_set_for_extension, ext));
+                    if (adapter != null && adapter.isSelectionMode()) {
+                        exitSelectionMode();
+                    }
+                }
+        );
+    }
+
+    private List<AppChoice> getAllAppsForDefaultPicker() {
+        Map<String, AppChoice> dedup = new LinkedHashMap<>();
+        try {
+            Intent launcherIntent = new Intent(Intent.ACTION_MAIN);
+            launcherIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+
+            PackageManager pm = getPackageManager();
+            List<ResolveInfo> apps = pm.queryIntentActivities(launcherIntent, 0);
+            for (ResolveInfo info : apps) {
+                if (info == null || info.activityInfo == null || info.activityInfo.applicationInfo == null) continue;
+                String pkg = info.activityInfo.packageName;
+                if (pkg == null || pkg.trim().isEmpty()) continue;
+                if (pkg.equals(getPackageName())) continue;
+                CharSequence rawLabel = info.loadLabel(pm);
+                String label = rawLabel == null ? pkg : rawLabel.toString().trim();
+                if (label.isEmpty()) label = pkg;
+                Drawable icon;
+                try {
+                    icon = info.loadIcon(pm);
+                } catch (Exception ignored) {
+                    icon = null;
+                }
+                if (!dedup.containsKey(pkg)) {
+                    dedup.put(pkg, new AppChoice(pkg, label, icon));
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "getAllAppsForDefaultPicker", e);
+        }
+
+        List<AppChoice> out = new ArrayList<>(dedup.values());
+        out.sort((a, b) -> a.label.compareToIgnoreCase(b.label));
+        return out;
+    }
+
+    private void showAppChoiceDialog(String title,
+                                     List<AppChoice> candidates,
+                                     String selectedPackage,
+                                     java.util.function.Consumer<AppChoice> onSelected) {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int hp = dp(16);
+        root.setPadding(hp, dp(10), hp, 0);
+
+        EditText search = new EditText(this);
+        search.setSingleLine(true);
+        search.setHint(getString(R.string.search_apps_hint));
+        root.addView(search, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        ListView listView = new ListView(this);
+        LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(420));
+        listParams.topMargin = dp(8);
+        root.addView(listView, listParams);
+
+        AppChoiceAdapter adapter = new AppChoiceAdapter(candidates, selectedPackage);
+        listView.setAdapter(adapter);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(root)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            AppChoice selected = adapter.getItem(position);
+            if (selected != null) {
+                dialog.dismiss();
+                onSelected.accept(selected);
+            }
+        });
+
+        search.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                adapter.filter(s == null ? "" : s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
+
+        dialog.show();
+    }
+
+    private class AppChoiceAdapter extends BaseAdapter {
+        private final List<AppChoice> all;
+        private final List<AppChoice> filtered;
+        private final String selectedPackage;
+
+        AppChoiceAdapter(List<AppChoice> initial, String selectedPackage) {
+            this.all = new ArrayList<>(initial);
+            this.filtered = new ArrayList<>(initial);
+            this.selectedPackage = selectedPackage;
+        }
+
+        void filter(String query) {
+            String q = query == null ? "" : query.trim().toLowerCase();
+            filtered.clear();
+            if (q.isEmpty()) {
+                filtered.addAll(all);
+            } else {
+                for (AppChoice c : all) {
+                    String label = c.label == null ? "" : c.label.toLowerCase();
+                    String pkg = c.packageName == null ? "" : c.packageName.toLowerCase();
+                    if (label.contains(q) || pkg.contains(q)) {
+                        filtered.add(c);
+                    }
+                }
+            }
+            notifyDataSetChanged();
+        }
+
+        @Override
+        public int getCount() {
+            return filtered.size();
+        }
+
+        @Override
+        public AppChoice getItem(int position) {
+            return (position >= 0 && position < filtered.size()) ? filtered.get(position) : null;
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            View v = convertView;
+            if (v == null) {
+                v = LayoutInflater.from(MainActivity.this).inflate(R.layout.item_app_choice, parent, false);
+            }
+
+            AppChoice item = getItem(position);
+            if (item == null) return v;
+
+            ImageView icon = v.findViewById(R.id.app_icon);
+            TextView label = v.findViewById(R.id.app_label);
+            TextView pkg = v.findViewById(R.id.app_package);
+
+            if (item.icon != null) icon.setImageDrawable(item.icon);
+            else icon.setImageDrawable(null);
+
+            boolean selected = selectedPackage != null && selectedPackage.equals(item.packageName);
+            label.setText(selected ? ("✓ " + item.label) : item.label);
+            pkg.setText(item.packageName);
+
+            return v;
+        }
     }
 
     private void captureDefaultHandler(Intent viewIntent, File sourceFile) {
@@ -1554,12 +1741,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         et.setBackgroundResource(R.drawable.bg_prompt_underline);
         int pad = dp(8);
         et.setPadding(0, pad, 0, pad);
-        int dot = originalName.lastIndexOf('.');
-        if (dot > 0) {
-            et.setSelection(0, dot);
-        } else {
-            et.selectAll();
-        }
+        et.setSelection(originalName.length());
         LinearLayout wrap = new LinearLayout(this);
         wrap.setOrientation(LinearLayout.VERTICAL);
         int margin = dp(20);

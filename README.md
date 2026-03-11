@@ -38,12 +38,13 @@ FileManager lets users browse internal storage, search files, manage trash, and 
 - Pull-down gesture in Files view to refresh the current directory.
 - Recents quick actions:
   - clear all recents with confirmation
-  - long press on a recent file for Open with... or Remove from recents
-- Rename with extension control (full filename or name-only).
+  - long press on a recent file for Set default app or Remove from recents
+- Rename with extension control (full filename or name-only), without forced pre-selection in the input.
 - Multi-selection actions: copy, move, share, and send to trash.
-- Selection action bar includes Open with... when exactly one file is selected.
+- Selection action bar includes a direct Set default app action when exactly one file is selected.
 - Trash with restore and permanent delete.
-- Asynchronous image thumbnails with cache.
+- Rich previews with cache: image thumbnails, video frames, embedded audio covers, APK icons, and fallback to configured app icon for types without preview.
+- Long filenames are shown in as many lines as needed in Files and Recents.
 - Appearance settings: theme, UI scale, and language.
 - Default app management for opening files.
 
@@ -117,6 +118,7 @@ Path: Settings
 - Default app rules are stored per extension (for example: .txt -> app package).
 - Add extension and app flow now offers unresolved common extensions first, plus a custom extension option.
 - App selection dialogs include search and app icons.
+- The same searchable icon-based app picker is also available from Files/Recents when setting defaults directly.
 - App visibility on Android 11+ uses manifest package queries for launcher and VIEW handlers.
 
 Available actions per entry:
@@ -169,7 +171,7 @@ Published tags:
 - v1.2.2: fixes in file-management flows.
 - v1.2.3: incremental UX and robustness improvements.
 - v1.2.4: recent trash/error handling updates and maintenance.
-- v1.2.5: recents/selection UX refinements, default-app extension flow with searchable app picker, APK install safety prompt, language icon update, and Android 11+ app visibility fixes.
+- v1.2.5: recents/selection UX refinements, direct set-default action from Files/Recents, default-app extension flow with searchable app picker, richer file previews (audio/video/APK + app icon fallback), APK install safety prompt, language icon update, and Android 11+ app visibility fixes.
 
 Suggested next version:
 
@@ -185,11 +187,15 @@ Minimum checklist before release:
 - Pull down in Files view refreshes the current directory.
 - Rename with and without extension changes.
 - Recents ordering by access time.
-- Recents long press behavior (about half-second): Open with... and Remove from recents.
+- Recents long press behavior (about half-second): Set default app and Remove from recents.
 - Clear recents action and confirmation dialog.
 - Selection action bar:
   - appears when selecting files/folders
-  - Open with... appears only for single-file selection
+  - Set default app appears only for single-file selection
+- Rich preview behavior:
+  - image/video/audio/APK previews when available
+  - fallback icon from configured default app when no rich preview exists
+- Very long filenames wrap into multiple lines without forced truncation.
 - File opening and default app registration.
 - Trash actions: move, restore, and empty.
 - Language change and persistence after restart.
