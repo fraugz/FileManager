@@ -35,6 +35,7 @@ FileManager lets users browse internal storage, search files, manage trash, and 
 - Search with incremental loading and cancellation.
 - Recent files view sorted by last access.
 - Horizontal swipe gestures to switch between Recents and Files views.
+- Pull-down gesture in Files view to refresh the current directory.
 - Recents quick actions:
   - clear all recents with confirmation
   - long press on a recent file for Open with... or Remove from recents
@@ -113,7 +114,10 @@ Path: Settings
 - System chooser/resolver activities are ignored.
 - If there is no explicit default but only one valid handler exists, it is stored as the effective app.
 - The list in Settings > Default apps is ordered by latest detection.
-- Change-app candidates are resolved from real file-opening handlers (ACTION_VIEW by MIME), not only launcher apps.
+- Default app rules are stored per extension (for example: .txt -> app package).
+- Add extension and app flow now offers unresolved common extensions first, plus a custom extension option.
+- App selection dialogs include search and app icons.
+- App visibility on Android 11+ uses manifest package queries for launcher and VIEW handlers.
 
 Available actions per entry:
 
@@ -165,6 +169,7 @@ Published tags:
 - v1.2.2: fixes in file-management flows.
 - v1.2.3: incremental UX and robustness improvements.
 - v1.2.4: recent trash/error handling updates and maintenance.
+- v1.2.5: recents/selection UX refinements, default-app extension flow with searchable app picker, APK install safety prompt, language icon update, and Android 11+ app visibility fixes.
 
 Suggested next version:
 
@@ -177,6 +182,7 @@ Minimum checklist before release:
 - Folder navigation and breadcrumb.
 - Search behavior (start, cancel, and results).
 - Horizontal swipe gesture between Recents and Files tabs/views.
+- Pull down in Files view refreshes the current directory.
 - Rename with and without extension changes.
 - Recents ordering by access time.
 - Recents long press behavior (about half-second): Open with... and Remove from recents.

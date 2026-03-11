@@ -35,6 +35,7 @@ FileManager permite navegar almacenamiento interno, buscar archivos, gestionar p
 - Busqueda con carga incremental y cancelacion.
 - Vista de recientes ordenada por ultimo acceso.
 - Gestos de deslizamiento horizontal para cambiar entre las vistas Recientes y Archivos.
+- Gesto de arrastrar hacia abajo en la vista Archivos para refrescar el directorio actual.
 - Acciones rapidas en Recientes:
   - limpiar todos los recientes con confirmacion
   - pulsacion prolongada en un fichero reciente para Abrir con... o Quitar de recientes
@@ -113,7 +114,10 @@ Ruta: Settings
 - Actividades de chooser/resolver del sistema se ignoran.
 - Si no hay default explicito pero existe un unico handler valido, se guarda como app efectiva.
 - La lista en Settings > Default apps se ordena por deteccion mas reciente.
-- Los candidatos para Cambiar app se obtienen desde handlers reales de apertura de ficheros (ACTION_VIEW por MIME), no solo desde apps con lanzador.
+- Las reglas de app predeterminada se guardan por extension (por ejemplo: .txt -> paquete de app).
+- El flujo de Anadir extension y app ahora prioriza extensiones comunes pendientes y ofrece opcion de extension personalizada.
+- Los dialogos de seleccion de app incluyen buscador e iconos de aplicaciones.
+- En Android 11+, la visibilidad de apps se apoya en queries del manifiesto (launcher y VIEW).
 
 Acciones disponibles por entrada:
 
@@ -165,6 +169,7 @@ Tags publicados:
 - v1.2.2: correcciones sobre flujos de gestion de archivos.
 - v1.2.3: mejoras incrementales de UX y robustez.
 - v1.2.4: ajustes recientes de papelera/errores y mantenimiento.
+- v1.2.5: refinamientos en UX de recientes/seleccion, flujo de apps por extension con selector buscable, aviso de seguridad para instalar APK, nuevo icono de idioma y correcciones de visibilidad de apps en Android 11+.
 
 Siguiente version sugerida:
 
@@ -177,6 +182,7 @@ Checklist minimo antes de publicar:
 - Navegacion de carpetas y breadcrumb.
 - Busqueda (inicio, cancelacion y resultados).
 - Cambio entre las pestanas Recientes y Archivos con gesto horizontal (swipe).
+- Arrastre hacia abajo en vista Archivos para refrescar el directorio actual.
 - Renombrado con y sin cambio de extension.
 - Vista de recientes y orden por acceso.
 - Pulsacion prolongada en Recientes (aprox. medio segundo): Abrir con... y Quitar de recientes.
