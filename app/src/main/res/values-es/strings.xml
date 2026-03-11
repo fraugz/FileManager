@@ -34,6 +34,12 @@
     <string name="confirm_clear_title">Confirmar limpieza</string>
     <string name="confirm_clear_message">Se eliminarán todas las apps guardadas. ¿Quieres continuar?</string>
     <string name="change_app">Cambiar app</string>
+    <string name="search_apps_hint">Buscar apps...</string>
+    <string name="add_extension_app">Añadir extensión y app</string>
+    <string name="custom_extension_option">Extensión personalizada...</string>
+    <string name="extension_hint">Extensión (por ejemplo: .txt)</string>
+    <string name="invalid_extension">Extensión no válida</string>
+    <string name="default_app_saved">App por defecto guardada</string>
     <string name="no_apps_found">No se encontraron apps instaladas para seleccionar.</string>
 
     <string name="storage">Almacenamiento</string>
@@ -124,6 +130,10 @@
     <string name="moved_to_trash_done">Movido a papelera</string>
     <string name="error_moving_to_trash">Error al mover a papelera: %1$s</string>
     <string name="cannot_open_file">No se puede abrir: %1$s</string>
+    <string name="apk_install_warning_title">Instalar APK</string>
+    <string name="apk_install_warning_message">Instalar ficheros APK puede ser peligroso. Continúa solo si confías en el origen.</string>
+    <string name="continue_action">Continuar</string>
+    <string name="allow_install_unknown_apps">Permite la instalación desde esta app en ajustes del sistema para continuar.</string>
     <string name="error_sharing">Error al compartir</string>
     <string name="rename_title">Renombrar</string>
     <string name="extension_changed_title">La extensión ha cambiado</string>

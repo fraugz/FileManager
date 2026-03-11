@@ -182,7 +182,7 @@
                     android:layout_width="28dp"
                     android:layout_height="28dp"
                     android:layout_marginEnd="16dp"
-                    android:src="@drawable/ic_theme"
+                    android:src="@drawable/ic_language"
                     android:tint="?android:attr/textColorPrimary"/>
                 <LinearLayout
                     android:layout_width="0dp"

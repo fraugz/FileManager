@@ -34,6 +34,12 @@
     <string name="confirm_clear_title">Confirm clear</string>
     <string name="confirm_clear_message">All saved apps will be removed. Continue?</string>
     <string name="change_app">Change app</string>
+    <string name="search_apps_hint">Search apps...</string>
+    <string name="add_extension_app">Add extension and app</string>
+    <string name="custom_extension_option">Custom extension...</string>
+    <string name="extension_hint">Extension (for example: .txt)</string>
+    <string name="invalid_extension">Invalid extension</string>
+    <string name="default_app_saved">Default app saved</string>
     <string name="no_apps_found">No installed apps were found to select.</string>
 
     <string name="storage">Storage</string>
@@ -124,6 +130,10 @@
     <string name="moved_to_trash_done">Moved to trash</string>
     <string name="error_moving_to_trash">Error moving to trash: %1$s</string>
     <string name="cannot_open_file">Cannot open: %1$s</string>
+    <string name="apk_install_warning_title">Install APK</string>
+    <string name="apk_install_warning_message">Installing APK files can be risky. Only continue if you trust the source.</string>
+    <string name="continue_action">Continue</string>
+    <string name="allow_install_unknown_apps">Allow installation from this app in system settings to continue.</string>
     <string name="error_sharing">Error sharing</string>
     <string name="rename_title">Rename</string>
     <string name="extension_changed_title">The extension has changed</string>

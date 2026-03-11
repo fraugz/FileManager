@@ -1352,15 +1352,66 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void openFile(File file) {
         try {
+            if (".apk".equals(getExtensionKey(file))) {
+                confirmAndInstallApk(file);
+                return;
+            }
+
             Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+            String mime = getMimeType(file);
+            String ext = getExtensionKey(file);
+
+            String preferredPackage = DefaultAppsManager.getPackageForExtension(this, ext);
+            if (preferredPackage != null && !preferredPackage.trim().isEmpty()) {
+                Intent preferred = new Intent(Intent.ACTION_VIEW);
+                preferred.setDataAndType(uri, mime);
+                preferred.setPackage(preferredPackage);
+                preferred.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try {
+                    startActivity(preferred);
+                    return;
+                } catch (Exception ignored) {
+                    // Fallback to normal resolver when the preferred app is not available/compatible.
+                }
+            }
+
             Intent i = new Intent(Intent.ACTION_VIEW);
-            i.setDataAndType(uri, getMimeType(file));
+            i.setDataAndType(uri, mime);
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
-            captureDefaultHandler(i);
-
+            captureDefaultHandler(i, file);
             startActivity(i);
         } catch (Exception e) { Log.e(TAG, "openFile", e); toast(getString(R.string.cannot_open_file, file.getName())); }
+    }
+
+    private void confirmAndInstallApk(File file) {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.apk_install_warning_title)
+                .setMessage(R.string.apk_install_warning_message)
+                .setPositiveButton(R.string.continue_action, (d, w) -> openApkInstaller(file))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void openApkInstaller(File file) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !getPackageManager().canRequestPackageInstalls()) {
+                toast(getString(R.string.allow_install_unknown_apps));
+                Intent settingsIntent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + getPackageName()));
+                startActivity(settingsIntent);
+                return;
+            }
+
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+            Intent installIntent = new Intent(Intent.ACTION_VIEW);
+            installIntent.setDataAndType(uri, "application/vnd.android.package-archive");
+            installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(installIntent);
+        } catch (Exception e) {
+            Log.e(TAG, "openApkInstaller", e);
+            toast(getString(R.string.cannot_open_file, file.getName()));
+        }
     }
 
     private void openFileWithSystemResolver(File file) {
@@ -1411,19 +1462,19 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         p.show();
     }
 
-    private void captureDefaultHandler(Intent viewIntent) {
+    private void captureDefaultHandler(Intent viewIntent, File sourceFile) {
         PackageManager pm = getPackageManager();
 
         ResolveInfo resolvedDefault = pm.resolveActivity(viewIntent, PackageManager.MATCH_DEFAULT_ONLY);
         if (isUsableExternalHandler(resolvedDefault)) {
-            saveResolvedHandler(pm, resolvedDefault);
+            saveResolvedHandler(pm, resolvedDefault, sourceFile);
             return;
         }
 
         // Some preferred handlers may resolve without MATCH_DEFAULT_ONLY.
         ResolveInfo resolvedPreferred = pm.resolveActivity(viewIntent, 0);
         if (isUsableExternalHandler(resolvedPreferred)) {
-            saveResolvedHandler(pm, resolvedPreferred);
+            saveResolvedHandler(pm, resolvedPreferred, sourceFile);
             return;
         }
 
@@ -1439,7 +1490,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             singleUsable = info;
         }
         if (singleUsable != null) {
-            saveResolvedHandler(pm, singleUsable);
+            saveResolvedHandler(pm, singleUsable, sourceFile);
         }
     }
 
@@ -1459,10 +1510,18 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         return true;
     }
 
-    private void saveResolvedHandler(PackageManager pm, ResolveInfo info) {
+    private void saveResolvedHandler(PackageManager pm, ResolveInfo info, File sourceFile) {
         String pkg = info.activityInfo.packageName;
         CharSequence label = info.loadLabel(pm);
-        DefaultAppsManager.add(this, pkg, label != null ? label.toString() : pkg);
+        DefaultAppsManager.add(this, getExtensionKey(sourceFile), pkg, label != null ? label.toString() : pkg);
+    }
+
+    private String getExtensionKey(File file) {
+        if (file == null) return "*";
+        String name = file.getName();
+        int dot = name.lastIndexOf('.');
+        if (dot <= 0 || dot >= name.length() - 1) return "*";
+        return ("." + name.substring(dot + 1)).toLowerCase();
     }
 
     private void shareFile(File file) {

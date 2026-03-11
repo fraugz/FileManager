@@ -3,22 +3,36 @@ package com.fraugz.filemanager;
 import android.app.AlertDialog;
 import android.content.pm.ApplicationInfo;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.webkit.MimeTypeMap;
 import android.util.TypedValue;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -31,11 +45,17 @@ public class SettingsActivity extends AppCompatActivity {
     private static class AppChoice {
         final String packageName;
         final String label;
+        final Drawable icon;
 
-        AppChoice(String packageName, String label) {
+        AppChoice(String packageName, String label, Drawable icon) {
             this.packageName = packageName;
             this.label = label;
+            this.icon = icon;
         }
+    }
+
+    private interface OnAppChoiceSelected {
+        void onSelected(AppChoice selected);
     }
 
     @Override
@@ -191,34 +211,177 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void showDefaultAppsDialog() {
-        List<String> entries = DefaultAppsManager.getEntries(this);
+        List<DefaultAppsManager.Entry> entries = DefaultAppsManager.getEntries(this);
         if (entries.isEmpty()) {
                 new AlertDialog.Builder(this)
                     .setTitle(R.string.default_apps_title)
                     .setMessage(R.string.default_apps_empty_message)
+                    .setNeutralButton(R.string.add_extension_app, (d, w) -> showAddExtensionDefaultAppDialog())
                     .setPositiveButton(R.string.close, null)
                     .show();
             return;
         }
 
         List<String> labels = new ArrayList<>();
-        for (String row : entries) {
-            int sep = row.indexOf('|');
-            if (sep > 0 && sep < row.length() - 1) {
-                String pkg = row.substring(0, sep);
-                String label = row.substring(sep + 1);
-                labels.add(label + "\n" + pkg);
-            } else {
-                labels.add(row);
-            }
+        for (DefaultAppsManager.Entry row : entries) {
+            labels.add(row.extension + "\n" + row.packageName);
         }
 
         new AlertDialog.Builder(this)
             .setTitle(R.string.default_apps_title)
                 .setItems(labels.toArray(new String[0]), (d, which) -> showDefaultAppItemActions(entries.get(which)))
             .setNeutralButton(R.string.clear_all, (d, w) -> confirmClearAllDefaultApps())
+            .setNegativeButton(R.string.add_extension_app, (d, w) -> showAddExtensionDefaultAppDialog())
             .setPositiveButton(R.string.close, null)
                 .show();
+    }
+
+    private void showAddExtensionDefaultAppDialog() {
+        List<String> unresolved = getUnresolvedCommonExtensions();
+        List<String> options = new ArrayList<>(unresolved);
+        options.add(getString(R.string.custom_extension_option));
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.add_extension_app)
+                .setItems(options.toArray(new String[0]), (d, which) -> {
+                    if (which < unresolved.size()) {
+                        showPickAppForExtension(unresolved.get(which));
+                    } else {
+                        showCustomExtensionInputDialog();
+                    }
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void showCustomExtensionInputDialog() {
+        final EditText extInput = new EditText(this);
+        extInput.setSingleLine(true);
+        extInput.setHint(getString(R.string.extension_hint));
+
+        LinearLayout wrap = new LinearLayout(this);
+        wrap.setOrientation(LinearLayout.VERTICAL);
+        int p = dp(20);
+        wrap.setPadding(p, dp(8), p, 0);
+        wrap.addView(extInput, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.add_extension_app)
+                .setView(wrap)
+                .setPositiveButton(R.string.accept, (d, w) -> {
+                    String ext = normalizeExtensionInput(extInput.getText() == null ? "" : extInput.getText().toString());
+                    if (ext == null) {
+                        new AlertDialog.Builder(this)
+                                .setTitle(R.string.add_extension_app)
+                                .setMessage(R.string.invalid_extension)
+                                .setPositiveButton(R.string.close, null)
+                                .show();
+                        return;
+                    }
+                    showPickAppForExtension(ext);
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private List<String> getUnresolvedCommonExtensions() {
+        String[] common = {
+                ".pdf", ".txt", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+                ".jpg", ".png", ".mp3", ".mp4", ".zip", ".apk"
+        };
+
+        Set<String> alreadyMapped = new HashSet<>();
+        for (DefaultAppsManager.Entry entry : DefaultAppsManager.getEntries(this)) {
+            if (entry != null && entry.extension != null) {
+                alreadyMapped.add(entry.extension.trim().toLowerCase());
+            }
+        }
+
+        List<String> unresolved = new ArrayList<>();
+        for (String ext : common) {
+            String normalized = normalizeExtensionInput(ext);
+            if (normalized != null && !alreadyMapped.contains(normalized)) {
+                unresolved.add(normalized);
+            }
+        }
+
+        return unresolved;
+    }
+
+    private String normalizeExtensionInput(String raw) {
+        if (raw == null) return null;
+        String value = raw.trim().toLowerCase();
+        if (value.isEmpty()) return null;
+        if ("*".equals(value)) return "*";
+        if (!value.startsWith(".")) value = "." + value;
+        if (value.length() < 2) return null;
+        for (int i = 1; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (!(Character.isLetterOrDigit(c) || c == '_' || c == '-' || c == '+')) {
+                return null;
+            }
+        }
+        return value;
+    }
+
+    private void showPickAppForExtension(String extension) {
+        List<AppChoice> candidates = getAllInstalledApps();
+        if (candidates.isEmpty()) {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.add_extension_app)
+                    .setMessage(R.string.no_apps_found)
+                    .setPositiveButton(R.string.close, null)
+                    .show();
+            return;
+        }
+
+        showAppChoiceDialog(extension, candidates, null, selected -> {
+            DefaultAppsManager.add(this, extension, selected.packageName, selected.label);
+            updateDefaultAppsSubtitle();
+            Toast.makeText(this, getString(R.string.default_app_saved), Toast.LENGTH_SHORT).show();
+            showDefaultAppsDialog();
+        });
+    }
+
+    private List<AppChoice> getAllInstalledApps() {
+        PackageManager pm = getPackageManager();
+        List<AppChoice> out = new ArrayList<>();
+        Map<String, AppChoice> dedup = new LinkedHashMap<>();
+
+        Intent launcherIntent = new Intent(Intent.ACTION_MAIN);
+        launcherIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+        List<ResolveInfo> launcherApps = pm.queryIntentActivities(launcherIntent, 0);
+
+        for (ResolveInfo info : launcherApps) {
+            if (info == null || info.activityInfo == null) continue;
+            ActivityInfo activityInfo = info.activityInfo;
+            ApplicationInfo appInfo = activityInfo.applicationInfo;
+            if (appInfo == null) continue;
+
+            String pkg = activityInfo.packageName;
+            if (pkg == null || pkg.trim().isEmpty()) continue;
+            if (pkg.equals(getPackageName())) continue;
+
+            CharSequence rawLabel = info.loadLabel(pm);
+            String label = rawLabel == null ? pkg : rawLabel.toString().trim();
+            if (label.isEmpty()) label = pkg;
+
+            Drawable icon;
+            try {
+                icon = info.loadIcon(pm);
+            } catch (Exception ignored) {
+                icon = null;
+            }
+
+            dedup.put(pkg, new AppChoice(pkg, label, icon));
+        }
+
+        out.addAll(dedup.values());
+
+        out.sort((a, b) -> a.label.compareToIgnoreCase(b.label));
+        return out;
     }
 
     private void confirmClearAllDefaultApps() {
@@ -233,19 +396,17 @@ public class SettingsActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void showDefaultAppItemActions(String entry) {
-        int sep = entry.indexOf('|');
-        String pkg = sep >= 0 ? entry.substring(0, sep) : entry;
-        String label = (sep >= 0 && sep < entry.length() - 1) ? entry.substring(sep + 1) : pkg;
+    private void showDefaultAppItemActions(DefaultAppsManager.Entry entry) {
+        String extension = entry.extension;
 
         String[] options = {getString(R.string.change_app), getString(R.string.delete)};
         new AlertDialog.Builder(this)
-                .setTitle(label)
+                .setTitle(extension)
                 .setItems(options, (d, which) -> {
                     if (which == 0) {
-                        showReplaceDefaultAppDialog(pkg, label);
+                        showReplaceDefaultAppDialog(entry);
                     } else if (which == 1) {
-                        DefaultAppsManager.remove(this, pkg);
+                        DefaultAppsManager.removeByExtension(this, extension);
                         updateDefaultAppsSubtitle();
                         showDefaultAppsDialog();
                     }
@@ -254,8 +415,8 @@ public class SettingsActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void showReplaceDefaultAppDialog(String oldPackageName, String currentLabel) {
-        List<AppChoice> candidates = getCandidateDefaultApps(oldPackageName, currentLabel);
+    private void showReplaceDefaultAppDialog(DefaultAppsManager.Entry entry) {
+        List<AppChoice> candidates = getCandidateDefaultApps(entry.extension, entry.packageName, entry.appLabel);
         if (candidates.isEmpty()) {
             new AlertDialog.Builder(this)
                     .setTitle(R.string.change_app)
@@ -265,85 +426,165 @@ public class SettingsActivity extends AppCompatActivity {
             return;
         }
 
-        String[] labels = new String[candidates.size()];
-        int preselect = -1;
-        for (int i = 0; i < candidates.size(); i++) {
-            AppChoice c = candidates.get(i);
-            labels[i] = c.label + "\n" + c.packageName;
-            if (c.packageName.equals(oldPackageName)) {
-                preselect = i;
-            }
-        }
-
-        final int currentIndex = preselect;
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.change_app)
-                .setSingleChoiceItems(labels, currentIndex, (d, which) -> {
-                    AppChoice selected = candidates.get(which);
-                    DefaultAppsManager.replacePackage(this, oldPackageName, selected.packageName, selected.label);
-                    updateDefaultAppsSubtitle();
-                    d.dismiss();
-                    showDefaultAppsDialog();
-                })
-                .setNegativeButton(R.string.cancel, null)
-                .show();
+        showAppChoiceDialog(getString(R.string.change_app), candidates, entry.packageName, selected -> {
+            DefaultAppsManager.replacePackage(this, entry.extension, selected.packageName, selected.label);
+            updateDefaultAppsSubtitle();
+            showDefaultAppsDialog();
+        });
     }
 
-    private List<AppChoice> getCandidateDefaultApps(String oldPackageName, String currentLabel) {
+    private List<AppChoice> getCandidateDefaultApps(String extension, String oldPackageName, String currentLabel) {
         PackageManager pm = getPackageManager();
         Map<String, AppChoice> dedup = new LinkedHashMap<>();
 
-        // Prioritize apps that can actually open files via ACTION_VIEW.
-        List<String> mimeCandidates = Arrays.asList(
-                "*/*", "text/plain", "application/pdf", "image/*", "video/*", "audio/*"
-        );
-        for (String mime : mimeCandidates) {
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.addCategory(Intent.CATEGORY_DEFAULT);
-            intent.setType(mime);
-
-            List<ResolveInfo> handlers = pm.queryIntentActivities(intent, 0);
-            for (ResolveInfo info : handlers) {
-                if (info == null || info.activityInfo == null) continue;
-                String pkg = info.activityInfo.packageName;
-                if (pkg == null || pkg.trim().isEmpty()) continue;
-                if (pkg.equals(getPackageName())) continue;
-
-                CharSequence rawLabel = info.loadLabel(pm);
-                String label = rawLabel == null ? pkg : rawLabel.toString().trim();
-                if (label.isEmpty()) label = pkg;
-
-                if (!dedup.containsKey(pkg)) {
-                    dedup.put(pkg, new AppChoice(pkg, label));
-                }
-            }
-        }
-
-        // Fallback: include launchable apps to avoid an empty/too-short list on restrictive devices.
-        List<ApplicationInfo> apps = pm.getInstalledApplications(0);
-        for (ApplicationInfo info : apps) {
-            Intent launchIntent = pm.getLaunchIntentForPackage(info.packageName);
-            if (launchIntent == null) continue;
-            if (info.packageName.equals(getPackageName())) continue;
-
-            CharSequence rawLabel = pm.getApplicationLabel(info);
-            String label = rawLabel == null ? info.packageName : rawLabel.toString().trim();
-            if (label.isEmpty()) label = info.packageName;
-
-            if (!dedup.containsKey(info.packageName)) {
-                dedup.put(info.packageName, new AppChoice(info.packageName, label));
+        // Use the same source as "add extension": all launcher-visible apps.
+        for (AppChoice app : getAllInstalledApps()) {
+            if (app == null || app.packageName == null || app.packageName.trim().isEmpty()) continue;
+            if (!dedup.containsKey(app.packageName)) {
+                dedup.put(app.packageName, app);
             }
         }
 
         // Ensure current mapped app stays selectable even if hidden by package visibility.
         if (oldPackageName != null && !oldPackageName.trim().isEmpty() && !dedup.containsKey(oldPackageName)) {
             String fallbackLabel = (currentLabel == null || currentLabel.trim().isEmpty()) ? oldPackageName : currentLabel.trim();
-            dedup.put(oldPackageName, new AppChoice(oldPackageName, fallbackLabel));
+            Drawable fallbackIcon = null;
+            try {
+                fallbackIcon = pm.getApplicationIcon(oldPackageName);
+            } catch (Exception ignored) {
+            }
+            dedup.put(oldPackageName, new AppChoice(oldPackageName, fallbackLabel, fallbackIcon));
         }
 
         List<AppChoice> out = new ArrayList<>(dedup.values());
         out.sort((a, b) -> a.label.compareToIgnoreCase(b.label));
         return out;
+    }
+
+    private void showAppChoiceDialog(String title,
+                                     List<AppChoice> candidates,
+                                     String selectedPackage,
+                                     OnAppChoiceSelected onSelected) {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int hp = dp(16);
+        root.setPadding(hp, dp(10), hp, 0);
+
+        EditText search = new EditText(this);
+        search.setSingleLine(true);
+        search.setHint(getString(R.string.search_apps_hint));
+        root.addView(search, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        ListView listView = new ListView(this);
+        LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(420));
+        listParams.topMargin = dp(8);
+        root.addView(listView, listParams);
+
+        AppChoiceAdapter adapter = new AppChoiceAdapter(candidates, selectedPackage);
+        listView.setAdapter(adapter);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(root)
+                .setNegativeButton(R.string.cancel, null)
+                .create();
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            AppChoice selected = adapter.getItem(position);
+            if (selected != null) {
+                dialog.dismiss();
+                onSelected.onSelected(selected);
+            }
+        });
+
+        search.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                adapter.filter(s == null ? "" : s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
+
+        dialog.show();
+    }
+
+    private class AppChoiceAdapter extends BaseAdapter {
+        private final List<AppChoice> all;
+        private final List<AppChoice> filtered;
+        private final String selectedPackage;
+
+        AppChoiceAdapter(List<AppChoice> initial, String selectedPackage) {
+            this.all = new ArrayList<>(initial);
+            this.filtered = new ArrayList<>(initial);
+            this.selectedPackage = selectedPackage;
+        }
+
+        void filter(String query) {
+            String q = query == null ? "" : query.trim().toLowerCase();
+            filtered.clear();
+            if (q.isEmpty()) {
+                filtered.addAll(all);
+            } else {
+                for (AppChoice c : all) {
+                    String label = c.label == null ? "" : c.label.toLowerCase();
+                    String pkg = c.packageName == null ? "" : c.packageName.toLowerCase();
+                    if (label.contains(q) || pkg.contains(q)) {
+                        filtered.add(c);
+                    }
+                }
+            }
+            notifyDataSetChanged();
+        }
+
+        @Override
+        public int getCount() {
+            return filtered.size();
+        }
+
+        @Override
+        public AppChoice getItem(int position) {
+            return (position >= 0 && position < filtered.size()) ? filtered.get(position) : null;
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            View v = convertView;
+            if (v == null) {
+                v = LayoutInflater.from(SettingsActivity.this).inflate(R.layout.item_app_choice, parent, false);
+            }
+
+            AppChoice item = getItem(position);
+            if (item == null) return v;
+
+            ImageView icon = v.findViewById(R.id.app_icon);
+            TextView label = v.findViewById(R.id.app_label);
+            TextView pkg = v.findViewById(R.id.app_package);
+
+            if (item.icon != null) icon.setImageDrawable(item.icon);
+            else icon.setImageDrawable(null);
+
+            boolean selected = selectedPackage != null && selectedPackage.equals(item.packageName);
+            label.setText(selected ? ("✓ " + item.label) : item.label);
+            pkg.setText(item.packageName);
+
+            return v;
+        }
     }
 
     private int dp(float value) {
