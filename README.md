@@ -35,8 +35,12 @@ FileManager lets users browse internal storage, search files, manage trash, and 
 - Search with incremental loading and cancellation.
 - Recent files view sorted by last access.
 - Horizontal swipe gestures to switch between Recents and Files views.
+- Recents quick actions:
+  - clear all recents with confirmation
+  - long press on a recent file for Open with... or Remove from recents
 - Rename with extension control (full filename or name-only).
 - Multi-selection actions: copy, move, share, and send to trash.
+- Selection action bar includes Open with... when exactly one file is selected.
 - Trash with restore and permanent delete.
 - Asynchronous image thumbnails with cache.
 - Appearance settings: theme, UI scale, and language.
@@ -109,6 +113,7 @@ Path: Settings
 - System chooser/resolver activities are ignored.
 - If there is no explicit default but only one valid handler exists, it is stored as the effective app.
 - The list in Settings > Default apps is ordered by latest detection.
+- Change-app candidates are resolved from real file-opening handlers (ACTION_VIEW by MIME), not only launcher apps.
 
 Available actions per entry:
 
@@ -174,6 +179,11 @@ Minimum checklist before release:
 - Horizontal swipe gesture between Recents and Files tabs/views.
 - Rename with and without extension changes.
 - Recents ordering by access time.
+- Recents long press behavior (about half-second): Open with... and Remove from recents.
+- Clear recents action and confirmation dialog.
+- Selection action bar:
+  - appears when selecting files/folders
+  - Open with... appears only for single-file selection
 - File opening and default app registration.
 - Trash actions: move, restore, and empty.
 - Language change and persistence after restart.

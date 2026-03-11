@@ -9,6 +9,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -21,6 +22,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,7 +37,10 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     private static final int TYPE_HEADER = 0;
     private static final int TYPE_FILE = 1;
 
-    public interface OnFileClick { void onClick(File file); }
+    public interface OnFileClick {
+        void onClick(File file);
+        void onLongPress(File file, View anchor);
+    }
 
     private final Context ctx;
     private final OnFileClick listener;
@@ -51,18 +57,27 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     }
 
     public void setFiles(List<File> files) {
+        setFiles(files, null);
+    }
+
+    public void setFiles(List<File> files, Map<String, Long> accessByPath) {
         items.clear();
-        // Group by date
+
+        List<File> orderedFiles = new ArrayList<>(files);
+        Collections.sort(orderedFiles, Comparator.comparingLong((File f) -> getAccessTime(f, accessByPath)).reversed());
+
+        // Group by access date.
         Map<String, List<File>> groups = new LinkedHashMap<>();
         SimpleDateFormat sdf = new SimpleDateFormat("dd MMM yyyy", Locale.getDefault());
         SimpleDateFormat today = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
         String todayStr = today.format(new Date());
 
-        for (File f : files) {
-            String d = today.format(new Date(f.lastModified()));
+        for (File f : orderedFiles) {
+            long accessedAt = getAccessTime(f, accessByPath);
+            String d = today.format(new Date(accessedAt));
             String label;
             if (d.equals(todayStr)) label = ctx.getString(R.string.today);
-            else label = sdf.format(new Date(f.lastModified()));
+            else label = sdf.format(new Date(accessedAt));
             if (!groups.containsKey(label)) groups.put(label, new ArrayList<>());
             groups.get(label).add(f);
         }
@@ -74,6 +89,12 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             items.addAll(group);
         }
         notifyDataSetChanged();
+    }
+
+    private long getAccessTime(File file, Map<String, Long> accessByPath) {
+        if (accessByPath == null) return file.lastModified();
+        Long ts = accessByPath.get(file.getAbsolutePath());
+        return (ts != null && ts > 0L) ? ts : file.lastModified();
     }
 
     public void setDarkTheme(boolean darkTheme) {
@@ -131,6 +152,35 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             h.thumbnail.setBackgroundColor(darkTheme ? 0xFF1C1C1E : 0xFFE7EDF4);
             setSquareSize(h.thumbnail, dp(88f * uiScale));
             h.itemView.setOnClickListener(v -> listener.onClick(file));
+
+            final float[] down = new float[]{0f, 0f};
+            final boolean[] longPressTriggered = new boolean[]{false};
+            final Runnable[] longPressTask = new Runnable[1];
+            h.itemView.setOnTouchListener((v, event) -> {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        down[0] = event.getX();
+                        down[1] = event.getY();
+                        longPressTriggered[0] = false;
+                        longPressTask[0] = () -> {
+                            longPressTriggered[0] = true;
+                            listener.onLongPress(file, h.itemView);
+                        };
+                        v.postDelayed(longPressTask[0], 550L);
+                        return false;
+                    case MotionEvent.ACTION_MOVE:
+                        if (Math.abs(event.getX() - down[0]) > dp(10) || Math.abs(event.getY() - down[1]) > dp(10)) {
+                            if (longPressTask[0] != null) v.removeCallbacks(longPressTask[0]);
+                        }
+                        return false;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        if (longPressTask[0] != null) v.removeCallbacks(longPressTask[0]);
+                        return longPressTriggered[0];
+                    default:
+                        return false;
+                }
+            });
 
             // Load thumbnail async for images/videos
             String ext = fi.getExtension().toLowerCase();

@@ -39,6 +39,9 @@
     <string name="storage">Almacenamiento</string>
     <string name="internal_storage">Almacenamiento interno</string>
     <string name="recent">Recientes</string>
+    <string name="clear_recent">Limpiar recientes</string>
+    <string name="confirm_clear_recent_message">Se eliminarán todas las entradas de recientes. ¿Quieres continuar?</string>
+    <string name="recents_cleared">Recientes limpiados</string>
     <string name="search_files">Buscar archivos...</string>
     <string name="filter">Filtrar</string>
     <string name="searching">Buscando...</string>
@@ -52,6 +55,10 @@
     <string name="rename">Renombrar</string>
     <string name="select_all">Seleccionar todo</string>
     <string name="open">Abrir</string>
+    <string name="open_with">Abrir con...</string>
+    <string name="select_single_file_for_open_with">Selecciona un único fichero para Abrir con</string>
+    <string name="remove_from_recent">Quitar de recientes</string>
+    <string name="removed_from_recent">Quitado de recientes</string>
     <string name="cut">Cortar</string>
     <string name="share">Compartir</string>
     <string name="details">Detalles</string>

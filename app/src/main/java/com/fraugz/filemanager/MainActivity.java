@@ -49,7 +49,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
 
 import android.content.res.ColorStateList;
@@ -78,10 +80,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private EditText searchInput;
     private LinearLayout pasteBar;
     private TextView pasteLabel, sectionHeaderLabel, pageTitle, recentTitle, searchStatus, cancelSearchBtn, loadingStatusLabel;
-    private TextView actionSendLabel, actionMoveLabel, actionCopyLabel, actionDeleteLabel, actionRenameLabel;
-    private ImageView actionSendIcon, actionMoveIcon, actionCopyIcon, actionDeleteIcon, actionRenameIcon;
+    private TextView actionSendLabel, actionOpenWithLabel, actionMoveLabel, actionCopyLabel, actionDeleteLabel, actionRenameLabel;
+    private ImageView actionSendIcon, actionOpenWithIcon, actionMoveIcon, actionCopyIcon, actionDeleteIcon, actionRenameIcon;
     private ProgressBar searchProgress;
     private SwipeRefreshLayout swipeRefresh;
+    private ImageButton btnClearRecent;
 
     // Custom bottom nav
     private LinearLayout bottomNav, tabRecent, tabStorage;
@@ -93,6 +96,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private RecentAdapter recentAdapter;
     private final List<FileItem> fileItems = new ArrayList<>();
     private final List<File> recentFilesCache = new ArrayList<>();
+    private final Map<String, Long> recentAccessByPath = new HashMap<>();
 
     // State
     private File currentDir;
@@ -150,16 +154,19 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         sectionHeaderLabel  = findViewById(R.id.section_header_label);
         pageTitle           = findViewById(R.id.page_title);
         recentTitle         = findViewById(R.id.recent_title);
+        btnClearRecent      = findViewById(R.id.btn_clear_recent);
         searchProgress      = findViewById(R.id.search_progress);
         searchStatus        = findViewById(R.id.search_status);
         cancelSearchBtn     = findViewById(R.id.btn_cancel_search);
         loadingStatusLabel  = findViewById(R.id.loading_status_label);
         actionSendLabel     = findViewById(R.id.action_send_label);
+        actionOpenWithLabel = findViewById(R.id.action_open_with_label);
         actionMoveLabel     = findViewById(R.id.action_move_label);
         actionCopyLabel     = findViewById(R.id.action_copy_label);
         actionDeleteLabel   = findViewById(R.id.action_delete_label);
         actionRenameLabel   = findViewById(R.id.action_rename_label);
         actionSendIcon      = findViewById(R.id.action_send_icon);
+        actionOpenWithIcon  = findViewById(R.id.action_open_with_icon);
         actionMoveIcon      = findViewById(R.id.action_move_icon);
         actionCopyIcon      = findViewById(R.id.action_copy_icon);
         actionDeleteIcon    = findViewById(R.id.action_delete_icon);
@@ -207,6 +214,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
         if (pageTitle != null) pageTitle.setTextColor(textPrimary);
         if (recentTitle != null) recentTitle.setTextColor(textPrimary);
+        if (btnClearRecent != null) btnClearRecent.setColorFilter(iconTint);
         if (sectionHeaderLabel != null) sectionHeaderLabel.setTextColor(accent);
 
         safeSetBg(searchBar, bgCard);
@@ -224,17 +232,19 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             ((android.widget.Button) pasteBtnView).setBackgroundTintList(ColorStateList.valueOf(pasteBtn));
         }
         if (actionSendLabel != null) actionSendLabel.setTextColor(iconTint);
+        if (actionOpenWithLabel != null) actionOpenWithLabel.setTextColor(iconTint);
         if (actionMoveLabel != null) actionMoveLabel.setTextColor(iconTint);
         if (actionCopyLabel != null) actionCopyLabel.setTextColor(iconTint);
         if (actionDeleteLabel != null) actionDeleteLabel.setTextColor(iconTint);
         if (actionRenameLabel != null) actionRenameLabel.setTextColor(iconTint);
         if (actionSendIcon != null) actionSendIcon.setColorFilter(iconTint);
+        if (actionOpenWithIcon != null) actionOpenWithIcon.setColorFilter(iconTint);
         if (actionMoveIcon != null) actionMoveIcon.setColorFilter(iconTint);
         if (actionCopyIcon != null) actionCopyIcon.setColorFilter(iconTint);
         if (actionDeleteIcon != null) actionDeleteIcon.setColorFilter(iconTint);
         if (actionRenameIcon != null) actionRenameIcon.setColorFilter(iconTint);
 
-        int[] iconBtns = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_new_folder_inline};
+        int[] iconBtns = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_new_folder_inline, R.id.btn_clear_recent};
         for (int id : iconBtns) {
             View v = findViewById(id);
             if (v instanceof ImageButton) ((ImageButton) v).setColorFilter(iconTint);
@@ -276,13 +286,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (loadingStatusLabel != null) loadingStatusLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
         if (cancelSearchBtn != null) cancelSearchBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * uiScale);
         if (actionSendLabel != null) actionSendLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
+        if (actionOpenWithLabel != null) actionOpenWithLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
         if (actionMoveLabel != null) actionMoveLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
         if (actionCopyLabel != null) actionCopyLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
         if (actionDeleteLabel != null) actionDeleteLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
         if (actionRenameLabel != null) actionRenameLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
 
         int iconSize = dp(44f * uiScale);
-        int[] topIconButtons = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow};
+        int[] topIconButtons = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_clear_recent};
         for (int id : topIconButtons) {
             View v = findViewById(id);
             setSquareSize(v, iconSize);
@@ -291,6 +302,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setSquareSize(findViewById(R.id.btn_new_folder_inline), dp(38f * uiScale));
         setSquareSize(findViewById(R.id.btn_paste_dismiss), dp(36f * uiScale));
         setSquareSize(actionSendIcon, dp(24f * uiScale));
+        setSquareSize(actionOpenWithIcon, dp(24f * uiScale));
         setSquareSize(actionMoveIcon, dp(24f * uiScale));
         setSquareSize(actionCopyIcon, dp(24f * uiScale));
         setSquareSize(actionDeleteIcon, dp(24f * uiScale));
@@ -371,9 +383,17 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 }
             });
             recyclerRecent.setLayoutManager(glm);
-            recentAdapter = new RecentAdapter(this, new ArrayList<>(), file -> {
-                RecentManager.add(this, file.getAbsolutePath());
-                openFile(file);
+            recentAdapter = new RecentAdapter(this, new ArrayList<>(), new RecentAdapter.OnFileClick() {
+                @Override
+                public void onClick(File file) {
+                    RecentManager.add(MainActivity.this, file.getAbsolutePath());
+                    openFile(file);
+                }
+
+                @Override
+                public void onLongPress(File file, View anchor) {
+                    showRecentItemMenu(file, anchor);
+                }
             });
             recentAdapter.setDarkTheme(isDark);
             recentAdapter.setUiScale(uiScale);
@@ -393,7 +413,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setClickSafe(R.id.btn_search,            v -> toggleSearch());
         setClickSafe(R.id.btn_filter,            v -> showSortMenu(v));
         setClickSafe(R.id.btn_trash,             v -> startActivity(new Intent(this, TrashActivity.class)));
-        setClickSafe(R.id.btn_overflow,          v -> startActivity(new Intent(this, SettingsActivity.class)));
+        setClickSafe(R.id.btn_overflow,          v -> {
+            if (!getSelectedFiles().isEmpty()) {
+                showSelectionMenu(v);
+            } else {
+                startActivity(new Intent(this, SettingsActivity.class));
+            }
+        });
+        setClickSafe(R.id.btn_clear_recent,      v -> confirmClearRecents());
         setClickSafe(R.id.btn_new_folder_inline, v -> showNewFolderDialog());
         setClickSafe(R.id.btn_paste,             v -> pasteClipboard());
         setClickSafe(R.id.btn_paste_dismiss,     v -> {
@@ -401,6 +428,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             updatePasteBar();
         });
         setClickSafe(R.id.action_send,           v -> shareSelectedFiles());
+        setClickSafe(R.id.action_open_with,      v -> openWithSelection());
         setClickSafe(R.id.action_move,           v -> markSelectionForMove());
         setClickSafe(R.id.action_copy,           v -> copySelection());
         setClickSafe(R.id.action_delete,         v -> deleteSelectionToTrash());
@@ -482,6 +510,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (viewRecent != null)  viewRecent.setVisibility(View.GONE);
         View sortBtn = findViewById(R.id.btn_filter);
         if (sortBtn != null) sortBtn.setVisibility(View.VISIBLE);
+        View trashBtn = findViewById(R.id.btn_trash);
+        if (trashBtn != null) trashBtn.setVisibility(View.VISIBLE);
     }
 
     private void showRecentView() {
@@ -489,16 +519,22 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (viewRecent != null)  viewRecent.setVisibility(View.VISIBLE);
         View sortBtn = findViewById(R.id.btn_filter);
         if (sortBtn != null) sortBtn.setVisibility(View.GONE);
+        View trashBtn = findViewById(R.id.btn_trash);
+        if (trashBtn != null) trashBtn.setVisibility(View.GONE);
         loadRecentFiles();
     }
 
     private void loadRecentFiles() {
         try {
-            List<String> paths = RecentManager.get(this);
+            List<RecentManager.RecentEntry> entries = RecentManager.getEntries(this);
             List<File> files = new ArrayList<>();
-            for (String p : paths) {
-                File f = new File(p);
-                if (f.exists() && f.isFile()) files.add(f);
+            recentAccessByPath.clear();
+            for (RecentManager.RecentEntry entry : entries) {
+                File f = new File(entry.path);
+                if (f.exists() && f.isFile()) {
+                    files.add(f);
+                    recentAccessByPath.put(f.getAbsolutePath(), entry.accessedAt);
+                }
             }
 
             recentFilesCache.clear();
@@ -515,7 +551,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             boolean empty = files.isEmpty();
             if (recyclerRecent != null)  recyclerRecent.setVisibility(empty ? View.GONE : View.VISIBLE);
             if (emptyRecentView != null) emptyRecentView.setVisibility(empty ? View.VISIBLE : View.GONE);
-            if (!empty && recentAdapter != null) recentAdapter.setFiles(files);
+            updateClearRecentsButtonState(!files.isEmpty());
+            if (!empty && recentAdapter != null) recentAdapter.setFiles(files, recentAccessByPath);
         } catch (Exception e) { Log.e(TAG, "loadRecentFiles", e); }
     }
 
@@ -770,7 +807,32 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         boolean empty = filtered.isEmpty();
         if (recyclerRecent != null) recyclerRecent.setVisibility(empty ? View.GONE : View.VISIBLE);
         if (emptyRecentView != null) emptyRecentView.setVisibility(empty ? View.VISIBLE : View.GONE);
-        if (!empty) recentAdapter.setFiles(filtered);
+        updateClearRecentsButtonState(!recentFilesCache.isEmpty());
+        if (!empty) recentAdapter.setFiles(filtered, recentAccessByPath);
+    }
+
+    private void updateClearRecentsButtonState(boolean hasItems) {
+        if (btnClearRecent == null) return;
+        btnClearRecent.setEnabled(hasItems);
+        btnClearRecent.setAlpha(hasItems ? 1f : 0.35f);
+    }
+
+    private void confirmClearRecents() {
+        if (recentFilesCache.isEmpty()) {
+            updateClearRecentsButtonState(false);
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.confirm_clear_title)
+                .setMessage(R.string.confirm_clear_recent_message)
+                .setPositiveButton(R.string.clear_all, (d, w) -> {
+                    RecentManager.clear(this);
+                    loadRecentFiles();
+                    toast(getString(R.string.recents_cleared));
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 
     private void startRecursiveSearch(String query) {
@@ -942,7 +1004,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     @Override
     public void onMoreClick(FileItem item, View anchor) {
-        // Per-item overflow is intentionally hidden in favor of the bottom selection action bar.
+        // Per-item overflow actions are disabled; use selection mode menu from top overflow.
     }
 
     // ─────────────────────── SELECTION ───────────────────────────────
@@ -962,10 +1024,25 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     }
 
     private void updateSelectionActionsBar() {
-        boolean selectionMode = adapter != null && adapter.isSelectionMode() && !getSelectedFiles().isEmpty();
+        List<File> sel = getSelectedFiles();
+        boolean selectionMode = adapter != null && adapter.isSelectionMode() && !sel.isEmpty();
+        boolean showOpenWith = sel.size() == 1 && sel.get(0).isFile();
         if (selectionActionsBar != null) {
             selectionActionsBar.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
         }
+        View openWithAction = findViewById(R.id.action_open_with);
+        if (openWithAction != null) {
+            openWithAction.setVisibility(selectionMode && showOpenWith ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void openWithSelection() {
+        List<File> sel = getSelectedFiles();
+        if (sel.size() != 1 || !sel.get(0).isFile()) {
+            toast(getString(R.string.select_single_file_for_open_with));
+            return;
+        }
+        openFileWithChooser(sel.get(0));
     }
 
     private void markSelectionForMove() {
@@ -1072,17 +1149,28 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void showFileMenu(FileItem item, View anchor) {
         PopupMenu p = new PopupMenu(this, anchor);
-        p.getMenu().add(0, 1, 0, getString(R.string.open));
-        p.getMenu().add(0, 2, 0, getString(R.string.copy));
-        p.getMenu().add(0, 3, 0, getString(R.string.cut));
-        p.getMenu().add(0, 4, 0, getString(R.string.rename));
-        p.getMenu().add(0, 5, 0, getString(R.string.share));
-        p.getMenu().add(0, 6, 0, getString(R.string.details));
-        p.getMenu().add(0, 7, 0, getString(R.string.move_to_trash));
+        if (item.isDirectory()) {
+            p.getMenu().add(0, 1, 0, getString(R.string.open));
+            p.getMenu().add(0, 3, 0, getString(R.string.move));
+            p.getMenu().add(0, 2, 0, getString(R.string.copy));
+            p.getMenu().add(0, 5, 0, getString(R.string.rename));
+            p.getMenu().add(0, 6, 0, getString(R.string.delete));
+        } else {
+            p.getMenu().add(0, 7, 0, getString(R.string.send));
+            p.getMenu().add(0, 8, 0, getString(R.string.open_with));
+            p.getMenu().add(0, 3, 0, getString(R.string.move));
+            p.getMenu().add(0, 2, 0, getString(R.string.copy));
+            p.getMenu().add(0, 5, 0, getString(R.string.rename));
+            p.getMenu().add(0, 6, 0, getString(R.string.delete));
+        }
+
         p.setOnMenuItemClickListener(mi -> {
             try {
                 switch (mi.getItemId()) {
-                    case 1: if (item.isDirectory()) navigateTo(item.getFile()); else openFile(item.getFile()); break;
+                    case 1:
+                        if (item.isDirectory()) navigateTo(item.getFile());
+                        else openFile(item.getFile());
+                        break;
                     case 2:
                         clipboardFiles.clear();
                         clipboardFiles.add(item.getFile());
@@ -1095,12 +1183,20 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         clipboardFiles.add(item.getFile());
                         clipboardIsCopy = false;
                         updatePasteBar();
-                        toast(getString(R.string.cut_simple));
+                        toast(getString(R.string.move_prepared, 1));
                         break;
-                    case 4: showRenameDialog(item.getFile(), false); break;
-                    case 5: shareFile(item.getFile()); break;
-                    case 6: showDetails(item); break;
-                    case 7: moveToTrash(item.getFile()); break;
+                    case 5:
+                        showRenameDialog(item.getFile(), false);
+                        break;
+                    case 6:
+                        moveToTrash(item.getFile());
+                        break;
+                    case 7:
+                        shareFile(item.getFile());
+                        break;
+                    case 8:
+                        openFileWithSystemResolver(item.getFile());
+                        break;
                 }
             } catch (Exception e) { Log.e(TAG, "fileMenu", e); toast(getString(R.string.error_with_reason, e.getMessage())); }
             return true;
@@ -1110,50 +1206,43 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void showSelectionMenu(View anchor) {
         List<File> sel = getSelectedFiles();
+        if (sel.isEmpty()) {
+            toast(getString(R.string.no_items_selected));
+            return;
+        }
+
+        boolean single = sel.size() == 1;
+        boolean singleFile = single && sel.get(0).isFile();
+
         PopupMenu p = new PopupMenu(this, anchor);
-        p.getMenu().add(0, 1, 0, getString(R.string.copy) + " (" + sel.size() + ")");
-        p.getMenu().add(0, 2, 0, getString(R.string.cut) + " (" + sel.size() + ")");
-        p.getMenu().add(0, 3, 0, getString(R.string.move_to_trash) + " (" + sel.size() + ")");
-        p.getMenu().add(0, 4, 0, getString(R.string.share));
+        p.getMenu().add(0, 1, 0, getString(R.string.send));
+        if (singleFile) p.getMenu().add(0, 2, 0, getString(R.string.open_with));
+        p.getMenu().add(0, 3, 0, getString(R.string.move));
+        p.getMenu().add(0, 4, 0, getString(R.string.copy));
+        if (single) p.getMenu().add(0, 5, 0, getString(R.string.rename));
+        p.getMenu().add(0, 6, 0, getString(R.string.delete));
+
         p.setOnMenuItemClickListener(mi -> {
             try {
                 switch (mi.getItemId()) {
                     case 1:
-                        if (!sel.isEmpty()) {
-                            clipboardFiles.clear();
-                            clipboardFiles.addAll(sel);
-                            clipboardIsCopy = true;
-                            updatePasteBar();
-                        }
-                            toast(getString(R.string.copied_count, sel.size())); exitSelectionMode(); break;
+                        shareSelectedFiles();
+                        break;
                     case 2:
-                        if (!sel.isEmpty()) {
-                            clipboardFiles.clear();
-                            clipboardFiles.addAll(sel);
-                            clipboardIsCopy = false;
-                            updatePasteBar();
-                        }
-                            toast(getString(R.string.cut_count, sel.size())); exitSelectionMode(); break;
+                        if (singleFile) openFileWithSystemResolver(sel.get(0));
+                        break;
                     case 3:
-                        int n = 0;
-                        String firstError = null;
-                        for (File f : sel) {
-                            if (TrashManager.moveToTrash(this, f)) {
-                                n++;
-                            } else if (firstError == null) {
-                                firstError = TrashManager.getLastError();
-                            }
-                        }
-                        if (n == sel.size()) {
-                                toast(getString(R.string.moved_count, n));
-                        } else {
-                            String reason = (firstError == null || firstError.trim().isEmpty())
-                                    ? getString(R.string.unknown_reason)
-                                    : firstError;
-                                toast(getString(R.string.moved_partial_error, n, sel.size(), reason));
-                        }
-                        exitSelectionMode(); loadDirectory(currentDir); break;
-                    case 4: if (!sel.isEmpty()) shareFile(sel.get(0)); break;
+                        markSelectionForMove();
+                        break;
+                    case 4:
+                        copySelection();
+                        break;
+                    case 5:
+                        renameSelection();
+                        break;
+                    case 6:
+                        deleteSelectionToTrash();
+                        break;
                 }
             } catch (Exception e) { Log.e(TAG, "selMenu", e); }
             return true;
@@ -1274,12 +1363,67 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         } catch (Exception e) { Log.e(TAG, "openFile", e); toast(getString(R.string.cannot_open_file, file.getName())); }
     }
 
+    private void openFileWithSystemResolver(File file) {
+        try {
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setDataAndType(uri, getMimeType(file));
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(i);
+        } catch (Exception e) {
+            Log.e(TAG, "openFileWithSystemResolver", e);
+            toast(getString(R.string.cannot_open_file, file.getName()));
+        }
+    }
+
+    private void openFileWithChooser(File file) {
+        try {
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setDataAndType(uri, getMimeType(file));
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(i, getString(R.string.open_with)));
+        } catch (Exception e) {
+            Log.e(TAG, "openFileWithChooser", e);
+            toast(getString(R.string.cannot_open_file, file.getName()));
+        }
+    }
+
+    private void showRecentItemMenu(File file, View anchor) {
+        PopupMenu p = new PopupMenu(this, anchor);
+        p.getMenu().add(0, 1, 0, getString(R.string.open_with));
+        p.getMenu().add(0, 2, 0, getString(R.string.remove_from_recent));
+
+        p.setOnMenuItemClickListener(mi -> {
+            switch (mi.getItemId()) {
+                case 1:
+                    openFileWithChooser(file);
+                    return true;
+                case 2:
+                    RecentManager.remove(this, file.getAbsolutePath());
+                    loadRecentFiles();
+                    toast(getString(R.string.removed_from_recent));
+                    return true;
+                default:
+                    return false;
+            }
+        });
+        p.show();
+    }
+
     private void captureDefaultHandler(Intent viewIntent) {
         PackageManager pm = getPackageManager();
 
         ResolveInfo resolvedDefault = pm.resolveActivity(viewIntent, PackageManager.MATCH_DEFAULT_ONLY);
         if (isUsableExternalHandler(resolvedDefault)) {
             saveResolvedHandler(pm, resolvedDefault);
+            return;
+        }
+
+        // Some preferred handlers may resolve without MATCH_DEFAULT_ONLY.
+        ResolveInfo resolvedPreferred = pm.resolveActivity(viewIntent, 0);
+        if (isUsableExternalHandler(resolvedPreferred)) {
+            saveResolvedHandler(pm, resolvedPreferred);
             return;
         }
 

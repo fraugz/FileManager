@@ -210,10 +210,35 @@
             android:layout_width="match_parent" android:layout_height="match_parent"
             android:orientation="vertical" android:visibility="gone">
 
-            <TextView android:id="@+id/recent_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_marginStart="20dp" android:layout_marginTop="6dp"
-                android:layout_marginBottom="8dp" android:text="@string/recent"
-                android:textColor="#FFFFFF" android:textSize="30sp" android:textStyle="bold"/>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="8dp"
+                android:paddingStart="20dp"
+                android:paddingEnd="14dp">
+
+                <TextView
+                    android:id="@+id/recent_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/recent"
+                    android:textColor="#FFFFFF"
+                    android:textSize="30sp"
+                    android:textStyle="bold"/>
+
+                <ImageButton
+                    android:id="@+id/btn_clear_recent"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/clear_recent"
+                    android:src="@drawable/ic_clear_recent"
+                    android:tint="#FFFFFF"/>
+            </LinearLayout>
 
             <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
 
@@ -272,6 +297,31 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="@string/send"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/action_open_with"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="?attr/selectableItemBackground"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/action_open_with_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_action_open_with"
+                android:tint="#FFFFFF"/>
+            <TextView
+                android:id="@+id/action_open_with_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/open_with"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp"/>
         </LinearLayout>

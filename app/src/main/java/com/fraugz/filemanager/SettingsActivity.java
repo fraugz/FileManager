@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.View;
@@ -14,7 +15,10 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class SettingsActivity extends AppCompatActivity {
 
@@ -251,7 +255,7 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void showReplaceDefaultAppDialog(String oldPackageName, String currentLabel) {
-        List<AppChoice> candidates = getInstalledLaunchableApps();
+        List<AppChoice> candidates = getCandidateDefaultApps(oldPackageName, currentLabel);
         if (candidates.isEmpty()) {
             new AlertDialog.Builder(this)
                     .setTitle(R.string.change_app)
@@ -285,18 +289,59 @@ public class SettingsActivity extends AppCompatActivity {
                 .show();
     }
 
-    private List<AppChoice> getInstalledLaunchableApps() {
-        List<AppChoice> out = new ArrayList<>();
-        List<ApplicationInfo> apps = getPackageManager().getInstalledApplications(0);
-        for (ApplicationInfo info : apps) {
-            Intent launchIntent = getPackageManager().getLaunchIntentForPackage(info.packageName);
-            if (launchIntent == null) continue;
+    private List<AppChoice> getCandidateDefaultApps(String oldPackageName, String currentLabel) {
+        PackageManager pm = getPackageManager();
+        Map<String, AppChoice> dedup = new LinkedHashMap<>();
 
-            CharSequence rawLabel = getPackageManager().getApplicationLabel(info);
+        // Prioritize apps that can actually open files via ACTION_VIEW.
+        List<String> mimeCandidates = Arrays.asList(
+                "*/*", "text/plain", "application/pdf", "image/*", "video/*", "audio/*"
+        );
+        for (String mime : mimeCandidates) {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.addCategory(Intent.CATEGORY_DEFAULT);
+            intent.setType(mime);
+
+            List<ResolveInfo> handlers = pm.queryIntentActivities(intent, 0);
+            for (ResolveInfo info : handlers) {
+                if (info == null || info.activityInfo == null) continue;
+                String pkg = info.activityInfo.packageName;
+                if (pkg == null || pkg.trim().isEmpty()) continue;
+                if (pkg.equals(getPackageName())) continue;
+
+                CharSequence rawLabel = info.loadLabel(pm);
+                String label = rawLabel == null ? pkg : rawLabel.toString().trim();
+                if (label.isEmpty()) label = pkg;
+
+                if (!dedup.containsKey(pkg)) {
+                    dedup.put(pkg, new AppChoice(pkg, label));
+                }
+            }
+        }
+
+        // Fallback: include launchable apps to avoid an empty/too-short list on restrictive devices.
+        List<ApplicationInfo> apps = pm.getInstalledApplications(0);
+        for (ApplicationInfo info : apps) {
+            Intent launchIntent = pm.getLaunchIntentForPackage(info.packageName);
+            if (launchIntent == null) continue;
+            if (info.packageName.equals(getPackageName())) continue;
+
+            CharSequence rawLabel = pm.getApplicationLabel(info);
             String label = rawLabel == null ? info.packageName : rawLabel.toString().trim();
             if (label.isEmpty()) label = info.packageName;
-            out.add(new AppChoice(info.packageName, label));
+
+            if (!dedup.containsKey(info.packageName)) {
+                dedup.put(info.packageName, new AppChoice(info.packageName, label));
+            }
         }
+
+        // Ensure current mapped app stays selectable even if hidden by package visibility.
+        if (oldPackageName != null && !oldPackageName.trim().isEmpty() && !dedup.containsKey(oldPackageName)) {
+            String fallbackLabel = (currentLabel == null || currentLabel.trim().isEmpty()) ? oldPackageName : currentLabel.trim();
+            dedup.put(oldPackageName, new AppChoice(oldPackageName, fallbackLabel));
+        }
+
+        List<AppChoice> out = new ArrayList<>(dedup.values());
         out.sort((a, b) -> a.label.compareToIgnoreCase(b.label));
         return out;
     }

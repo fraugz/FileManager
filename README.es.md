@@ -35,8 +35,12 @@ FileManager permite navegar almacenamiento interno, buscar archivos, gestionar p
 - Busqueda con carga incremental y cancelacion.
 - Vista de recientes ordenada por ultimo acceso.
 - Gestos de deslizamiento horizontal para cambiar entre las vistas Recientes y Archivos.
+- Acciones rapidas en Recientes:
+  - limpiar todos los recientes con confirmacion
+  - pulsacion prolongada en un fichero reciente para Abrir con... o Quitar de recientes
 - Renombrado con control de extension (nombre completo o solo nombre).
 - Acciones en multiseleccion: copiar, mover, compartir y enviar a papelera.
+- La barra de acciones de seleccion incluye Abrir con... cuando hay exactamente un fichero seleccionado.
 - Papelera con restauracion y borrado permanente.
 - Miniaturas de imagen asincronas con cache.
 - Ajustes de apariencia: tema, escala UI e idioma.
@@ -109,6 +113,7 @@ Ruta: Settings
 - Actividades de chooser/resolver del sistema se ignoran.
 - Si no hay default explicito pero existe un unico handler valido, se guarda como app efectiva.
 - La lista en Settings > Default apps se ordena por deteccion mas reciente.
+- Los candidatos para Cambiar app se obtienen desde handlers reales de apertura de ficheros (ACTION_VIEW por MIME), no solo desde apps con lanzador.
 
 Acciones disponibles por entrada:
 
@@ -174,6 +179,11 @@ Checklist minimo antes de publicar:
 - Cambio entre las pestanas Recientes y Archivos con gesto horizontal (swipe).
 - Renombrado con y sin cambio de extension.
 - Vista de recientes y orden por acceso.
+- Pulsacion prolongada en Recientes (aprox. medio segundo): Abrir con... y Quitar de recientes.
+- Accion Limpiar recientes y dialogo de confirmacion.
+- Barra de acciones de seleccion:
+  - aparece al seleccionar ficheros/carpetas
+  - Abrir con... solo aparece para seleccion de un unico fichero
 - Apertura de archivos y registro de apps predeterminadas.
 - Papelera: mover, restaurar y vaciar.
 - Cambio de idioma y persistencia tras reinicio.
