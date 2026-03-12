@@ -114,6 +114,12 @@
                     android:layout_weight="1" android:text="@string/internal_storage"
                     android:textColor="#1E88E5" android:textSize="13sp" android:textStyle="bold"
                     android:ellipsize="end" android:maxLines="1"/>
+                <ImageButton android:id="@+id/btn_select_all_inline"
+                    android:layout_width="38dp" android:layout_height="38dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_action_select_all"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="@string/select_all"/>
                 <ImageButton android:id="@+id/btn_new_folder_inline"
                     android:layout_width="38dp" android:layout_height="38dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
@@ -186,7 +192,10 @@
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/recycler"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"/>
+                        android:layout_height="match_parent"
+                        android:scrollbars="vertical"
+                        android:fadeScrollbars="false"
+                        android:fastScrollEnabled="true"/>
                 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
                 <!-- Empty state overlaid in same FrameLayout -->
@@ -259,6 +268,9 @@
                     android:id="@+id/recycler_recent"
                     android:layout_width="match_parent" android:layout_height="match_parent"
                     android:paddingBottom="8dp" android:clipToPadding="false"
+                    android:scrollbars="vertical"
+                    android:fadeScrollbars="false"
+                    android:fastScrollEnabled="true"
                     android:visibility="gone"/>
 
             </FrameLayout>
@@ -322,6 +334,56 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="@string/set_default_app_short"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/action_play"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="?attr/selectableItemBackground"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/action_play_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_action_play"
+                android:tint="#FFFFFF"/>
+            <TextView
+                android:id="@+id/action_play_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/play"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/action_select_all"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="?attr/selectableItemBackground"
+            android:visibility="gone">
+            <ImageView
+                android:id="@+id/action_select_all_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_action_select_all"
+                android:tint="#FFFFFF"/>
+            <TextView
+                android:id="@+id/action_select_all_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/select_all"
                 android:textColor="#FFFFFF"
                 android:textSize="12sp"/>
         </LinearLayout>

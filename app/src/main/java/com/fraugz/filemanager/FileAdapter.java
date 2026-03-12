@@ -15,7 +15,6 @@ import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -95,7 +94,7 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         h.meta.setTextColor(colorMeta);
         h.name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * uiScale);
         h.meta.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
-        h.meta.setText(item.getFormattedDate() + "  ·  " + item.getFormattedSize());
+        h.meta.setText(item.getFormattedDate() + "  ·  " + item.getFormattedSize(h.itemView.getContext()));
 
         // Icon background
         h.icon.setBackgroundTintList(
@@ -145,9 +144,7 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
             }
         }
 
-        // Selection
-        h.checkbox.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
-        h.checkbox.setChecked(item.isSelected());
+        // Selection indicator is the row highlight only.
         h.itemView.setAlpha(selectionMode && !item.isSelected() ? 0.65f : 1.0f);
 
         h.btnMore.setVisibility(View.GONE);
@@ -414,7 +411,6 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         LinearLayout itemRoot;
         ImageView icon;
         TextView name, meta;
-        CheckBox checkbox;
         ImageButton btnMore;
 
         ViewHolder(View v) {
@@ -423,7 +419,6 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
             icon      = v.findViewById(R.id.icon);
             name      = v.findViewById(R.id.name);
             meta      = v.findViewById(R.id.meta);
-            checkbox  = v.findViewById(R.id.checkbox);
             btnMore   = v.findViewById(R.id.btn_more);
         }
     }

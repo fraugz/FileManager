@@ -2,6 +2,8 @@ package com.fraugz.filemanager;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipDescription;
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.content.pm.ResolveInfo;
@@ -24,6 +26,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.MimeTypeMap;
 import android.widget.BaseAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
@@ -49,6 +52,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import java.io.File;
+import java.io.BufferedWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,6 +66,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.nio.channels.FileChannel;
 
 import android.content.res.ColorStateList;
 
@@ -97,11 +107,12 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private EditText searchInput;
     private LinearLayout pasteBar;
     private TextView pasteLabel, sectionHeaderLabel, pageTitle, recentTitle, searchStatus, cancelSearchBtn, loadingStatusLabel;
-    private TextView actionSendLabel, actionOpenWithLabel, actionMoveLabel, actionCopyLabel, actionDeleteLabel, actionRenameLabel;
-    private ImageView actionSendIcon, actionOpenWithIcon, actionMoveIcon, actionCopyIcon, actionDeleteIcon, actionRenameIcon;
+    private TextView actionSendLabel, actionOpenWithLabel, actionPlayLabel, actionSelectAllLabel, actionMoveLabel, actionCopyLabel, actionDeleteLabel, actionRenameLabel;
+    private ImageView actionSendIcon, actionOpenWithIcon, actionPlayIcon, actionSelectAllIcon, actionMoveIcon, actionCopyIcon, actionDeleteIcon, actionRenameIcon;
     private ProgressBar searchProgress;
     private SwipeRefreshLayout swipeRefresh;
     private ImageButton btnClearRecent;
+    private ImageButton btnSelectAllInline;
 
     // Custom bottom nav
     private LinearLayout bottomNav, tabRecent, tabStorage;
@@ -172,18 +183,23 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         pageTitle           = findViewById(R.id.page_title);
         recentTitle         = findViewById(R.id.recent_title);
         btnClearRecent      = findViewById(R.id.btn_clear_recent);
+        btnSelectAllInline  = findViewById(R.id.btn_select_all_inline);
         searchProgress      = findViewById(R.id.search_progress);
         searchStatus        = findViewById(R.id.search_status);
         cancelSearchBtn     = findViewById(R.id.btn_cancel_search);
         loadingStatusLabel  = findViewById(R.id.loading_status_label);
         actionSendLabel     = findViewById(R.id.action_send_label);
         actionOpenWithLabel = findViewById(R.id.action_open_with_label);
+        actionPlayLabel     = findViewById(R.id.action_play_label);
+        actionSelectAllLabel = findViewById(R.id.action_select_all_label);
         actionMoveLabel     = findViewById(R.id.action_move_label);
         actionCopyLabel     = findViewById(R.id.action_copy_label);
         actionDeleteLabel   = findViewById(R.id.action_delete_label);
         actionRenameLabel   = findViewById(R.id.action_rename_label);
         actionSendIcon      = findViewById(R.id.action_send_icon);
         actionOpenWithIcon  = findViewById(R.id.action_open_with_icon);
+        actionPlayIcon      = findViewById(R.id.action_play_icon);
+        actionSelectAllIcon = findViewById(R.id.action_select_all_icon);
         actionMoveIcon      = findViewById(R.id.action_move_icon);
         actionCopyIcon      = findViewById(R.id.action_copy_icon);
         actionDeleteIcon    = findViewById(R.id.action_delete_icon);
@@ -250,18 +266,22 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
         if (actionSendLabel != null) actionSendLabel.setTextColor(iconTint);
         if (actionOpenWithLabel != null) actionOpenWithLabel.setTextColor(iconTint);
+        if (actionPlayLabel != null) actionPlayLabel.setTextColor(iconTint);
+        if (actionSelectAllLabel != null) actionSelectAllLabel.setTextColor(iconTint);
         if (actionMoveLabel != null) actionMoveLabel.setTextColor(iconTint);
         if (actionCopyLabel != null) actionCopyLabel.setTextColor(iconTint);
         if (actionDeleteLabel != null) actionDeleteLabel.setTextColor(iconTint);
         if (actionRenameLabel != null) actionRenameLabel.setTextColor(iconTint);
         if (actionSendIcon != null) actionSendIcon.setColorFilter(iconTint);
         if (actionOpenWithIcon != null) actionOpenWithIcon.setColorFilter(iconTint);
+        if (actionPlayIcon != null) actionPlayIcon.setColorFilter(iconTint);
+        if (actionSelectAllIcon != null) actionSelectAllIcon.setColorFilter(iconTint);
         if (actionMoveIcon != null) actionMoveIcon.setColorFilter(iconTint);
         if (actionCopyIcon != null) actionCopyIcon.setColorFilter(iconTint);
         if (actionDeleteIcon != null) actionDeleteIcon.setColorFilter(iconTint);
         if (actionRenameIcon != null) actionRenameIcon.setColorFilter(iconTint);
 
-        int[] iconBtns = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_new_folder_inline, R.id.btn_clear_recent};
+        int[] iconBtns = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_select_all_inline, R.id.btn_new_folder_inline, R.id.btn_clear_recent};
         for (int id : iconBtns) {
             View v = findViewById(id);
             if (v instanceof ImageButton) ((ImageButton) v).setColorFilter(iconTint);
@@ -304,6 +324,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (cancelSearchBtn != null) cancelSearchBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * uiScale);
         if (actionSendLabel != null) actionSendLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
         if (actionOpenWithLabel != null) actionOpenWithLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
+        if (actionPlayLabel != null) actionPlayLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
+        if (actionSelectAllLabel != null) actionSelectAllLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
         if (actionMoveLabel != null) actionMoveLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
         if (actionCopyLabel != null) actionCopyLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
         if (actionDeleteLabel != null) actionDeleteLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
@@ -317,9 +339,12 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
 
         setSquareSize(findViewById(R.id.btn_new_folder_inline), dp(38f * uiScale));
+        setSquareSize(findViewById(R.id.btn_select_all_inline), dp(38f * uiScale));
         setSquareSize(findViewById(R.id.btn_paste_dismiss), dp(36f * uiScale));
         setSquareSize(actionSendIcon, dp(24f * uiScale));
         setSquareSize(actionOpenWithIcon, dp(24f * uiScale));
+        setSquareSize(actionPlayIcon, dp(24f * uiScale));
+        setSquareSize(actionSelectAllIcon, dp(24f * uiScale));
         setSquareSize(actionMoveIcon, dp(24f * uiScale));
         setSquareSize(actionCopyIcon, dp(24f * uiScale));
         setSquareSize(actionDeleteIcon, dp(24f * uiScale));
@@ -386,6 +411,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (recycler != null) {
             recycler.setLayoutManager(new LinearLayoutManager(this));
             recycler.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
+            recycler.setVerticalScrollBarEnabled(true);
             adapter = new FileAdapter(fileItems, this);
             adapter.setDarkTheme(isDark);
             adapter.setUiScale(uiScale);
@@ -400,6 +426,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 }
             });
             recyclerRecent.setLayoutManager(glm);
+            recyclerRecent.setVerticalScrollBarEnabled(true);
             recentAdapter = new RecentAdapter(this, new ArrayList<>(), new RecentAdapter.OnFileClick() {
                 @Override
                 public void onClick(File file) {
@@ -431,13 +458,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setClickSafe(R.id.btn_filter,            v -> showSortMenu(v));
         setClickSafe(R.id.btn_trash,             v -> startActivity(new Intent(this, TrashActivity.class)));
         setClickSafe(R.id.btn_overflow,          v -> {
-            if (!getSelectedFiles().isEmpty()) {
+            if (adapter != null && adapter.isSelectionMode()) {
                 showSelectionMenu(v);
             } else {
-                startActivity(new Intent(this, SettingsActivity.class));
+                showOverflowMenu(v);
             }
         });
         setClickSafe(R.id.btn_clear_recent,      v -> confirmClearRecents());
+        setClickSafe(R.id.btn_select_all_inline, v -> toggleSelectAllInline());
         setClickSafe(R.id.btn_new_folder_inline, v -> showNewFolderDialog());
         setClickSafe(R.id.btn_paste,             v -> pasteClipboard());
         setClickSafe(R.id.btn_paste_dismiss,     v -> {
@@ -446,6 +474,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         });
         setClickSafe(R.id.action_send,           v -> shareSelectedFiles());
         setClickSafe(R.id.action_open_with,      v -> setDefaultAppFromSelection());
+        setClickSafe(R.id.action_play,           v -> playSelectedFiles());
         setClickSafe(R.id.action_move,           v -> markSelectionForMove());
         setClickSafe(R.id.action_copy,           v -> copySelection());
         setClickSafe(R.id.action_delete,         v -> deleteSelectionToTrash());
@@ -1043,14 +1072,24 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private void updateSelectionActionsBar() {
         List<File> sel = getSelectedFiles();
         boolean selectionMode = adapter != null && adapter.isSelectionMode() && !sel.isEmpty();
-        boolean showOpenWith = sel.size() == 1 && sel.get(0).isFile();
+        boolean showSetDefaultApp = sel.size() == 1 && sel.get(0).isFile();
+        boolean showPlay = sel.size() > 1 && areAllPlayableFiles(sel);
         if (selectionActionsBar != null) {
             selectionActionsBar.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
         }
         View openWithAction = findViewById(R.id.action_open_with);
         if (openWithAction != null) {
-            openWithAction.setVisibility(selectionMode && showOpenWith ? View.VISIBLE : View.GONE);
+            openWithAction.setVisibility(selectionMode && showSetDefaultApp ? View.VISIBLE : View.GONE);
         }
+        View playAction = findViewById(R.id.action_play);
+        if (playAction != null) {
+            playAction.setVisibility(selectionMode && showPlay ? View.VISIBLE : View.GONE);
+        }
+        View selectAllAction = findViewById(R.id.action_select_all);
+        if (selectAllAction != null) {
+            selectAllAction.setVisibility(View.GONE);
+        }
+        updateInlineSelectAllVisual();
     }
 
     private void setDefaultAppFromSelection() {
@@ -1108,29 +1147,105 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         new AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(getString(R.string.confirm_delete_selected_message, sel.size()))
-                .setPositiveButton(R.string.delete, (d, w) -> {
-                    int moved = 0;
-                    String firstError = null;
-                    for (File f : sel) {
-                        if (TrashManager.moveToTrash(this, f)) {
-                            moved++;
-                        } else if (firstError == null) {
-                            firstError = TrashManager.getLastError();
-                        }
-                    }
-                    if (moved == sel.size()) {
-                        toast(getString(R.string.moved_to_trash_count, moved));
-                    } else {
-                        String reason = (firstError == null || firstError.trim().isEmpty())
+                .setPositiveButton(R.string.move_to_trash, (d, w) -> runDeleteSelectionWithProgress(sel, false))
+                .setNeutralButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSelection(sel))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void showDeleteForeverWarningForSelection(List<File> sel) {
+        if (sel == null || sel.isEmpty()) return;
+        new AlertDialog.Builder(this)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setTitle(R.string.warning_title)
+                .setMessage(getString(R.string.warning_delete_forever_selected_message, sel.size()))
+                .setPositiveButton(R.string.delete_forever, (d, w) -> runDeleteSelectionWithProgress(sel, true))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void runDeleteSelectionWithProgress(List<File> sel, boolean deleteForever) {
+        if (sel == null || sel.isEmpty()) return;
+
+        final AtomicBoolean cancelled = new AtomicBoolean(false);
+        final ProgressDialogHolder holder = showProgressDialog(R.string.deleting_files, Math.max(1, sel.size()), cancelled);
+
+        new Thread(() -> {
+            int moved = 0;
+            String firstError = null;
+            int[] processedUnits = new int[]{0};
+
+            int totalUnits = Math.max(1, countWorkUnits(sel));
+            mainHandler.post(() -> updateProgressDialogTotal(holder, totalUnits));
+
+            for (File f : sel) {
+                if (cancelled.get()) break;
+                boolean ok;
+                if (deleteForever) {
+                    ok = deleteWithProgress(f, cancelled, holder, processedUnits);
+                } else {
+                    ok = TrashManager.moveToTrash(this, f, cancelled, () -> addProgressUnits(1, holder, processedUnits));
+                }
+                if (ok) {
+                    moved++;
+                } else if (firstError == null) {
+                    firstError = deleteForever ? getString(R.string.delete_failed) : TrashManager.getLastError();
+                }
+                if (cancelled.get()) break;
+            }
+
+            final int movedFinal = moved;
+            final int processedFinal = processedUnits[0];
+            final String errorFinal = firstError;
+            mainHandler.post(() -> {
+                dismissProgressDialog(holder);
+                if (cancelled.get()) {
+                    toast(getString(R.string.operation_cancelled));
+                } else if (movedFinal == sel.size()) {
+                    toast(getString(deleteForever ? R.string.deleted_count : R.string.moved_to_trash_count, movedFinal));
+                } else {
+                    String reason = (errorFinal == null || errorFinal.trim().isEmpty())
                             ? getString(R.string.unknown_reason)
-                                : firstError;
-                        toast(getString(R.string.moved_partial_error, moved, sel.size(), reason));
-                    }
+                            : errorFinal;
+                    toast(getString(deleteForever ? R.string.deleted_partial_error : R.string.moved_partial_error, movedFinal, sel.size(), reason));
+                }
+                if (processedFinal > 0) {
                     exitSelectionMode();
                     loadDirectory(currentDir);
-                })
-                    .setNegativeButton(R.string.cancel, null)
-                .show();
+                }
+            });
+        }, "delete-selection").start();
+    }
+
+    private boolean deleteWithProgress(File file,
+                                       AtomicBoolean cancelled,
+                                       ProgressDialogHolder holder,
+                                       int[] processedUnits) {
+        if (file == null || !file.exists()) return false;
+        if (cancelled.get()) return false;
+
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    if (cancelled.get()) return false;
+                    if (!deleteWithProgress(child, cancelled, holder, processedUnits)) {
+                        return false;
+                    }
+                }
+            }
+            if (!file.delete()) return false;
+            if ((children == null || children.length == 0)) {
+                addProgressUnits(1, holder, processedUnits);
+            }
+            return true;
+        }
+
+        boolean ok = file.delete();
+        if (ok) {
+            addProgressUnits(1, holder, processedUnits);
+        }
+        return ok;
     }
 
     private void shareSelectedFiles() {
@@ -1160,6 +1275,262 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             Log.e(TAG, "shareSelectedFiles", e);
             toast(getString(R.string.error_sharing_selection));
         }
+    }
+
+    private void playSelectedFiles() {
+        List<File> sel = getSelectedFiles();
+        if (sel.size() < 2 || !areAllPlayableFiles(sel)) {
+            toast(getString(R.string.select_multiple_playable_files));
+            return;
+        }
+        try {
+            String preferredPkg = DefaultAppsManager.getPackageForExtension(this, getExtensionKey(sel.get(0)));
+            String pkg = preferredPkg == null ? "" : preferredPkg.trim();
+
+            File playlist = createOrReplaceTempPlaylist(sel, !shouldUsePlainPathsForPlaylist(pkg));
+            Uri playlistUri = FileProvider.getUriForFile(this, getPackageName() + ".provider", playlist);
+            ArrayList<Uri> playlistUris = new ArrayList<>();
+            playlistUris.add(playlistUri);
+
+            String[] playlistTypes = new String[]{
+                    "audio/x-mpegurl",
+                    "application/x-mpegURL",
+                    "application/vnd.apple.mpegurl",
+                    "audio/mpegurl"
+            };
+
+            for (String playlistType : playlistTypes) {
+                if (tryStartPlayIntent(buildPlaylistViewIntent(playlistUri, playlistType), pkg, playlistUris)) return;
+            }
+            for (String playlistType : playlistTypes) {
+                if (tryStartPlayIntent(buildPlaylistViewIntent(playlistUri, playlistType), "", playlistUris)) return;
+            }
+
+            // Fallback if the target player does not support M3U.
+            ArrayList<Uri> uris = new ArrayList<>();
+            boolean allAudio = true;
+            boolean allVideo = true;
+
+            for (File f : sel) {
+                if (!f.isFile()) continue;
+                uris.add(FileProvider.getUriForFile(this, getPackageName() + ".provider", f));
+                String ext = getExtensionKey(f).toLowerCase();
+                if (!isAudioExt(ext)) allAudio = false;
+                if (!isVideoExt(ext)) allVideo = false;
+            }
+
+            if (uris.isEmpty()) {
+                toast(getString(R.string.select_multiple_playable_files));
+                return;
+            }
+
+            String type = allAudio ? "audio/*" : (allVideo ? "video/*" : "*/*");
+
+            if (tryStartPlayIntent(buildPlaySendMultipleIntent(uris, type), pkg, uris)) return;
+            if (tryStartPlayIntent(buildPlaySendMultipleIntent(uris, type), "", uris)) return;
+            if (tryStartPlayIntent(buildPlayViewIntent(uris, type), pkg, uris)) return;
+            if (tryStartPlayIntent(buildPlayViewIntent(uris, type), "", uris)) return;
+
+            Intent singleFallback = new Intent(Intent.ACTION_VIEW);
+            singleFallback.setDataAndType(uris.get(0), type);
+            singleFallback.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            if (tryStartPlayIntent(singleFallback, pkg, uris)) return;
+            if (tryStartPlayIntent(singleFallback, "", uris)) return;
+
+            toast(getString(R.string.no_app_available));
+        } catch (Exception e) {
+            Log.e(TAG, "playSelectedFiles", e);
+            toast(getString(R.string.error_with_reason, e.getMessage()));
+        }
+    }
+
+    private File createOrReplaceTempPlaylist(List<File> files, boolean useFileScheme) throws IOException {
+        File baseDir = new File(getExternalFilesDir(null), "temp_playlists");
+        if (!baseDir.exists() && !baseDir.mkdirs()) {
+            throw new IOException("Could not create temp playlist folder");
+        }
+
+        File playlist = new File(baseDir, "playlist.m3u");
+        if (playlist.exists() && !playlist.delete()) {
+            throw new IOException("Could not replace previous playlist");
+        }
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(playlist, false))) {
+            writer.write("#EXTM3U");
+            writer.newLine();
+            for (File f : files) {
+                if (f == null || !f.isFile()) continue;
+                writer.write(useFileScheme ? Uri.fromFile(f).toString() : f.getAbsolutePath());
+                writer.newLine();
+            }
+        }
+        return playlist;
+    }
+
+    private boolean shouldUsePlainPathsForPlaylist(String pkg) {
+        if (pkg == null || pkg.isEmpty()) return false;
+        String p = pkg.toLowerCase();
+        return p.contains("ghisler") || p.contains("totalcmd") || p.contains("totalcommander");
+    }
+
+    private void cleanupTempPlaylist() {
+        try {
+            File baseDir = new File(getExternalFilesDir(null), "temp_playlists");
+            File playlist = new File(baseDir, "playlist.m3u");
+            if (playlist.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                playlist.delete();
+            }
+
+            File[] leftovers = baseDir.listFiles();
+            if (leftovers == null || leftovers.length == 0) {
+                //noinspection ResultOfMethodCallIgnored
+                baseDir.delete();
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private Intent buildPlaylistViewIntent(Uri playlistUri, String type) {
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setDataAndType(playlistUri, type);
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        i.setClipData(new ClipData(
+                new ClipDescription("playlist", new String[]{type}),
+                new ClipData.Item(playlistUri)
+        ));
+        return i;
+    }
+
+    private Intent buildPlayViewIntent(ArrayList<Uri> uris, String type) {
+        Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+        viewIntent.setDataAndType(uris.get(0), type);
+        viewIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        viewIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+
+        viewIntent.setClipData(buildMediaClipData(uris, type));
+        return viewIntent;
+    }
+
+    private Intent buildPlaySendMultipleIntent(ArrayList<Uri> uris, String type) {
+        Intent i = new Intent(Intent.ACTION_SEND_MULTIPLE);
+        i.setType(type);
+        i.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+        i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        return i;
+    }
+
+    private ClipData buildMediaClipData(ArrayList<Uri> uris, String type) {
+        ClipData clipData = new ClipData(
+                new ClipDescription("selected-media", new String[]{type}),
+                new ClipData.Item(uris.get(0))
+        );
+        for (int i = 1; i < uris.size(); i++) {
+            clipData.addItem(new ClipData.Item(uris.get(i)));
+        }
+        return clipData;
+    }
+
+    private boolean tryStartPlayIntent(Intent intent, String pkg, ArrayList<Uri> uris) {
+        try {
+            if (pkg != null && !pkg.isEmpty()) {
+                intent.setPackage(pkg);
+            }
+            grantUriReadPermissionForIntent(intent, uris);
+            if (intent.resolveActivity(getPackageManager()) == null) {
+                return false;
+            }
+            startActivity(intent);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private void grantUriReadPermissionForIntent(Intent intent, ArrayList<Uri> uris) {
+        if (uris == null || uris.isEmpty()) return;
+
+        try {
+            String explicitPkg = intent.getPackage();
+            if (explicitPkg != null && !explicitPkg.isEmpty()) {
+                for (Uri uri : uris) {
+                    grantUriPermission(explicitPkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                }
+                return;
+            }
+
+            PackageManager pm = getPackageManager();
+            List<ResolveInfo> handlers = pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
+            if (handlers == null || handlers.isEmpty()) {
+                handlers = pm.queryIntentActivities(intent, 0);
+            }
+
+            if (handlers == null) return;
+            for (ResolveInfo info : handlers) {
+                if (info == null || info.activityInfo == null) continue;
+                String packageName = info.activityInfo.packageName;
+                if (packageName == null || packageName.isEmpty()) continue;
+                for (Uri uri : uris) {
+                    grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private boolean areAllPlayableFiles(List<File> files) {
+        if (files == null || files.isEmpty()) return false;
+        for (File f : files) {
+            if (f == null || !f.isFile()) return false;
+            String ext = getExtensionKey(f).toLowerCase();
+            if (!isAudioExt(ext) && !isVideoExt(ext)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isAudioExt(String extWithDot) {
+        return ".mp3".equals(extWithDot) || ".wav".equals(extWithDot) || ".flac".equals(extWithDot)
+                || ".aac".equals(extWithDot) || ".ogg".equals(extWithDot) || ".m4a".equals(extWithDot);
+    }
+
+    private boolean isVideoExt(String extWithDot) {
+        return ".mp4".equals(extWithDot) || ".avi".equals(extWithDot) || ".mov".equals(extWithDot)
+                || ".mkv".equals(extWithDot) || ".3gp".equals(extWithDot) || ".webm".equals(extWithDot);
+    }
+
+    private void selectAllCurrentFiles() {
+        if (adapter == null) return;
+        adapter.setSelectionMode(true);
+        for (FileItem fi : fileItems) fi.setSelected(true);
+        adapter.notifyDataSetChanged();
+        updateSelectionActionsBar();
+    }
+
+    private void toggleSelectAllInline() {
+        if (fileItems.isEmpty() || adapter == null) return;
+        if (isAllCurrentSelected()) {
+            exitSelectionMode();
+        } else {
+            selectAllCurrentFiles();
+        }
+    }
+
+    private boolean isAllCurrentSelected() {
+        if (fileItems.isEmpty()) return false;
+        for (FileItem fi : fileItems) {
+            if (!fi.isSelected()) return false;
+        }
+        return true;
+    }
+
+    private void updateInlineSelectAllVisual() {
+        if (btnSelectAllInline == null) return;
+        boolean allSelected = isAllCurrentSelected() && adapter != null && adapter.isSelectionMode();
+        btnSelectAllInline.setImageResource(allSelected ? R.drawable.ic_action_select_all_checked : R.drawable.ic_action_select_all);
+        btnSelectAllInline.setAlpha(allSelected ? 1.0f : 0.85f);
     }
 
     // ─────────────────────── MENUS ───────────────────────────────────
@@ -1230,13 +1601,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
         boolean single = sel.size() == 1;
         boolean singleFile = single && sel.get(0).isFile();
+        boolean multiPlayable = sel.size() > 1 && areAllPlayableFiles(sel);
 
         PopupMenu p = new PopupMenu(this, anchor);
         p.getMenu().add(0, 1, 0, getString(R.string.send));
         if (singleFile) p.getMenu().add(0, 2, 0, getString(R.string.set_default_app));
+        if (multiPlayable) p.getMenu().add(0, 7, 0, getString(R.string.play));
         p.getMenu().add(0, 3, 0, getString(R.string.move));
         p.getMenu().add(0, 4, 0, getString(R.string.copy));
         if (single) p.getMenu().add(0, 5, 0, getString(R.string.rename));
+        p.getMenu().add(0, 8, 0, getString(R.string.select_all));
         p.getMenu().add(0, 6, 0, getString(R.string.delete));
 
         p.setOnMenuItemClickListener(mi -> {
@@ -1248,6 +1622,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                     case 2:
                         if (singleFile) showSetDefaultAppDialog(sel.get(0));
                         break;
+                    case 7:
+                        playSelectedFiles();
+                        break;
                     case 3:
                         markSelectionForMove();
                         break;
@@ -1256,6 +1633,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         break;
                     case 5:
                         renameSelection();
+                        break;
+                    case 8:
+                        selectAllCurrentFiles();
                         break;
                     case 6:
                         deleteSelectionToTrash();
@@ -1282,9 +1662,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         p.getMenu().add(0, 2, 0, getString(R.string.settings));
         p.setOnMenuItemClickListener(mi -> {
             if (mi.getItemId() == 1 && adapter != null) {
-                adapter.setSelectionMode(true);
-                for (FileItem fi : fileItems) fi.setSelected(true);
-                adapter.notifyDataSetChanged();
+                selectAllCurrentFiles();
             } else if (mi.getItemId() == 2) {
                 startActivity(new Intent(this, SettingsActivity.class));
             }
@@ -1297,8 +1675,12 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void updatePasteBar() {
         if (pasteBar == null) return;
+        Button pasteBtn = findViewById(R.id.btn_paste);
         if (!clipboardFiles.isEmpty()) {
             pasteBar.setVisibility(View.VISIBLE);
+            if (pasteBtn != null) {
+                pasteBtn.setText(clipboardIsCopy ? R.string.paste : R.string.move);
+            }
             if (pasteLabel != null) {
                 if (clipboardFiles.size() == 1) {
                     pasteLabel.setText((clipboardIsCopy ? getString(R.string.copy) + ": " : getString(R.string.move) + ": ") + clipboardFiles.get(0).getName());
@@ -1308,6 +1690,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             }
         } else {
             pasteBar.setVisibility(View.GONE);
+            if (pasteBtn != null) {
+                pasteBtn.setText(R.string.paste);
+            }
         }
     }
 
@@ -1318,13 +1703,33 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
 
         final List<File> sources = new ArrayList<>(clipboardFiles);
+        // Paste is single-use: clear clipboard as soon as paste starts.
+        clipboardFiles.clear();
+        updatePasteBar();
+
+        final AtomicBoolean cancelled = new AtomicBoolean(false);
+        final ProgressDialogHolder holder = showProgressDialog(
+                clipboardIsCopy ? R.string.copying_files : R.string.moving_files,
+                Math.max(1, sources.size()),
+                cancelled
+        );
+
         new Thread(() -> {
             int ok = 0;
             String firstError = null;
+            int[] processedUnits = new int[]{0};
+
+            int totalUnits = Math.max(1, countWorkUnits(sources));
+            mainHandler.post(() -> updateProgressDialogTotal(holder, totalUnits));
+
             for (File source : sources) {
+                if (cancelled.get()) break;
                 try {
-                    if (clipboardIsCopy) FileOperations.copySync(source, currentDir);
-                    else FileOperations.moveSync(source, currentDir);
+                    if (clipboardIsCopy) {
+                        copySourceWithProgress(source, currentDir, cancelled, holder, processedUnits);
+                    } else {
+                        moveSourceWithProgress(source, currentDir, cancelled, holder, processedUnits);
+                    }
                     ok++;
                 } catch (Exception e) {
                     if (firstError == null) firstError = e.getMessage();
@@ -1334,17 +1739,233 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             int copiedCount = ok;
             String error = firstError;
             mainHandler.post(() -> {
-                loadDirectory(currentDir);
-                clipboardFiles.clear();
-                updatePasteBar();
-                if (copiedCount > 0) {
-                    toast(getString(clipboardIsCopy ? R.string.copied_result : R.string.moved_result, copiedCount));
+                dismissProgressDialog(holder);
+                if (cancelled.get()) {
+                    toast(getString(R.string.operation_cancelled));
+                } else {
+                    if (copiedCount > 0) {
+                        toast(getString(clipboardIsCopy ? R.string.copied_result : R.string.moved_result, copiedCount));
+                    }
+                    if (error != null) {
+                        toast(getString(R.string.paste_partial_error, error));
+                    }
                 }
-                if (error != null) {
-                    toast(getString(R.string.paste_partial_error, error));
+                if (copiedCount > 0) {
+                    loadDirectory(currentDir);
                 }
             });
         }).start();
+    }
+
+    private void copySourceWithProgress(File source,
+                                        File destDir,
+                                        AtomicBoolean cancelled,
+                                        ProgressDialogHolder holder,
+                                        int[] processedUnits) throws Exception {
+        if (source == null || destDir == null) return;
+        if (cancelled.get()) throw new Exception("cancelled");
+
+        File dest = buildUniqueDestination(destDir, source.getName());
+        if (source.isDirectory()) {
+            copyDirectoryWithProgress(source, dest, cancelled, holder, processedUnits);
+        } else {
+            copyFileWithProgress(source, dest, cancelled, holder, processedUnits);
+        }
+    }
+
+    private void moveSourceWithProgress(File source,
+                                        File destDir,
+                                        AtomicBoolean cancelled,
+                                        ProgressDialogHolder holder,
+                                        int[] processedUnits) throws Exception {
+        if (source == null || destDir == null) return;
+        if (cancelled.get()) throw new Exception("cancelled");
+
+        File dest = buildUniqueDestination(destDir, source.getName());
+        if (source.isFile() && source.renameTo(dest)) {
+            int units = Math.max(1, countWorkUnits(dest));
+            addProgressUnits(units, holder, processedUnits);
+            return;
+        }
+
+        if (source.isDirectory()) {
+            copyDirectoryWithProgress(source, dest, cancelled, holder, processedUnits);
+        } else {
+            copyFileWithProgress(source, dest, cancelled, holder, processedUnits);
+        }
+
+        if (!FileOperations.delete(source)) {
+            throw new Exception("Unable to delete source after move: " + source.getName());
+        }
+    }
+
+    private void copyDirectoryWithProgress(File src,
+                                           File dst,
+                                           AtomicBoolean cancelled,
+                                           ProgressDialogHolder holder,
+                                           int[] processedUnits) throws Exception {
+        if (cancelled.get()) throw new Exception("cancelled");
+        if (!dst.exists() && !dst.mkdirs()) {
+            throw new Exception("Cannot create destination directory: " + dst.getAbsolutePath());
+        }
+
+        File[] children = src.listFiles();
+        if (children == null || children.length == 0) {
+            addProgressUnits(1, holder, processedUnits);
+            return;
+        }
+
+        for (File child : children) {
+            if (cancelled.get()) throw new Exception("cancelled");
+            File target = new File(dst, child.getName());
+            if (child.isDirectory()) {
+                copyDirectoryWithProgress(child, target, cancelled, holder, processedUnits);
+            } else {
+                copyFileWithProgress(child, target, cancelled, holder, processedUnits);
+            }
+        }
+    }
+
+    private void copyFileWithProgress(File src,
+                                      File dst,
+                                      AtomicBoolean cancelled,
+                                      ProgressDialogHolder holder,
+                                      int[] processedUnits) throws Exception {
+        if (cancelled.get()) throw new Exception("cancelled");
+        try (FileChannel in = new FileInputStream(src).getChannel();
+             FileChannel out = new FileOutputStream(dst).getChannel()) {
+            long size = in.size();
+            long position = 0;
+            while (position < size) {
+                if (cancelled.get()) throw new Exception("cancelled");
+                long transferred = out.transferFrom(in, position, Math.min(8L * 1024L * 1024L, size - position));
+                if (transferred <= 0) break;
+                position += transferred;
+            }
+        }
+        addProgressUnits(1, holder, processedUnits);
+    }
+
+    private void addProgressUnits(int units, ProgressDialogHolder holder, int[] processedUnits) {
+        int safeUnits = Math.max(0, units);
+        processedUnits[0] += safeUnits;
+        int done = processedUnits[0];
+        mainHandler.post(() -> updateProgressDialog(holder, done));
+    }
+
+    private File buildUniqueDestination(File destDir, String sourceName) {
+        File dest = new File(destDir, sourceName);
+        if (!dest.exists()) return dest;
+
+        String base = sourceName;
+        String ext = "";
+        int dot = sourceName.lastIndexOf('.');
+        if (dot > 0 && dot < sourceName.length() - 1) {
+            base = sourceName.substring(0, dot);
+            ext = sourceName.substring(dot);
+        }
+
+        int index = 1;
+        while (dest.exists()) {
+            dest = new File(destDir, base + " (" + index + ")" + ext);
+            index++;
+        }
+        return dest;
+    }
+
+    private static class ProgressDialogHolder {
+        final AlertDialog dialog;
+        final TextView status;
+        final ProgressBar progress;
+        int total;
+
+        ProgressDialogHolder(AlertDialog dialog, TextView status, ProgressBar progress, int total) {
+            this.dialog = dialog;
+            this.status = status;
+            this.progress = progress;
+            this.total = total;
+        }
+    }
+
+    private ProgressDialogHolder showProgressDialog(int titleRes, int total, AtomicBoolean cancelled) {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int p = dp(20);
+        root.setPadding(p, dp(12), p, dp(4));
+
+        TextView status = new TextView(this);
+        status.setText(getString(R.string.operation_progress, 0, Math.max(1, total)));
+        root.addView(status, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        bar.setIndeterminate(false);
+        bar.setMax(Math.max(1, total));
+        bar.setProgress(0);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(10);
+        root.addView(bar, lp);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(titleRes)
+                .setView(root)
+                .setCancelable(false)
+                .setNegativeButton(R.string.cancel, (d, w) -> {
+                    cancelled.set(true);
+                    status.setText(getString(R.string.cancelling));
+                })
+                .create();
+        dialog.show();
+        return new ProgressDialogHolder(dialog, status, bar, Math.max(1, total));
+    }
+
+    private void updateProgressDialog(ProgressDialogHolder holder, int done) {
+        if (holder == null) return;
+        int clamped = Math.max(0, Math.min(done, holder.total));
+        holder.progress.setProgress(clamped);
+        holder.status.setText(getString(R.string.operation_progress, clamped, holder.total));
+    }
+
+    private void updateProgressDialogTotal(ProgressDialogHolder holder, int total) {
+        if (holder == null) return;
+        int safeTotal = Math.max(1, total);
+        holder.total = safeTotal;
+        holder.progress.setMax(safeTotal);
+        int current = holder.progress.getProgress();
+        int clamped = Math.max(0, Math.min(current, safeTotal));
+        holder.progress.setProgress(clamped);
+        holder.status.setText(getString(R.string.operation_progress, clamped, safeTotal));
+    }
+
+    private void dismissProgressDialog(ProgressDialogHolder holder) {
+        if (holder == null || holder.dialog == null) return;
+        if (holder.dialog.isShowing()) holder.dialog.dismiss();
+    }
+
+    private int countWorkUnits(List<File> files) {
+        if (files == null || files.isEmpty()) return 0;
+        int total = 0;
+        for (File f : files) {
+            total += countWorkUnits(f);
+        }
+        return total;
+    }
+
+    private int countWorkUnits(File file) {
+        if (file == null || !file.exists()) return 0;
+        if (file.isFile()) return 1;
+
+        File[] children = file.listFiles();
+        if (children == null || children.length == 0) return 1;
+
+        int total = 0;
+        for (File child : children) {
+            total += countWorkUnits(child);
+        }
+        return Math.max(1, total);
     }
 
     // ─────────────────────── FILE OPS ────────────────────────────────
@@ -1353,7 +1974,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         new AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(getString(R.string.confirm_delete_single_message, file.getName()))
-                .setPositiveButton(R.string.delete, (d, w) -> {
+                .setPositiveButton(R.string.move_to_trash, (d, w) -> {
                     if (TrashManager.moveToTrash(this, file)) {
                         loadDirectory(currentDir);
                         toast(getString(R.string.moved_to_trash_done));
@@ -1361,6 +1982,25 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         String reason = TrashManager.getLastError();
                         if (reason == null || reason.trim().isEmpty()) reason = getString(R.string.unknown_reason);
                         toast(getString(R.string.error_moving_to_trash, reason));
+                    }
+                })
+                .setNeutralButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSingle(file))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void showDeleteForeverWarningForSingle(File file) {
+        if (file == null) return;
+        new AlertDialog.Builder(this)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setTitle(R.string.warning_title)
+                .setMessage(getString(R.string.warning_delete_forever_single_message, file.getName()))
+                .setPositiveButton(R.string.delete_forever, (d, w) -> {
+                    if (FileOperations.delete(file)) {
+                        loadDirectory(currentDir);
+                        toast(getString(R.string.deleted_done));
+                    } else {
+                        toast(getString(R.string.error_deleting_item));
                     }
                 })
                 .setNegativeButton(R.string.cancel, null)
@@ -1778,11 +2418,53 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             if (clearSelectionOnSuccess) {
                 exitSelectionMode();
             }
-            loadDirectory(currentDir);
+            if (!updateRenamedItemInCurrentList(source, newName) && currentDir != null) {
+                loadDirectory(currentDir);
+            }
             toast(getString(R.string.renamed));
         } else {
             toast(getString(R.string.rename_error));
         }
+    }
+
+    private boolean updateRenamedItemInCurrentList(File source, String newName) {
+        if (source == null || newName == null || currentDir == null) return false;
+        File parent = source.getParentFile();
+        if (parent == null || !parent.equals(currentDir)) return false;
+
+        String oldPath = source.getAbsolutePath();
+        int oldIndex = -1;
+        boolean wasSelected = false;
+        for (int i = 0; i < fileItems.size(); i++) {
+            FileItem item = fileItems.get(i);
+            if (item != null && item.getFile() != null && oldPath.equals(item.getFile().getAbsolutePath())) {
+                oldIndex = i;
+                wasSelected = item.isSelected();
+                break;
+            }
+        }
+        if (oldIndex < 0) return false;
+
+        File renamedFile = new File(parent, newName);
+        FileItem replacement = new FileItem(renamedFile);
+        replacement.setSelected(wasSelected);
+
+        fileItems.remove(oldIndex);
+
+        Comparator<File> comp = getComparator();
+        int insertIndex = fileItems.size();
+        for (int i = 0; i < fileItems.size(); i++) {
+            FileItem candidate = fileItems.get(i);
+            if (candidate == null || candidate.getFile() == null) continue;
+            if (comp.compare(renamedFile, candidate.getFile()) < 0) {
+                insertIndex = i;
+                break;
+            }
+        }
+
+        fileItems.add(insertIndex, replacement);
+        if (adapter != null) adapter.notifyDataSetChanged();
+        return true;
     }
 
     private String getExtensionPart(String name) {
@@ -1844,6 +2526,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     protected void onDestroy() {
         cancelRecursiveSearch(false);
         cancelDirectoryLoad();
+        if (isFinishing()) {
+            cleanupTempPlaylist();
+        }
         super.onDestroy();
     }
 

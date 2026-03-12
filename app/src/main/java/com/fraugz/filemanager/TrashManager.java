@@ -11,8 +11,13 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TrashManager {
+
+    public interface ProgressCallback {
+        void onUnitDone();
+    }
 
     private static final String TRASH_FOLDER = ".Trash";
     private static final String META_SUFFIX = ".meta";
@@ -54,7 +59,19 @@ public class TrashManager {
     }
 
     public static boolean moveToTrash(Context ctx, File file) {
+        return moveToTrash(ctx, file, null);
+    }
+
+    public static boolean moveToTrash(Context ctx, File file, AtomicBoolean cancelled) {
+        return moveToTrash(ctx, file, cancelled, null);
+    }
+
+    public static boolean moveToTrash(Context ctx, File file, AtomicBoolean cancelled, ProgressCallback progressCallback) {
         setLastError("");
+        if (isCancelled(cancelled)) {
+            setLastError("Operation cancelled.");
+            return false;
+        }
         if (file == null) {
             setLastError("The item is null.");
             return false;
@@ -73,6 +90,10 @@ public class TrashManager {
 
         int i = 1;
         while (dest.exists()) {
+            if (isCancelled(cancelled)) {
+                setLastError("Operation cancelled.");
+                return false;
+            }
             dest = new File(trash, baseName + "_" + token + "_" + i + TRASH_SUFFIX);
             i++;
         }
@@ -80,19 +101,31 @@ public class TrashManager {
         if (!file.renameTo(dest)) {
             // Fallback for cases where renameTo fails (common with directories on some devices).
             try {
+                if (isCancelled(cancelled)) {
+                    setLastError("Operation cancelled.");
+                    return false;
+                }
                 if (file.isDirectory()) {
-                    copyDirectory(file, dest);
+                    copyDirectory(file, dest, cancelled, progressCallback);
                 } else {
-                    copyFile(file, dest);
+                    copyFile(file, dest, cancelled, progressCallback);
+                }
+                if (isCancelled(cancelled)) {
+                    FileOperations.delete(dest);
+                    setLastError("Operation cancelled.");
+                    return false;
                 }
                 if (!dest.exists() || !FileOperations.delete(file)) {
                     setLastError("Could not delete the original item after copying it to trash.");
                     return false;
                 }
             } catch (Exception e) {
+                FileOperations.delete(dest);
                 setLastError("Error moving to trash: " + e.getMessage());
                 return false;
             }
+        } else {
+            reportUnits(progressCallback, Math.max(1, countUnits(dest)));
         }
 
         boolean ok = writeMetadata(dest, file.getAbsolutePath(), file.getName(), System.currentTimeMillis());
@@ -271,31 +304,77 @@ public class TrashManager {
     }
 
     private static void copyDirectory(File src, File dst) throws IOException {
+        copyDirectory(src, dst, null, null);
+    }
+
+    private static void copyDirectory(File src, File dst, AtomicBoolean cancelled) throws IOException {
+        copyDirectory(src, dst, cancelled, null);
+    }
+
+    private static void copyDirectory(File src, File dst, AtomicBoolean cancelled, ProgressCallback progressCallback) throws IOException {
+        if (isCancelled(cancelled)) throw new IOException("cancelled");
         if (!dst.exists() && !dst.mkdirs()) {
             throw new IOException("Could not create destination folder: " + dst.getAbsolutePath());
         }
 
         File[] children = src.listFiles();
-        if (children == null) return;
+        if (children == null || children.length == 0) {
+            reportUnits(progressCallback, 1);
+            return;
+        }
         for (File child : children) {
+            if (isCancelled(cancelled)) throw new IOException("cancelled");
             File target = new File(dst, child.getName());
             if (child.isDirectory()) {
-                copyDirectory(child, target);
+                copyDirectory(child, target, cancelled, progressCallback);
             } else {
-                copyFile(child, target);
+                copyFile(child, target, cancelled, progressCallback);
             }
         }
     }
 
     private static void copyFile(File src, File dst) throws IOException {
+        copyFile(src, dst, null, null);
+    }
+
+    private static void copyFile(File src, File dst, AtomicBoolean cancelled) throws IOException {
+        copyFile(src, dst, cancelled, null);
+    }
+
+    private static void copyFile(File src, File dst, AtomicBoolean cancelled, ProgressCallback progressCallback) throws IOException {
+        if (isCancelled(cancelled)) throw new IOException("cancelled");
         try (FileInputStream in = new FileInputStream(src);
              FileOutputStream out = new FileOutputStream(dst)) {
             byte[] buffer = new byte[8192];
             int read;
             while ((read = in.read(buffer)) != -1) {
+                if (isCancelled(cancelled)) throw new IOException("cancelled");
                 out.write(buffer, 0, read);
             }
         }
+        reportUnits(progressCallback, 1);
+    }
+
+    private static boolean isCancelled(AtomicBoolean cancelled) {
+        return cancelled != null && cancelled.get();
+    }
+
+    private static void reportUnits(ProgressCallback progressCallback, int units) {
+        if (progressCallback == null) return;
+        int safeUnits = Math.max(1, units);
+        for (int i = 0; i < safeUnits; i++) {
+            progressCallback.onUnitDone();
+        }
+    }
+
+    private static int countUnits(File file) {
+        if (file == null || !file.exists()) return 0;
+        if (file.isFile()) return 1;
+        File[] children = file.listFiles();
+        if (children == null || children.length == 0) return 1;
+        int total = 0;
+        for (File child : children) total += countUnits(child);
+        return Math.max(1, total);
     }
 
     private static void deleteMetadata(File trashedFile) {

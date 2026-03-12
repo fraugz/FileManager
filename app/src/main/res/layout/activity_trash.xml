@@ -44,6 +44,17 @@
             android:paddingEnd="14dp"/>
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/trash_size_summary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="6dp"
+        android:textColor="?android:attr/textColorSecondary"
+        android:textSize="13sp"
+        android:text="" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_trash"
         android:layout_width="match_parent"

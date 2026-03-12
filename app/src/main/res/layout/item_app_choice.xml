@@ -28,7 +28,7 @@
             android:id="@+id/app_label"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#111111"
+            android:textColor="?android:attr/textColorPrimary"
             android:textSize="15sp"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -37,7 +37,7 @@
             android:id="@+id/app_package"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#666666"
+            android:textColor="?android:attr/textColorSecondary"
             android:textSize="12sp"
             android:maxLines="1"
             android:ellipsize="end" />

@@ -36,7 +36,7 @@ public class FileItem {
             if (context != null) {
                 return context.getString(R.string.items_count, count);
             }
-            return count + " item(s)";
+            return count + " elements";
         }
         long size = file.length();
         if (size < 1024) return size + " B";

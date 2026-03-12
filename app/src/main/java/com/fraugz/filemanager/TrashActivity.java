@@ -5,6 +5,8 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -12,12 +14,15 @@ import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TrashActivity extends AppCompatActivity {
 
     private RecyclerView recycler;
     private View emptyView;
+    private TextView trashSizeSummary;
     private List<TrashManager.TrashEntry> trashFiles;
     private boolean isDark;
 
@@ -31,6 +36,7 @@ public class TrashActivity extends AppCompatActivity {
 
         recycler = findViewById(R.id.recycler_trash);
         emptyView = findViewById(R.id.empty_trash_view);
+        trashSizeSummary = findViewById(R.id.trash_size_summary);
 
         applyThemeColors();
 
@@ -56,6 +62,7 @@ public class TrashActivity extends AppCompatActivity {
         if (title != null) title.setTextColor(textPrimary);
 
         if (recycler != null) recycler.setBackgroundColor(bgMain);
+        if (trashSizeSummary != null) trashSizeSummary.setTextColor(textSecondary);
         if (emptyView != null) {
             emptyView.setBackgroundColor(bgMain);
             View child = ((ViewGroup) emptyView).getChildAt(1);
@@ -71,6 +78,7 @@ public class TrashActivity extends AppCompatActivity {
     private void loadTrash() {
         TrashManager.purgeExpired(this);
         trashFiles = TrashManager.getTrashFiles(this);
+        updateTrashSizeSummary();
         if (trashFiles.isEmpty()) {
             recycler.setVisibility(View.GONE);
             emptyView.setVisibility(View.VISIBLE);
@@ -81,17 +89,142 @@ public class TrashActivity extends AppCompatActivity {
         }
     }
 
+    private void updateTrashSizeSummary() {
+        if (trashSizeSummary == null) return;
+        long totalBytes = 0L;
+        if (trashFiles != null) {
+            for (TrashManager.TrashEntry e : trashFiles) {
+                if (e == null || e.getTrashFile() == null) continue;
+                totalBytes += computeSize(e.getTrashFile());
+            }
+        }
+        trashSizeSummary.setText(getString(R.string.trash_total_size, formatSize(totalBytes)));
+    }
+
+    private long computeSize(File file) {
+        if (file == null || !file.exists()) return 0L;
+        if (file.isFile()) return file.length();
+        long total = 0L;
+        File[] children = file.listFiles();
+        if (children == null) return 0L;
+        for (File child : children) {
+            total += computeSize(child);
+        }
+        return total;
+    }
+
+    private String formatSize(long size) {
+        if (size < 1024) return size + " B";
+        if (size < 1024L * 1024L) return String.format(java.util.Locale.getDefault(), "%.1f KB", size / 1024.0);
+        if (size < 1024L * 1024L * 1024L) return String.format(java.util.Locale.getDefault(), "%.1f MB", size / (1024.0 * 1024.0));
+        return String.format(java.util.Locale.getDefault(), "%.2f GB", size / (1024.0 * 1024.0 * 1024.0));
+    }
+
     private void confirmEmptyTrash() {
         new AlertDialog.Builder(this)
             .setTitle(R.string.empty_trash_title)
             .setMessage(getString(R.string.empty_trash_message, trashFiles.size()))
             .setPositiveButton(R.string.empty_trash, (d, w) -> {
-                TrashManager.emptyTrash(this);
-                loadTrash();
-                android.widget.Toast.makeText(this, R.string.trash_emptied, android.widget.Toast.LENGTH_SHORT).show();
+                runDeleteTrashEntriesWithProgress(new ArrayList<>(trashFiles), true);
             })
             .setNegativeButton(R.string.cancel, null)
             .show();
+    }
+
+    private static class ProgressDialogHolder {
+        final AlertDialog dialog;
+        final TextView status;
+        final ProgressBar progress;
+        final int total;
+
+        ProgressDialogHolder(AlertDialog dialog, TextView status, ProgressBar progress, int total) {
+            this.dialog = dialog;
+            this.status = status;
+            this.progress = progress;
+            this.total = total;
+        }
+    }
+
+    private ProgressDialogHolder showProgressDialog(int titleRes, int total, AtomicBoolean cancelled) {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int p = dp(20);
+        root.setPadding(p, dp(12), p, dp(4));
+
+        TextView status = new TextView(this);
+        status.setText(getString(R.string.operation_progress, 0, Math.max(1, total)));
+        root.addView(status, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        bar.setIndeterminate(false);
+        bar.setMax(Math.max(1, total));
+        bar.setProgress(0);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(10);
+        root.addView(bar, lp);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(titleRes)
+                .setView(root)
+                .setCancelable(false)
+                .setNegativeButton(R.string.cancel, (d, w) -> {
+                    cancelled.set(true);
+                    status.setText(getString(R.string.cancelling));
+                })
+                .create();
+        dialog.show();
+        return new ProgressDialogHolder(dialog, status, bar, Math.max(1, total));
+    }
+
+    private void updateProgressDialog(ProgressDialogHolder holder, int done) {
+        if (holder == null) return;
+        int clamped = Math.max(0, Math.min(done, holder.total));
+        holder.progress.setProgress(clamped);
+        holder.status.setText(getString(R.string.operation_progress, clamped, holder.total));
+    }
+
+    private void dismissProgressDialog(ProgressDialogHolder holder) {
+        if (holder == null || holder.dialog == null) return;
+        if (holder.dialog.isShowing()) holder.dialog.dismiss();
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private void runDeleteTrashEntriesWithProgress(List<TrashManager.TrashEntry> entries, boolean showEmptiedMessage) {
+        if (entries == null || entries.isEmpty()) return;
+
+        final AtomicBoolean cancelled = new AtomicBoolean(false);
+        final ProgressDialogHolder holder = showProgressDialog(R.string.deleting_files, entries.size(), cancelled);
+
+        new Thread(() -> {
+            int deleted = 0;
+            for (TrashManager.TrashEntry entry : entries) {
+                if (cancelled.get()) break;
+                TrashManager.deleteEntry(entry);
+                deleted++;
+                final int done = deleted;
+                runOnUiThread(() -> updateProgressDialog(holder, done));
+            }
+
+            final int deletedFinal = deleted;
+            runOnUiThread(() -> {
+                dismissProgressDialog(holder);
+                loadTrash();
+                if (cancelled.get()) {
+                    android.widget.Toast.makeText(this, R.string.operation_cancelled, android.widget.Toast.LENGTH_SHORT).show();
+                } else if (showEmptiedMessage) {
+                    android.widget.Toast.makeText(this, R.string.trash_emptied, android.widget.Toast.LENGTH_SHORT).show();
+                } else {
+                    android.widget.Toast.makeText(this, getString(R.string.deleted_count, deletedFinal), android.widget.Toast.LENGTH_SHORT).show();
+                }
+            });
+        }, "trash-delete").start();
     }
 
     // Simple inline adapter
@@ -134,14 +267,29 @@ public class TrashActivity extends AppCompatActivity {
                                 if (reason == null || reason.trim().isEmpty()) reason = getString(R.string.unknown_reason);
                                 android.widget.Toast.makeText(TrashActivity.this, getString(R.string.restore) + ": " + reason, android.widget.Toast.LENGTH_LONG).show();
                             }
+                            loadTrash();
                         } else {
-                            TrashManager.deleteEntry(entry);
+                            showDeleteForeverWarning(entry);
                         }
-                        loadTrash();
                     }).show();
             });
         }
         @Override public int getItemCount() { return trashFiles.size(); }
+    }
+
+    private void showDeleteForeverWarning(TrashManager.TrashEntry entry) {
+        if (entry == null) return;
+        new AlertDialog.Builder(this)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setTitle(R.string.warning_title)
+                .setMessage(getString(R.string.warning_delete_forever_single_message, entry.getOriginalName()))
+                .setPositiveButton(R.string.delete_forever, (d, w) -> {
+                    List<TrashManager.TrashEntry> single = new ArrayList<>();
+                    single.add(entry);
+                    runDeleteTrashEntriesWithProgress(single, false);
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 }
 

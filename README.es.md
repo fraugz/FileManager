@@ -172,6 +172,7 @@ Tags publicados:
 - v1.2.3: mejoras incrementales de UX y robustez.
 - v1.2.4: ajustes recientes de papelera/errores y mantenimiento.
 - v1.2.5: refinamientos en UX de recientes/seleccion, accion directa de app predeterminada desde Archivos/Recientes, flujo de apps por extension con selector buscable, previsualizaciones enriquecidas (audio/video/APK + fallback por icono de app), aviso de seguridad para instalar APK, nuevo icono de idioma y correcciones de visibilidad de apps en Android 11+.
+- v1.2.6: mejora de robustez en reproduccion multiple (playlist M3U temporal con compatibilidad especifica para VLC/AIMP/Total Commander), select-all inline y limpieza del estado visual de seleccion, pegado de un solo uso con etiqueta dinamica Mover/Pegar, mejoras de barra de progreso en mover/borrar/papelera, cancelacion real en operaciones largas de papelera, opcion de eliminar definitivamente con doble confirmacion e icono de advertencia, progreso al borrar en papelera y optimizacion del refresco tras renombrar para reducir bloqueos en carpetas grandes.
 
 Siguiente version sugerida:
 
