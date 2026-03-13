@@ -322,14 +322,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (searchStatus != null) searchStatus.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
         if (loadingStatusLabel != null) loadingStatusLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
         if (cancelSearchBtn != null) cancelSearchBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * uiScale);
-        if (actionSendLabel != null) actionSendLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
-        if (actionOpenWithLabel != null) actionOpenWithLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
-        if (actionPlayLabel != null) actionPlayLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
-        if (actionSelectAllLabel != null) actionSelectAllLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
-        if (actionMoveLabel != null) actionMoveLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
-        if (actionCopyLabel != null) actionCopyLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
-        if (actionDeleteLabel != null) actionDeleteLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
-        if (actionRenameLabel != null) actionRenameLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
+        if (actionSendLabel != null) actionSendLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
+        if (actionOpenWithLabel != null) actionOpenWithLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
+        if (actionPlayLabel != null) actionPlayLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
+        if (actionSelectAllLabel != null) actionSelectAllLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
+        if (actionMoveLabel != null) actionMoveLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
+        if (actionCopyLabel != null) actionCopyLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
+        if (actionDeleteLabel != null) actionDeleteLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
+        if (actionRenameLabel != null) actionRenameLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
 
         int iconSize = dp(44f * uiScale);
         int[] topIconButtons = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_clear_recent};
@@ -457,13 +457,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setClickSafe(R.id.btn_search,            v -> toggleSearch());
         setClickSafe(R.id.btn_filter,            v -> showSortMenu(v));
         setClickSafe(R.id.btn_trash,             v -> startActivity(new Intent(this, TrashActivity.class)));
-        setClickSafe(R.id.btn_overflow,          v -> {
-            if (adapter != null && adapter.isSelectionMode()) {
-                showSelectionMenu(v);
-            } else {
-                showOverflowMenu(v);
-            }
-        });
+        setClickSafe(R.id.btn_overflow,          v -> startActivity(new Intent(this, SettingsActivity.class)));
         setClickSafe(R.id.btn_clear_recent,      v -> confirmClearRecents());
         setClickSafe(R.id.btn_select_all_inline, v -> toggleSelectAllInline());
         setClickSafe(R.id.btn_new_folder_inline, v -> showNewFolderDialog());
@@ -1098,7 +1092,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             toast(getString(R.string.select_single_file_for_default_app));
             return;
         }
-        showSetDefaultAppDialog(sel.get(0));
+        showSetDefaultAppDialog(sel.get(0), true);
     }
 
     private void markSelectionForMove() {
@@ -1530,7 +1524,17 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (btnSelectAllInline == null) return;
         boolean allSelected = isAllCurrentSelected() && adapter != null && adapter.isSelectionMode();
         btnSelectAllInline.setImageResource(allSelected ? R.drawable.ic_action_select_all_checked : R.drawable.ic_action_select_all);
-        btnSelectAllInline.setAlpha(allSelected ? 1.0f : 0.85f);
+        btnSelectAllInline.setAlpha(1.0f);
+
+        // setImageResource can clear filters on some devices; keep same tone as new-folder button.
+        ImageButton newFolderButton = findViewById(R.id.btn_new_folder_inline);
+        if (newFolderButton != null) {
+            if (newFolderButton.getColorFilter() != null) {
+                btnSelectAllInline.setColorFilter(newFolderButton.getColorFilter());
+            } else if (newFolderButton.getImageTintList() != null) {
+                btnSelectAllInline.setImageTintList(newFolderButton.getImageTintList());
+            }
+        }
     }
 
     // ─────────────────────── MENUS ───────────────────────────────────
@@ -1583,7 +1587,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         shareFile(item.getFile());
                         break;
                     case 8:
-                        showSetDefaultAppDialog(item.getFile());
+                        showSetDefaultAppDialog(item.getFile(), true);
                         break;
                 }
             } catch (Exception e) { Log.e(TAG, "fileMenu", e); toast(getString(R.string.error_with_reason, e.getMessage())); }
@@ -1620,7 +1624,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         shareSelectedFiles();
                         break;
                     case 2:
-                        if (singleFile) showSetDefaultAppDialog(sel.get(0));
+                        if (singleFile) showSetDefaultAppDialog(sel.get(0), true);
                         break;
                     case 7:
                         playSelectedFiles();
@@ -2092,7 +2096,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         p.setOnMenuItemClickListener(mi -> {
             switch (mi.getItemId()) {
                 case 1:
-                    showSetDefaultAppDialog(file);
+                    showSetDefaultAppDialog(file, false);
                     return true;
                 case 2:
                     RecentManager.remove(this, file.getAbsolutePath());
@@ -2106,8 +2110,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         p.show();
     }
 
-    private void showSetDefaultAppDialog(File file) {
-        List<AppChoice> candidates = getAllAppsForDefaultPicker();
+    private void showSetDefaultAppDialog(File file, boolean openAfterSelection) {
+        List<AppChoice> candidates = getAppsForFileDefaultPicker(file);
         if (candidates.isEmpty()) {
             toast(getString(R.string.no_apps_found));
             return;
@@ -2115,12 +2119,15 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         String ext = getExtensionKey(file);
         String currentPackage = DefaultAppsManager.getPackageForExtension(this, ext);
         showAppChoiceDialog(
-                getString(R.string.set_default_app),
+                getString(R.string.open),
                 candidates,
                 currentPackage,
                 selected -> {
                     DefaultAppsManager.add(this, ext, selected.packageName, selected.label);
                     toast(getString(R.string.default_app_set_for_extension, ext));
+                    if (openAfterSelection) {
+                        openFileWithSelectedPackage(file, selected.packageName);
+                    }
                     if (adapter != null && adapter.isSelectionMode()) {
                         exitSelectionMode();
                     }
@@ -2128,19 +2135,27 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         );
     }
 
-    private List<AppChoice> getAllAppsForDefaultPicker() {
+    private List<AppChoice> getAppsForFileDefaultPicker(File file) {
         Map<String, AppChoice> dedup = new LinkedHashMap<>();
         try {
-            Intent launcherIntent = new Intent(Intent.ACTION_MAIN);
-            launcherIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-
             PackageManager pm = getPackageManager();
-            List<ResolveInfo> apps = pm.queryIntentActivities(launcherIntent, 0);
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+            Intent viewIntent = new Intent(Intent.ACTION_VIEW);
+            viewIntent.setDataAndType(uri, getMimeType(file));
+            viewIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            List<ResolveInfo> apps = pm.queryIntentActivities(viewIntent, 0);
             for (ResolveInfo info : apps) {
                 if (info == null || info.activityInfo == null || info.activityInfo.applicationInfo == null) continue;
                 String pkg = info.activityInfo.packageName;
                 if (pkg == null || pkg.trim().isEmpty()) continue;
                 if (pkg.equals(getPackageName())) continue;
+
+                int flags = info.activityInfo.applicationInfo.flags;
+                boolean isSystem = (flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                        || (flags & android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+                if (isSystem) continue;
+
                 CharSequence rawLabel = info.loadLabel(pm);
                 String label = rawLabel == null ? pkg : rawLabel.toString().trim();
                 if (label.isEmpty()) label = pkg;
@@ -2155,12 +2170,27 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "getAllAppsForDefaultPicker", e);
+            Log.e(TAG, "getAppsForFileDefaultPicker", e);
         }
 
         List<AppChoice> out = new ArrayList<>(dedup.values());
         out.sort((a, b) -> a.label.compareToIgnoreCase(b.label));
         return out;
+    }
+
+    private void openFileWithSelectedPackage(File file, String packageName) {
+        if (file == null || packageName == null || packageName.trim().isEmpty()) return;
+        try {
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setDataAndType(uri, getMimeType(file));
+            i.setPackage(packageName);
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(i);
+        } catch (Exception e) {
+            Log.e(TAG, "openFileWithSelectedPackage", e);
+            toast(getString(R.string.cannot_open_file, file.getName()));
+        }
     }
 
     private void showAppChoiceDialog(String title,

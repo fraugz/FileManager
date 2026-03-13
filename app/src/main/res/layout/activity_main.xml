@@ -116,12 +116,15 @@
                     android:ellipsize="end" android:maxLines="1"/>
                 <ImageButton android:id="@+id/btn_select_all_inline"
                     android:layout_width="38dp" android:layout_height="38dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginTop="1dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_action_select_all"
                     android:tint="#FFFFFF"
                     android:contentDescription="@string/select_all"/>
                 <ImageButton android:id="@+id/btn_new_folder_inline"
                     android:layout_width="38dp" android:layout_height="38dp"
+                    android:layout_gravity="center_vertical"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_add_folder" android:tint="#FFFFFF"
                     android:contentDescription="@string/new_folder"/>
@@ -310,7 +313,10 @@
                 android:layout_marginTop="4dp"
                 android:text="@string/send"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"/>
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="end"/>
         </LinearLayout>
 
         <LinearLayout
@@ -333,9 +339,12 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="@string/set_default_app_short"
+                android:text="@string/open"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"/>
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="end"/>
         </LinearLayout>
 
         <LinearLayout
@@ -360,7 +369,10 @@
                 android:layout_marginTop="4dp"
                 android:text="@string/play"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"/>
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="end"/>
         </LinearLayout>
 
         <LinearLayout
@@ -385,7 +397,10 @@
                 android:layout_marginTop="4dp"
                 android:text="@string/select_all"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"/>
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="end"/>
         </LinearLayout>
 
         <LinearLayout
@@ -409,7 +424,10 @@
                 android:layout_marginTop="4dp"
                 android:text="@string/move"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"/>
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="end"/>
         </LinearLayout>
 
         <LinearLayout
@@ -433,7 +451,10 @@
                 android:layout_marginTop="4dp"
                 android:text="@string/copy"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"/>
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="end"/>
         </LinearLayout>
 
         <LinearLayout
@@ -457,7 +478,10 @@
                 android:layout_marginTop="4dp"
                 android:text="@string/delete"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"/>
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="end"/>
         </LinearLayout>
 
         <LinearLayout
@@ -481,7 +505,10 @@
                 android:layout_marginTop="4dp"
                 android:text="@string/rename"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"/>
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:singleLine="true"
+                android:ellipsize="end"/>
         </LinearLayout>
 
     </LinearLayout>

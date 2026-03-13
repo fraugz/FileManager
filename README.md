@@ -119,6 +119,7 @@ Path: Settings
 - Add extension and app flow now offers unresolved common extensions first, plus a custom extension option.
 - App selection dialogs include search and app icons.
 - The same searchable icon-based app picker is also available from Files/Recents when setting defaults directly.
+- In selection/file menus, the action label is Open; it filters candidate user apps by file type, saves the chosen app as default for that extension, and immediately opens the file with that app.
 - App visibility on Android 11+ uses manifest package queries for launcher and VIEW handlers.
 
 Available actions per entry:
@@ -173,6 +174,7 @@ Published tags:
 - v1.2.4: recent trash/error handling updates and maintenance.
 - v1.2.5: recents/selection UX refinements, direct set-default action from Files/Recents, default-app extension flow with searchable app picker, richer file previews (audio/video/APK + app icon fallback), APK install safety prompt, language icon update, and Android 11+ app visibility fixes.
 - v1.2.6: playback robustness update (temporary M3U playlist with player-specific compatibility for VLC/AIMP/Total Commander), inline select-all and selection-state cleanup, one-shot paste behavior with dynamic Move/Paste button label, progress dialogs improved for move/delete/trash flows, real cancellation handling in long trash operations, direct permanent-delete option with extra warning confirmation and alert icon, trash delete progress UI, and incremental post-rename refresh optimization to reduce UI freezes on large folders.
+- v1.2.7: fine UI/UX adjustments: top-right settings button now opens Settings directly (no intermediate menus), selection bottom bar labels constrained to one line to avoid wrapping on small screens, Set default app action renamed to Open and app picker now filters by file type while keeping only user apps, selecting an app both saves it as default and immediately opens the file, plus select-all icon refresh (empty square/checked square), tint consistency with new-folder icon, and pixel-level vertical alignment tuning.
 
 Suggested next version:
 

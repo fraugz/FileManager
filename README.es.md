@@ -119,6 +119,7 @@ Ruta: Settings
 - El flujo de Anadir extension y app ahora prioriza extensiones comunes pendientes y ofrece opcion de extension personalizada.
 - Los dialogos de seleccion de app incluyen buscador e iconos de aplicaciones.
 - El mismo selector con buscador e iconos tambien se usa desde Archivos/Recientes para definir la app predeterminada al momento.
+- En menus de seleccion/fichero, la accion se muestra como Abrir; filtra apps de usuario por tipo de fichero, guarda la app elegida como predeterminada para esa extension y abre el fichero al instante con esa app.
 - En Android 11+, la visibilidad de apps se apoya en queries del manifiesto (launcher y VIEW).
 
 Acciones disponibles por entrada:
@@ -173,6 +174,7 @@ Tags publicados:
 - v1.2.4: ajustes recientes de papelera/errores y mantenimiento.
 - v1.2.5: refinamientos en UX de recientes/seleccion, accion directa de app predeterminada desde Archivos/Recientes, flujo de apps por extension con selector buscable, previsualizaciones enriquecidas (audio/video/APK + fallback por icono de app), aviso de seguridad para instalar APK, nuevo icono de idioma y correcciones de visibilidad de apps en Android 11+.
 - v1.2.6: mejora de robustez en reproduccion multiple (playlist M3U temporal con compatibilidad especifica para VLC/AIMP/Total Commander), select-all inline y limpieza del estado visual de seleccion, pegado de un solo uso con etiqueta dinamica Mover/Pegar, mejoras de barra de progreso en mover/borrar/papelera, cancelacion real en operaciones largas de papelera, opcion de eliminar definitivamente con doble confirmacion e icono de advertencia, progreso al borrar en papelera y optimizacion del refresco tras renombrar para reducir bloqueos en carpetas grandes.
+- v1.2.7: ajustes finos de UI/UX: el boton de ajustes superior abre Settings directamente (sin menus intermedios), los textos de la barra inferior de seleccion se fuerzan en una sola linea para evitar saltos en pantallas pequenas, la accion App por defecto pasa a mostrarse como Abrir y el selector de apps filtra por tipo de fichero manteniendo solo apps de usuario, al elegir app se guarda como predeterminada y ademas se abre el fichero al instante, y se refinan iconos/alineacion de seleccionar todo (cuadrado vacio/cuadrado marcado), igualando color con nueva carpeta y ajuste de posicion en pixeles.
 
 Siguiente version sugerida:
 
