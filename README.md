@@ -34,6 +34,7 @@ FileManager lets users browse internal storage, search files, manage trash, and 
 - Folder navigation with breadcrumb.
 - Search with incremental loading and cancellation.
 - Recent files view sorted by last access.
+- When a file is moved to a new path, the previous path entry is removed from Recents.
 - Horizontal swipe gestures to switch between Recents and Files views.
 - Pull-down gesture in Files view to refresh the current directory.
 - Recents quick actions:
@@ -41,6 +42,7 @@ FileManager lets users browse internal storage, search files, manage trash, and 
   - long press on a recent file for Set default app or Remove from recents
 - Rename with extension control (full filename or name-only), without forced pre-selection in the input.
 - Multi-selection actions: copy, move, share, and send to trash.
+- Incoming share target: FileManager appears in Android share sheet and lets you navigate to a destination folder before saving shared files.
 - Selection action bar includes a direct Set default app action when exactly one file is selected.
 - Trash with restore and permanent delete.
 - Rich previews with cache: image thumbnails, video frames, embedded audio covers, APK icons, and fallback to configured app icon for types without preview.
@@ -137,6 +139,12 @@ Available actions per entry:
 - A retention policy cleans old entries automatically.
 - If direct move fails, a copy/delete fallback is used when possible.
 
+### Share Sheet Import
+
+- FileManager is available as a target in Android share sheet for single and multiple files.
+- Shared items are queued in-app and shown in the top action bar as Save here.
+- You can navigate to any folder and save all pending shared files into the current directory.
+
 ## Project Structure
 
 ```text
@@ -175,6 +183,7 @@ Published tags:
 - v1.2.5: recents/selection UX refinements, direct set-default action from Files/Recents, default-app extension flow with searchable app picker, richer file previews (audio/video/APK + app icon fallback), APK install safety prompt, language icon update, and Android 11+ app visibility fixes.
 - v1.2.6: playback robustness update (temporary M3U playlist with player-specific compatibility for VLC/AIMP/Total Commander), inline select-all and selection-state cleanup, one-shot paste behavior with dynamic Move/Paste button label, progress dialogs improved for move/delete/trash flows, real cancellation handling in long trash operations, direct permanent-delete option with extra warning confirmation and alert icon, trash delete progress UI, and incremental post-rename refresh optimization to reduce UI freezes on large folders.
 - v1.2.7: fine UI/UX adjustments: top-right settings button now opens Settings directly (no intermediate menus), selection bottom bar labels constrained to one line to avoid wrapping on small screens, Set default app action renamed to Open and app picker now filters by file type while keeping only user apps, selecting an app both saves it as default and immediately opens the file, plus select-all icon refresh (empty square/checked square), tint consistency with new-folder icon, and pixel-level vertical alignment tuning.
+- v1.2.8: smarter temporary playlist names for multi-file playback, FileManager added as Android share target with Save here import flow, and moved files are now removed from Recents at their previous path.
 
 Suggested next version:
 

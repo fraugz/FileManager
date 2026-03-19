@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.drawable.Drawable;
 import android.content.pm.ResolveInfo;
 import android.content.pm.PackageManager;
@@ -14,6 +15,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.OpenableColumns;
 import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -57,13 +59,17 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -82,6 +88,26 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             this.packageName = packageName;
             this.label = label;
             this.icon = icon;
+        }
+    }
+
+    private static class IncomingSharedItem {
+        final Uri uri;
+        final String displayName;
+
+        IncomingSharedItem(Uri uri, String displayName) {
+            this.uri = uri;
+            this.displayName = displayName;
+        }
+    }
+
+    private static class IncomingSharedText {
+        final String text;
+        final String displayName;
+
+        IncomingSharedText(String text, String displayName) {
+            this.text = text;
+            this.displayName = displayName;
         }
     }
 
@@ -130,6 +156,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private File currentDir;
     private final Stack<File> backStack = new Stack<>();
     private final List<File> clipboardFiles = new ArrayList<>();
+    private final List<IncomingSharedItem> incomingSharedItems = new ArrayList<>();
+    private final List<IncomingSharedText> incomingSharedTexts = new ArrayList<>();
     private boolean clipboardIsCopy = false;
     private volatile boolean recursiveSearchCancelled = false;
     private Thread recursiveSearchThread;
@@ -157,8 +185,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setupRecyclerViews();
         setupListeners();
         selectTab(TAB_STORAGE);
+        handleIncomingShareIntent(getIntent());
         requestPermissions();
         Log.d(TAG, "onCreate complete");
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIncomingShareIntent(intent);
     }
 
     // ─────────────────────── BIND ────────────────────────────────────
@@ -464,6 +500,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setClickSafe(R.id.btn_paste,             v -> pasteClipboard());
         setClickSafe(R.id.btn_paste_dismiss,     v -> {
             clipboardFiles.clear();
+            incomingSharedItems.clear();
+            incomingSharedTexts.clear();
             updatePasteBar();
         });
         setClickSafe(R.id.action_send,           v -> shareSelectedFiles());
@@ -1344,7 +1382,17 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             throw new IOException("Could not create temp playlist folder");
         }
 
-        File playlist = new File(baseDir, "playlist.m3u");
+        File[] existing = baseDir.listFiles();
+        if (existing != null) {
+            for (File f : existing) {
+                if (f != null && f.isFile() && f.getName().toLowerCase(Locale.US).endsWith(".m3u")) {
+                    //noinspection ResultOfMethodCallIgnored
+                    f.delete();
+                }
+            }
+        }
+
+        File playlist = new File(baseDir, buildPlaylistFileName(files));
         if (playlist.exists() && !playlist.delete()) {
             throw new IOException("Could not replace previous playlist");
         }
@@ -1361,6 +1409,36 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         return playlist;
     }
 
+    private String buildPlaylistFileName(List<File> files) {
+        List<File> validFiles = new ArrayList<>();
+        for (File f : files) {
+            if (f != null && f.isFile()) validFiles.add(f);
+        }
+
+        String baseName = "playlist";
+        if (!validFiles.isEmpty()) {
+            String firstName = validFiles.get(0).getName();
+            int dot = firstName.lastIndexOf('.');
+            if (dot > 0) firstName = firstName.substring(0, dot);
+            if (validFiles.size() > 1) {
+                baseName = firstName + "_and_" + (validFiles.size() - 1) + "_more";
+            } else {
+                baseName = firstName;
+            }
+        }
+
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+        return sanitizeFilename(baseName) + "_" + timestamp + ".m3u";
+    }
+
+    private String sanitizeFilename(String input) {
+        if (input == null) return "file";
+        String cleaned = input.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
+        if (cleaned.isEmpty()) cleaned = "file";
+        if (cleaned.length() > 80) cleaned = cleaned.substring(0, 80);
+        return cleaned;
+    }
+
     private boolean shouldUsePlainPathsForPlaylist(String pkg) {
         if (pkg == null || pkg.isEmpty()) return false;
         String p = pkg.toLowerCase();
@@ -1370,10 +1448,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private void cleanupTempPlaylist() {
         try {
             File baseDir = new File(getExternalFilesDir(null), "temp_playlists");
-            File playlist = new File(baseDir, "playlist.m3u");
-            if (playlist.exists()) {
-                //noinspection ResultOfMethodCallIgnored
-                playlist.delete();
+            File[] files = baseDir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f != null && f.isFile() && f.getName().toLowerCase(Locale.US).endsWith(".m3u")) {
+                        //noinspection ResultOfMethodCallIgnored
+                        f.delete();
+                    }
+                }
             }
 
             File[] leftovers = baseDir.listFiles();
@@ -1692,6 +1774,30 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                     pasteLabel.setText((clipboardIsCopy ? getString(R.string.copy) + ": " : getString(R.string.move) + ": ") + getString(R.string.items_count, clipboardFiles.size()));
                 }
             }
+        } else if (!incomingSharedItems.isEmpty()) {
+            pasteBar.setVisibility(View.VISIBLE);
+            if (pasteBtn != null) {
+                pasteBtn.setText(R.string.save_here);
+            }
+            if (pasteLabel != null) {
+                if (incomingSharedItems.size() == 1) {
+                    pasteLabel.setText(getString(R.string.shared_file_ready, incomingSharedItems.get(0).displayName));
+                } else {
+                    pasteLabel.setText(getString(R.string.shared_files_ready, incomingSharedItems.size()));
+                }
+            }
+        } else if (!incomingSharedTexts.isEmpty()) {
+            pasteBar.setVisibility(View.VISIBLE);
+            if (pasteBtn != null) {
+                pasteBtn.setText(R.string.save_here);
+            }
+            if (pasteLabel != null) {
+                if (incomingSharedTexts.size() == 1) {
+                    pasteLabel.setText(getString(R.string.shared_text_ready, incomingSharedTexts.get(0).displayName));
+                } else {
+                    pasteLabel.setText(getString(R.string.shared_texts_ready, incomingSharedTexts.size()));
+                }
+            }
         } else {
             pasteBar.setVisibility(View.GONE);
             if (pasteBtn != null) {
@@ -1701,6 +1807,15 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     }
 
     private void pasteClipboard() {
+        if (!incomingSharedItems.isEmpty()) {
+            importSharedItemsToCurrentDirectory();
+            return;
+        }
+        if (!incomingSharedTexts.isEmpty()) {
+            importSharedTextsToCurrentDirectory();
+            return;
+        }
+
         if (clipboardFiles.isEmpty() || currentDir == null) {
             toast(getString(R.string.clipboard_empty));
             return;
@@ -1761,6 +1876,219 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }).start();
     }
 
+    private void handleIncomingShareIntent(Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (!Intent.ACTION_SEND.equals(action) && !Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+            return;
+        }
+
+        List<Uri> uris = extractSharedUris(intent);
+        List<String> textPayloads = extractSharedTextPayloads(intent);
+
+        incomingSharedItems.clear();
+        incomingSharedTexts.clear();
+
+        if (!uris.isEmpty()) {
+            for (Uri uri : uris) {
+                if (uri == null) continue;
+                incomingSharedItems.add(new IncomingSharedItem(uri, resolveSharedDisplayName(uri)));
+            }
+        }
+
+        if (incomingSharedItems.isEmpty() && !textPayloads.isEmpty()) {
+            for (int i = 0; i < textPayloads.size(); i++) {
+                String text = textPayloads.get(i);
+                if (text == null || text.trim().isEmpty()) continue;
+                String name = buildSharedTextFilename(i + 1);
+                incomingSharedTexts.add(new IncomingSharedText(text, name));
+            }
+        }
+
+        if (incomingSharedItems.isEmpty() && incomingSharedTexts.isEmpty()) {
+            return;
+        }
+
+        updatePasteBar();
+        selectTab(TAB_STORAGE);
+        int totalReceived = incomingSharedItems.size() + incomingSharedTexts.size();
+        toast(getString(R.string.shared_files_received, totalReceived));
+    }
+
+    private List<String> extractSharedTextPayloads(Intent intent) {
+        List<String> out = new ArrayList<>();
+        if (intent == null) return out;
+
+        String action = intent.getAction();
+        if (Intent.ACTION_SEND.equals(action)) {
+            String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+            if (text != null && !text.trim().isEmpty()) out.add(text);
+        } else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+            ArrayList<CharSequence> textList = intent.getCharSequenceArrayListExtra(Intent.EXTRA_TEXT);
+            if (textList != null) {
+                for (CharSequence cs : textList) {
+                    if (cs != null) {
+                        String text = cs.toString();
+                        if (!text.trim().isEmpty()) out.add(text);
+                    }
+                }
+            }
+        }
+
+        ClipData clipData = intent.getClipData();
+        if (clipData != null) {
+            for (int i = 0; i < clipData.getItemCount(); i++) {
+                CharSequence cs = clipData.getItemAt(i).getText();
+                if (cs != null) {
+                    String text = cs.toString();
+                    if (!text.trim().isEmpty()) out.add(text);
+                }
+            }
+        }
+        return out;
+    }
+
+    private String buildSharedTextFilename(int index) {
+        String ts = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+        if (index <= 1) {
+            return "shared_text_" + ts + ".txt";
+        }
+        return "shared_text_" + ts + "_" + index + ".txt";
+    }
+
+    private List<Uri> extractSharedUris(Intent intent) {
+        List<Uri> uris = new ArrayList<>();
+        if (intent == null) return uris;
+
+        String action = intent.getAction();
+        if (Intent.ACTION_SEND.equals(action)) {
+            Uri single = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+            addUriIfValid(uris, single);
+
+            // Some providers attach the stream in clipData instead of EXTRA_STREAM.
+            ClipData clipData = intent.getClipData();
+            if (clipData != null && clipData.getItemCount() > 0) {
+                addUriIfValid(uris, clipData.getItemAt(0).getUri());
+            }
+
+            // Fallback for apps that populate data URI.
+            addUriIfValid(uris, intent.getData());
+
+            // Some apps only send text containing a local path/content URI.
+            addUrisFromExtraText(uris, intent.getStringExtra(Intent.EXTRA_TEXT));
+        } else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+            ArrayList<Uri> many = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+            if (many != null) {
+                for (Uri uri : many) addUriIfValid(uris, uri);
+            }
+
+            ClipData clipData = intent.getClipData();
+            if (clipData != null) {
+                for (int i = 0; i < clipData.getItemCount(); i++) {
+                    addUriIfValid(uris, clipData.getItemAt(i).getUri());
+                }
+            }
+
+            ArrayList<CharSequence> textList = intent.getCharSequenceArrayListExtra(Intent.EXTRA_TEXT);
+            if (textList != null) {
+                for (CharSequence cs : textList) {
+                    if (cs != null) {
+                        addUrisFromExtraText(uris, cs.toString());
+                    }
+                }
+            }
+        }
+        return uris;
+    }
+
+    private void addUrisFromExtraText(List<Uri> uris, String text) {
+        if (uris == null || text == null) return;
+        String trimmed = text.trim();
+        if (trimmed.isEmpty()) return;
+
+        String[] parts = trimmed.split("\\s+");
+        for (String part : parts) {
+            if (part == null) continue;
+            String token = part.trim();
+            if (token.isEmpty()) continue;
+
+            if (token.startsWith("content://") || token.startsWith("file://")) {
+                addUriIfValid(uris, Uri.parse(token));
+                continue;
+            }
+
+            // Absolute filesystem path fallback.
+            if (token.startsWith("/") || token.matches("^[A-Za-z]:[/\\\\].*")) {
+                File f = new File(token);
+                if (f.exists() && f.isFile()) {
+                    addUriIfValid(uris, Uri.fromFile(f));
+                }
+            }
+        }
+    }
+
+    private void addUriIfValid(List<Uri> uris, Uri candidate) {
+        if (candidate == null || uris == null) return;
+        String value = candidate.toString();
+        if (value == null || value.trim().isEmpty()) return;
+
+        for (Uri existing : uris) {
+            if (existing != null && value.equals(existing.toString())) {
+                return;
+            }
+        }
+        uris.add(candidate);
+    }
+
+    private String resolveSharedDisplayName(Uri uri) {
+        String fallback = uri.getLastPathSegment();
+        if (fallback == null || fallback.trim().isEmpty()) {
+            fallback = "shared_file";
+        }
+
+        Cursor cursor = null;
+        try {
+            cursor = getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                int idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (idx >= 0) {
+                    String name = cursor.getString(idx);
+                    if (name != null && !name.trim().isEmpty()) {
+                        return normalizeSharedFilename(uri, sanitizeFilename(name));
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return normalizeSharedFilename(uri, sanitizeFilename(fallback));
+    }
+
+    private String normalizeSharedFilename(Uri uri, String candidateName) {
+        String safeName = sanitizeFilename(candidateName);
+        String mime = null;
+        try {
+            mime = getContentResolver().getType(uri);
+        } catch (Exception ignored) {
+        }
+        if (mime == null || mime.trim().isEmpty()) return safeName;
+
+        String expectedExt = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime.toLowerCase(Locale.US));
+        if (expectedExt == null || expectedExt.trim().isEmpty()) return safeName;
+
+        int dot = safeName.lastIndexOf('.');
+        if (dot <= 0 || dot >= safeName.length() - 1) {
+            return safeName + "." + expectedExt;
+        }
+
+        String currentExt = safeName.substring(dot + 1).toLowerCase(Locale.US);
+        if ("txt".equals(currentExt) && !"text/plain".equalsIgnoreCase(mime)) {
+            return safeName.substring(0, dot + 1) + expectedExt;
+        }
+        return safeName;
+    }
+
     private void copySourceWithProgress(File source,
                                         File destDir,
                                         AtomicBoolean cancelled,
@@ -1784,11 +2112,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                                         int[] processedUnits) throws Exception {
         if (source == null || destDir == null) return;
         if (cancelled.get()) throw new Exception("cancelled");
+        boolean sourceWasFile = source.isFile();
+        String sourcePath = source.getAbsolutePath();
 
         File dest = buildUniqueDestination(destDir, source.getName());
         if (source.isFile() && source.renameTo(dest)) {
             int units = Math.max(1, countWorkUnits(dest));
             addProgressUnits(units, holder, processedUnits);
+            if (sourceWasFile) {
+                RecentManager.remove(this, sourcePath);
+            }
             return;
         }
 
@@ -1800,6 +2133,162 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
         if (!FileOperations.delete(source)) {
             throw new Exception("Unable to delete source after move: " + source.getName());
+        }
+        if (sourceWasFile) {
+            RecentManager.remove(this, sourcePath);
+        }
+    }
+
+    private void importSharedItemsToCurrentDirectory() {
+        if (currentDir == null) {
+            toast(getString(R.string.open_folder_to_save_shared));
+            return;
+        }
+        if (incomingSharedItems.isEmpty()) {
+            toast(getString(R.string.no_shared_files_pending));
+            return;
+        }
+
+        final List<IncomingSharedItem> items = new ArrayList<>(incomingSharedItems);
+        final AtomicBoolean cancelled = new AtomicBoolean(false);
+        final ProgressDialogHolder holder = showProgressDialog(
+                R.string.importing_shared_files,
+                Math.max(1, items.size()),
+                cancelled
+        );
+
+        new Thread(() -> {
+            int imported = 0;
+            String firstError = null;
+
+            for (IncomingSharedItem item : items) {
+                if (cancelled.get()) break;
+                try {
+                    File target = buildUniqueDestination(currentDir, item.displayName);
+                    copyUriToFile(item.uri, target, cancelled);
+                    imported++;
+                    int progress = imported;
+                    mainHandler.post(() -> updateProgressDialog(holder, progress));
+                } catch (Exception e) {
+                    if (firstError == null) firstError = e.getMessage();
+                }
+            }
+
+            int importedCount = imported;
+            String error = firstError;
+            mainHandler.post(() -> {
+                dismissProgressDialog(holder);
+                if (cancelled.get()) {
+                    toast(getString(R.string.operation_cancelled));
+                    return;
+                }
+
+                if (importedCount > 0) {
+                    if (importedCount == items.size() && error == null) {
+                        toast(getString(R.string.imported_shared_result, importedCount));
+                    } else {
+                        toast(getString(R.string.import_shared_partial_error, importedCount, items.size(), error == null ? "unknown" : error));
+                    }
+                } else {
+                    toast(getString(R.string.import_shared_failed));
+                }
+
+                if (importedCount > 0) {
+                    incomingSharedItems.clear();
+                    updatePasteBar();
+                    loadDirectory(currentDir);
+                }
+            });
+        }).start();
+    }
+
+    private void importSharedTextsToCurrentDirectory() {
+        if (currentDir == null) {
+            toast(getString(R.string.open_folder_to_save_shared));
+            return;
+        }
+        if (incomingSharedTexts.isEmpty()) {
+            toast(getString(R.string.no_shared_files_pending));
+            return;
+        }
+
+        final List<IncomingSharedText> items = new ArrayList<>(incomingSharedTexts);
+        final AtomicBoolean cancelled = new AtomicBoolean(false);
+        final ProgressDialogHolder holder = showProgressDialog(
+                R.string.importing_shared_files,
+                Math.max(1, items.size()),
+                cancelled
+        );
+
+        new Thread(() -> {
+            int imported = 0;
+            String firstError = null;
+
+            for (IncomingSharedText item : items) {
+                if (cancelled.get()) break;
+                try {
+                    File target = buildUniqueDestination(currentDir, sanitizeFilename(item.displayName));
+                    writeTextToFile(item.text, target, cancelled);
+                    imported++;
+                    int progress = imported;
+                    mainHandler.post(() -> updateProgressDialog(holder, progress));
+                } catch (Exception e) {
+                    if (firstError == null) firstError = e.getMessage();
+                }
+            }
+
+            int importedCount = imported;
+            String error = firstError;
+            mainHandler.post(() -> {
+                dismissProgressDialog(holder);
+                if (cancelled.get()) {
+                    toast(getString(R.string.operation_cancelled));
+                    return;
+                }
+
+                if (importedCount > 0) {
+                    if (importedCount == items.size() && error == null) {
+                        toast(getString(R.string.imported_shared_result, importedCount));
+                    } else {
+                        toast(getString(R.string.import_shared_partial_error, importedCount, items.size(), error == null ? "unknown" : error));
+                    }
+                } else {
+                    toast(getString(R.string.import_shared_failed));
+                }
+
+                if (importedCount > 0) {
+                    incomingSharedTexts.clear();
+                    updatePasteBar();
+                    loadDirectory(currentDir);
+                }
+            });
+        }).start();
+    }
+
+    private void writeTextToFile(String text, File target, AtomicBoolean cancelled) throws Exception {
+        if (cancelled.get()) throw new Exception("cancelled");
+        try (FileOutputStream out = new FileOutputStream(target)) {
+            String safeText = text == null ? "" : text;
+            byte[] bytes = safeText.getBytes();
+            out.write(bytes);
+            out.flush();
+        }
+    }
+
+    private void copyUriToFile(Uri uri, File target, AtomicBoolean cancelled) throws Exception {
+        try (InputStream in = getContentResolver().openInputStream(uri);
+             FileOutputStream out = new FileOutputStream(target)) {
+            if (in == null) {
+                throw new IOException("Unable to read shared item");
+            }
+
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                if (cancelled.get()) throw new Exception("cancelled");
+                out.write(buffer, 0, read);
+            }
+            out.flush();
         }
     }
 
@@ -2112,6 +2601,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void showSetDefaultAppDialog(File file, boolean openAfterSelection) {
         List<AppChoice> candidates = getAppsForFileDefaultPicker(file);
+        List<AppChoice> allApps = getAllAppsForDefaultPicker();
         if (candidates.isEmpty()) {
             toast(getString(R.string.no_apps_found));
             return;
@@ -2121,6 +2611,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         showAppChoiceDialog(
                 getString(R.string.open),
                 candidates,
+                allApps,
                 currentPackage,
                 selected -> {
                     DefaultAppsManager.add(this, ext, selected.packageName, selected.label);
@@ -2178,6 +2669,44 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         return out;
     }
 
+    private List<AppChoice> getAllAppsForDefaultPicker() {
+        Map<String, AppChoice> dedup = new LinkedHashMap<>();
+        try {
+            PackageManager pm = getPackageManager();
+            Intent launcherIntent = new Intent(Intent.ACTION_MAIN);
+            launcherIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+            List<ResolveInfo> apps = pm.queryIntentActivities(launcherIntent, 0);
+
+            for (ResolveInfo info : apps) {
+                if (info == null || info.activityInfo == null || info.activityInfo.applicationInfo == null) continue;
+                String pkg = info.activityInfo.packageName;
+                if (pkg == null || pkg.trim().isEmpty()) continue;
+                if (pkg.equals(getPackageName())) continue;
+
+                CharSequence rawLabel = info.loadLabel(pm);
+                String label = rawLabel == null ? pkg : rawLabel.toString().trim();
+                if (label.isEmpty()) label = pkg;
+
+                Drawable icon;
+                try {
+                    icon = info.loadIcon(pm);
+                } catch (Exception ignored) {
+                    icon = null;
+                }
+
+                if (!dedup.containsKey(pkg)) {
+                    dedup.put(pkg, new AppChoice(pkg, label, icon));
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "getAllAppsForDefaultPicker", e);
+        }
+
+        List<AppChoice> out = new ArrayList<>(dedup.values());
+        out.sort((a, b) -> a.label.compareToIgnoreCase(b.label));
+        return out;
+    }
+
     private void openFileWithSelectedPackage(File file, String packageName) {
         if (file == null || packageName == null || packageName.trim().isEmpty()) return;
         try {
@@ -2195,6 +2724,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void showAppChoiceDialog(String title,
                                      List<AppChoice> candidates,
+                                     List<AppChoice> moreCandidates,
                                      String selectedPackage,
                                      java.util.function.Consumer<AppChoice> onSelected) {
         LinearLayout root = new LinearLayout(this);
@@ -2219,11 +2749,17 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         AppChoiceAdapter adapter = new AppChoiceAdapter(candidates, selectedPackage);
         listView.setAdapter(adapter);
 
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(title)
-                .setView(root)
-                .setNegativeButton(R.string.cancel, null)
-                .create();
+        final boolean canShowMore = moreCandidates != null && !moreCandidates.isEmpty()
+            && moreCandidates.size() > candidates.size();
+
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(root)
+            .setNegativeButton(R.string.cancel, null);
+        if (canShowMore) {
+            dialogBuilder.setNeutralButton(R.string.show_more_apps, null);
+        }
+        AlertDialog dialog = dialogBuilder.create();
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
             AppChoice selected = adapter.getItem(position);
@@ -2249,6 +2785,13 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         });
 
         dialog.show();
+
+        if (canShowMore) {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
+                adapter.replaceAll(moreCandidates);
+                dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setVisibility(View.GONE);
+            });
+        }
     }
 
     private class AppChoiceAdapter extends BaseAdapter {
@@ -2277,6 +2820,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 }
             }
             notifyDataSetChanged();
+        }
+
+        void replaceAll(List<AppChoice> replacement) {
+            all.clear();
+            if (replacement != null) {
+                all.addAll(replacement);
+            }
+            filter("");
         }
 
         @Override

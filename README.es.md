@@ -34,6 +34,7 @@ FileManager permite navegar almacenamiento interno, buscar archivos, gestionar p
 - Navegacion por carpetas con breadcrumb.
 - Busqueda con carga incremental y cancelacion.
 - Vista de recientes ordenada por ultimo acceso.
+- Cuando un fichero se mueve a otra ruta, la entrada de la ruta anterior se elimina de Recientes.
 - Gestos de deslizamiento horizontal para cambiar entre las vistas Recientes y Archivos.
 - Gesto de arrastrar hacia abajo en la vista Archivos para refrescar el directorio actual.
 - Acciones rapidas en Recientes:
@@ -41,6 +42,7 @@ FileManager permite navegar almacenamiento interno, buscar archivos, gestionar p
   - pulsacion prolongada en un fichero reciente para definir App por defecto o Quitar de recientes
 - Renombrado con control de extension (nombre completo o solo nombre), sin preseleccion forzada en el campo.
 - Acciones en multiseleccion: copiar, mover, compartir y enviar a papelera.
+- Destino de compartir entrante: FileManager aparece en la hoja de compartir de Android y permite navegar hasta la carpeta destino antes de guardar archivos compartidos.
 - La barra de acciones de seleccion incluye accion directa de App por defecto cuando hay exactamente un fichero seleccionado.
 - Papelera con restauracion y borrado permanente.
 - Previsualizaciones enriquecidas con cache: miniaturas de imagen, frame de video, cover embebido en audio, icono de APK y fallback al icono de la app configurada cuando no hay preview.
@@ -137,6 +139,12 @@ Acciones disponibles por entrada:
 - Existe politica de limpieza por retencion de elementos antiguos.
 - Si el move directo falla, se aplica fallback de copy/delete cuando es posible.
 
+### Importacion desde compartir
+
+- FileManager aparece como destino en la hoja de compartir de Android para envio simple y multiple.
+- Los elementos compartidos quedan en cola dentro de la app y se muestran en la barra superior como Guardar aqui.
+- Puedes navegar a cualquier carpeta y guardar ahi todos los archivos compartidos pendientes.
+
 ## Estructura del proyecto
 
 ```text
@@ -175,6 +183,7 @@ Tags publicados:
 - v1.2.5: refinamientos en UX de recientes/seleccion, accion directa de app predeterminada desde Archivos/Recientes, flujo de apps por extension con selector buscable, previsualizaciones enriquecidas (audio/video/APK + fallback por icono de app), aviso de seguridad para instalar APK, nuevo icono de idioma y correcciones de visibilidad de apps en Android 11+.
 - v1.2.6: mejora de robustez en reproduccion multiple (playlist M3U temporal con compatibilidad especifica para VLC/AIMP/Total Commander), select-all inline y limpieza del estado visual de seleccion, pegado de un solo uso con etiqueta dinamica Mover/Pegar, mejoras de barra de progreso en mover/borrar/papelera, cancelacion real en operaciones largas de papelera, opcion de eliminar definitivamente con doble confirmacion e icono de advertencia, progreso al borrar en papelera y optimizacion del refresco tras renombrar para reducir bloqueos en carpetas grandes.
 - v1.2.7: ajustes finos de UI/UX: el boton de ajustes superior abre Settings directamente (sin menus intermedios), los textos de la barra inferior de seleccion se fuerzan en una sola linea para evitar saltos en pantallas pequenas, la accion App por defecto pasa a mostrarse como Abrir y el selector de apps filtra por tipo de fichero manteniendo solo apps de usuario, al elegir app se guarda como predeterminada y ademas se abre el fichero al instante, y se refinan iconos/alineacion de seleccionar todo (cuadrado vacio/cuadrado marcado), igualando color con nueva carpeta y ajuste de posicion en pixeles.
+- v1.2.8: nombres temporales mas descriptivos para playlists M3U de reproduccion multiple, FileManager agregado como destino en la hoja de compartir con flujo Guardar aqui, y eliminacion automatica en Recientes de la ruta anterior al mover ficheros.
 
 Siguiente version sugerida:
 

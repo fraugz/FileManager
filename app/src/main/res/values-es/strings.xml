@@ -41,6 +41,7 @@
     <string name="invalid_extension">Extensión no válida</string>
     <string name="default_app_saved">App por defecto guardada</string>
     <string name="no_apps_found">No se encontraron apps instaladas para seleccionar.</string>
+    <string name="show_more_apps">Mostrar más aplicaciones...</string>
 
     <string name="storage">Almacenamiento</string>
     <string name="internal_storage">Almacenamiento interno</string>
@@ -65,6 +66,7 @@
     <string name="empty_folder">Esta carpeta está vacía</string>
     <string name="recent_empty">Los ficheros recientes aparecerán aquí</string>
     <string name="paste">Pegar</string>
+    <string name="save_here">Guardar aqui</string>
     <string name="send">Enviar</string>
     <string name="play">Reproducir</string>
     <string name="move">Mover</string>
@@ -147,6 +149,17 @@
     <string name="cut_simple">Cortado</string>
     <string name="moved_count">Movidos: %1$d</string>
     <string name="clipboard_empty">Portapapeles vacío</string>
+    <string name="open_folder_to_save_shared">Abre una carpeta para guardar los archivos compartidos</string>
+    <string name="no_shared_files_pending">No hay archivos compartidos pendientes</string>
+    <string name="shared_file_ready">Archivo compartido listo: %1$s</string>
+    <string name="shared_files_ready">Archivos compartidos listos: %1$d</string>
+    <string name="shared_text_ready">Texto compartido listo: %1$s</string>
+    <string name="shared_texts_ready">Textos compartidos listos: %1$d</string>
+    <string name="shared_files_received">Archivos compartidos recibidos: %1$d</string>
+    <string name="importing_shared_files">Importando archivos compartidos</string>
+    <string name="imported_shared_result">Importados: %1$d</string>
+    <string name="import_shared_partial_error">Importados %1$d de %2$d. Error: %3$s</string>
+    <string name="import_shared_failed">No se importaron archivos compartidos</string>
     <string name="copied_result">Copiados: %1$d</string>
     <string name="moved_result">Movidos: %1$d</string>
     <string name="paste_partial_error">Algunos elementos no se pudieron pegar: %1$s</string>
