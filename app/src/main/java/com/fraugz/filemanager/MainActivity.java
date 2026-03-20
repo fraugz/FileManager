@@ -74,6 +74,8 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.attribute.BasicFileAttributes;
 
 import android.content.res.ColorStateList;
 
@@ -133,8 +135,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private EditText searchInput;
     private LinearLayout pasteBar;
     private TextView pasteLabel, sectionHeaderLabel, pageTitle, recentTitle, searchStatus, cancelSearchBtn, loadingStatusLabel;
-    private TextView actionSendLabel, actionOpenWithLabel, actionPlayLabel, actionSelectAllLabel, actionMoveLabel, actionCopyLabel, actionDeleteLabel, actionRenameLabel;
-    private ImageView actionSendIcon, actionOpenWithIcon, actionPlayIcon, actionSelectAllIcon, actionMoveIcon, actionCopyIcon, actionDeleteIcon, actionRenameIcon;
+    private TextView actionSendLabel, actionOpenWithLabel, actionPlayLabel, actionSelectAllLabel, actionMoveLabel, actionCopyLabel, actionDeleteLabel, actionRenameLabel, actionInfoLabel;
+    private ImageView actionSendIcon, actionOpenWithIcon, actionPlayIcon, actionSelectAllIcon, actionMoveIcon, actionCopyIcon, actionDeleteIcon, actionRenameIcon, actionInfoIcon;
     private ProgressBar searchProgress;
     private SwipeRefreshLayout swipeRefresh;
     private ImageButton btnClearRecent;
@@ -232,6 +234,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         actionCopyLabel     = findViewById(R.id.action_copy_label);
         actionDeleteLabel   = findViewById(R.id.action_delete_label);
         actionRenameLabel   = findViewById(R.id.action_rename_label);
+        actionInfoLabel     = findViewById(R.id.action_info_label);
         actionSendIcon      = findViewById(R.id.action_send_icon);
         actionOpenWithIcon  = findViewById(R.id.action_open_with_icon);
         actionPlayIcon      = findViewById(R.id.action_play_icon);
@@ -240,6 +243,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         actionCopyIcon      = findViewById(R.id.action_copy_icon);
         actionDeleteIcon    = findViewById(R.id.action_delete_icon);
         actionRenameIcon    = findViewById(R.id.action_rename_icon);
+        actionInfoIcon      = findViewById(R.id.action_info_icon);
         swipeRefresh        = findViewById(R.id.swipe_refresh);
         bottomNav           = findViewById(R.id.bottom_nav);
         tabRecent           = findViewById(R.id.tab_recent);
@@ -308,6 +312,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (actionCopyLabel != null) actionCopyLabel.setTextColor(iconTint);
         if (actionDeleteLabel != null) actionDeleteLabel.setTextColor(iconTint);
         if (actionRenameLabel != null) actionRenameLabel.setTextColor(iconTint);
+        if (actionInfoLabel != null) actionInfoLabel.setTextColor(iconTint);
         if (actionSendIcon != null) actionSendIcon.setColorFilter(iconTint);
         if (actionOpenWithIcon != null) actionOpenWithIcon.setColorFilter(iconTint);
         if (actionPlayIcon != null) actionPlayIcon.setColorFilter(iconTint);
@@ -316,6 +321,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (actionCopyIcon != null) actionCopyIcon.setColorFilter(iconTint);
         if (actionDeleteIcon != null) actionDeleteIcon.setColorFilter(iconTint);
         if (actionRenameIcon != null) actionRenameIcon.setColorFilter(iconTint);
+        if (actionInfoIcon != null) actionInfoIcon.setColorFilter(iconTint);
 
         int[] iconBtns = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_select_all_inline, R.id.btn_new_folder_inline, R.id.btn_clear_recent};
         for (int id : iconBtns) {
@@ -366,6 +372,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (actionCopyLabel != null) actionCopyLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
         if (actionDeleteLabel != null) actionDeleteLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
         if (actionRenameLabel != null) actionRenameLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
+        if (actionInfoLabel != null) actionInfoLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
 
         int iconSize = dp(44f * uiScale);
         int[] topIconButtons = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_clear_recent};
@@ -385,6 +392,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setSquareSize(actionCopyIcon, dp(24f * uiScale));
         setSquareSize(actionDeleteIcon, dp(24f * uiScale));
         setSquareSize(actionRenameIcon, dp(24f * uiScale));
+        setSquareSize(actionInfoIcon, dp(24f * uiScale));
 
         if (adapter != null) adapter.setUiScale(uiScale);
         if (recentAdapter != null) recentAdapter.setUiScale(uiScale);
@@ -511,6 +519,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setClickSafe(R.id.action_copy,           v -> copySelection());
         setClickSafe(R.id.action_delete,         v -> deleteSelectionToTrash());
         setClickSafe(R.id.action_rename,         v -> renameSelection());
+        setClickSafe(R.id.action_info,           v -> showInfoForSelection());
 
         setupSwipeNavigation();
 
@@ -1106,6 +1115,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         boolean selectionMode = adapter != null && adapter.isSelectionMode() && !sel.isEmpty();
         boolean showSetDefaultApp = sel.size() == 1 && sel.get(0).isFile();
         boolean showPlay = sel.size() > 1 && areAllPlayableFiles(sel);
+        boolean showInfo = sel.size() == 1;
+        boolean showRename = sel.size() == 1;
         if (selectionActionsBar != null) {
             selectionActionsBar.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
         }
@@ -1117,11 +1128,28 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (playAction != null) {
             playAction.setVisibility(selectionMode && showPlay ? View.VISIBLE : View.GONE);
         }
+        View infoAction = findViewById(R.id.action_info);
+        if (infoAction != null) {
+            infoAction.setVisibility(selectionMode && showInfo ? View.VISIBLE : View.GONE);
+        }
+        View renameAction = findViewById(R.id.action_rename);
+        if (renameAction != null) {
+            renameAction.setVisibility(selectionMode && showRename ? View.VISIBLE : View.GONE);
+        }
         View selectAllAction = findViewById(R.id.action_select_all);
         if (selectAllAction != null) {
             selectAllAction.setVisibility(View.GONE);
         }
         updateInlineSelectAllVisual();
+    }
+
+    private void showInfoForSelection() {
+        List<File> sel = getSelectedFiles();
+        if (sel.size() != 1) {
+            toast(getString(R.string.select_single_file_for_info));
+            return;
+        }
+        showDetails(new FileItem(sel.get(0)));
     }
 
     private void setDefaultAppFromSelection() {
@@ -2601,7 +2629,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void showSetDefaultAppDialog(File file, boolean openAfterSelection) {
         List<AppChoice> candidates = getAppsForFileDefaultPicker(file);
-        List<AppChoice> allApps = getAllAppsForDefaultPicker();
+        List<AppChoice> moreUserApps = getAllAppsForDefaultPicker(false);
+        List<AppChoice> allAppsWithSystem = getAllAppsForDefaultPicker(true);
         if (candidates.isEmpty()) {
             toast(getString(R.string.no_apps_found));
             return;
@@ -2611,7 +2640,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         showAppChoiceDialog(
                 getString(R.string.open),
                 candidates,
-                allApps,
+            moreUserApps,
+            allAppsWithSystem,
                 currentPackage,
                 selected -> {
                     DefaultAppsManager.add(this, ext, selected.packageName, selected.label);
@@ -2669,7 +2699,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         return out;
     }
 
-    private List<AppChoice> getAllAppsForDefaultPicker() {
+    private List<AppChoice> getAllAppsForDefaultPicker(boolean includeSystemApps) {
         Map<String, AppChoice> dedup = new LinkedHashMap<>();
         try {
             PackageManager pm = getPackageManager();
@@ -2682,6 +2712,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 String pkg = info.activityInfo.packageName;
                 if (pkg == null || pkg.trim().isEmpty()) continue;
                 if (pkg.equals(getPackageName())) continue;
+
+                int flags = info.activityInfo.applicationInfo.flags;
+                boolean isSystem = (flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                    || (flags & android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+                if (!includeSystemApps && isSystem) continue;
 
                 CharSequence rawLabel = info.loadLabel(pm);
                 String label = rawLabel == null ? pkg : rawLabel.toString().trim();
@@ -2725,6 +2760,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private void showAppChoiceDialog(String title,
                                      List<AppChoice> candidates,
                                      List<AppChoice> moreCandidates,
+                                     List<AppChoice> allWithSystemCandidates,
                                      String selectedPackage,
                                      java.util.function.Consumer<AppChoice> onSelected) {
         LinearLayout root = new LinearLayout(this);
@@ -2788,8 +2824,86 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
         if (canShowMore) {
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
-                adapter.replaceAll(moreCandidates);
-                dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setVisibility(View.GONE);
+                dialog.dismiss();
+                showExpandedAppChoiceDialog(
+                        title,
+                        moreCandidates,
+                        allWithSystemCandidates,
+                        selectedPackage,
+                        onSelected
+                );
+            });
+        }
+    }
+
+    private void showExpandedAppChoiceDialog(String title,
+                                             List<AppChoice> expandedCandidates,
+                                             List<AppChoice> allWithSystemCandidates,
+                                             String selectedPackage,
+                                             java.util.function.Consumer<AppChoice> onSelected) {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int hp = dp(16);
+        root.setPadding(hp, dp(10), hp, 0);
+
+        EditText search = new EditText(this);
+        search.setSingleLine(true);
+        search.setHint(getString(R.string.search_apps_hint));
+        root.addView(search, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        ListView listView = new ListView(this);
+        LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(420));
+        listParams.topMargin = dp(8);
+        root.addView(listView, listParams);
+
+        AppChoiceAdapter adapter = new AppChoiceAdapter(expandedCandidates, selectedPackage);
+        listView.setAdapter(adapter);
+
+        final boolean canShowSystem = allWithSystemCandidates != null
+                && allWithSystemCandidates.size() > expandedCandidates.size();
+
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(root)
+                .setPositiveButton(R.string.cancel, null);
+        if (canShowSystem) {
+            dialogBuilder.setNegativeButton(R.string.system_apps, null);
+        }
+        AlertDialog dialog = dialogBuilder.create();
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            AppChoice selected = adapter.getItem(position);
+            if (selected != null) {
+                dialog.dismiss();
+                onSelected.accept(selected);
+            }
+        });
+
+        search.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                adapter.filter(s == null ? "" : s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
+
+        dialog.show();
+
+        if (canShowSystem) {
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v -> {
+                adapter.replaceAll(allWithSystemCandidates);
+                dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setVisibility(View.GONE);
             });
         }
     }
@@ -3063,14 +3177,37 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private void showDetails(FileItem item) {
         File f = item.getFile();
         String type = f.isDirectory() ? getString(R.string.folder) : getString(R.string.file);
+        String createdAt = getFileCreatedAt(f);
+        String modifiedAt = item.getFormattedDate();
         new AlertDialog.Builder(this).setTitle(R.string.details_title)
             .setMessage(getString(R.string.details_message,
                     f.getName(),
                     type,
                     item.getFormattedSize(this),
-                    item.getFormattedDate(),
+                    createdAt,
+                    modifiedAt,
                     f.getAbsolutePath()))
             .setPositiveButton(R.string.close, null).show();
+    }
+
+    private String getFileCreatedAt(File file) {
+        if (file == null) return "-";
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                BasicFileAttributes attrs = Files.readAttributes(file.toPath(), BasicFileAttributes.class);
+                long created = attrs.creationTime().toMillis();
+                if (created > 0) {
+                    return formatTimestamp(created);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return formatTimestamp(file.lastModified());
+    }
+
+    private String formatTimestamp(long timeMillis) {
+        return new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                .format(new Date(timeMillis));
     }
 
     private void showNewFolderDialog() {

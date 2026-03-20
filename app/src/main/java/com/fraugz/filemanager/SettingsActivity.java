@@ -36,6 +36,10 @@ import java.util.Set;
 
 public class SettingsActivity extends AppCompatActivity {
 
+    private static final String PROJECT_GITHUB_URL = "https://github.com/fraugz/FileManager";
+    private static final String QUICK_GUIDE_EN_URL = "https://github.com/fraugz/FileManager/blob/main/QUICK_GUIDE.md";
+    private static final String QUICK_GUIDE_ES_URL = "https://github.com/fraugz/FileManager/blob/main/QUICK_GUIDE.es.md";
+
     private TextView themeSubtitle;
     private TextView uiScaleSubtitle;
     private TextView languageSubtitle;
@@ -102,6 +106,8 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.row_ui_scale).setOnClickListener(v -> showUiScaleDialog());
             findViewById(R.id.row_language).setOnClickListener(v -> showLanguageDialog());
         findViewById(R.id.row_default_apps).setOnClickListener(v -> showDefaultAppsDialog());
+        findViewById(R.id.row_quick_guide).setOnClickListener(v -> openQuickGuideLink());
+        findViewById(R.id.row_github).setOnClickListener(v -> openUrl(PROJECT_GITHUB_URL));
 
     }
 
@@ -178,6 +184,10 @@ public class SettingsActivity extends AppCompatActivity {
         TextView uiScaleTitle = findViewById(R.id.ui_scale_title);
         TextView languageTitle = findViewById(R.id.language_title);
         TextView defaultAppsTitle = findViewById(R.id.default_apps_title);
+        TextView quickGuideTitle = findViewById(R.id.quick_guide_title);
+        TextView quickGuideSubtitle = findViewById(R.id.quick_guide_subtitle);
+        TextView githubTitle = findViewById(R.id.github_title);
+        TextView githubSubtitle = findViewById(R.id.github_subtitle);
 
         if (title != null) title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f * scale);
         if (badge != null) badge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * scale);
@@ -191,6 +201,10 @@ public class SettingsActivity extends AppCompatActivity {
         if (languageSubtitle != null) languageSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
         if (defaultAppsTitle != null) defaultAppsTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * scale);
         if (defaultAppsSubtitle != null) defaultAppsSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
+        if (quickGuideTitle != null) quickGuideTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * scale);
+        if (quickGuideSubtitle != null) quickGuideSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
+        if (githubTitle != null) githubTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * scale);
+        if (githubSubtitle != null) githubSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
         if (versionValue != null) versionValue.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f * scale);
 
         setSquareSize(findViewById(R.id.btn_back), dp(48f * scale));
@@ -198,6 +212,23 @@ public class SettingsActivity extends AppCompatActivity {
         setSquareSize(findViewById(R.id.ui_scale_icon), dp(28f * scale));
         setSquareSize(findViewById(R.id.language_icon), dp(28f * scale));
         setSquareSize(findViewById(R.id.default_apps_icon), dp(28f * scale));
+        setSquareSize(findViewById(R.id.quick_guide_icon), dp(28f * scale));
+        setSquareSize(findViewById(R.id.github_icon), dp(28f * scale));
+    }
+
+    private void openQuickGuideLink() {
+        String lang = LocaleManager.resolveLanguage(this);
+        String url = LocaleManager.LANG_ES.equals(lang) ? QUICK_GUIDE_ES_URL : QUICK_GUIDE_EN_URL;
+        openUrl(url);
+    }
+
+    private void openUrl(String url) {
+        try {
+            Intent browser = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            startActivity(browser);
+        } catch (Exception e) {
+            Toast.makeText(this, getString(R.string.error_opening_link), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void updateDefaultAppsSubtitle() {

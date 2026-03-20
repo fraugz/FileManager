@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">FileManager</string>
+    <string name="app_name">File Manager</string>
     <string name="back">Back</string>
     <string name="close">Close</string>
     <string name="cancel">Cancel</string>
@@ -11,6 +11,11 @@
     <string name="appearance_upper">APPEARANCE</string>
     <string name="about_upper">ABOUT</string>
     <string name="version">Version</string>
+    <string name="quick_guide_title">Quick guide</string>
+    <string name="quick_guide_subtitle">Open the online quick guide</string>
+    <string name="github_title">Project GitHub</string>
+    <string name="github_subtitle">Open repository in browser</string>
+    <string name="error_opening_link">Could not open link</string>
 
     <string name="theme_title">Theme</string>
     <string name="theme_dark">Dark</string>
@@ -42,6 +47,7 @@
     <string name="default_app_saved">Default app saved</string>
     <string name="no_apps_found">No installed apps were found to select.</string>
     <string name="show_more_apps">Show more applications...</string>
+    <string name="system_apps">System apps</string>
 
     <string name="storage">Storage</string>
     <string name="internal_storage">Internal storage</string>
@@ -75,6 +81,7 @@
     <string name="cut">Cut</string>
     <string name="share">Share</string>
     <string name="details">Details</string>
+    <string name="info">Info</string>
     <string name="options">Options</string>
     <string name="collapse">Collapse</string>
     <string name="move_to_trash">Move to trash</string>
@@ -120,6 +127,7 @@
     <string name="copied_count">Copied: %1$d</string>
     <string name="cut_count">Cut: %1$d</string>
     <string name="select_single_for_rename">Select only 1 item to rename</string>
+    <string name="select_single_file_for_info">Select a single item to show info</string>
     <string name="confirm_delete_title">Confirm delete</string>
     <string name="confirm_delete_selected_message">Move %1$d item(s) to trash?</string>
     <string name="confirm_delete_single_message">Move \"%1$s\" to trash?</string>
@@ -179,7 +187,7 @@
     <string name="renamed">Renamed</string>
     <string name="rename_error">Error renaming</string>
     <string name="details_title">Details</string>
-    <string name="details_message">Name: %1$s\nType: %2$s\nSize: %3$s\nDate: %4$s\nPath: %5$s</string>
+    <string name="details_message">Name: %1$s\nType: %2$s\nSize: %3$s\nCreated: %4$s\nModified: %5$s\nPath: %6$s</string>
     <string name="folder">Folder</string>
     <string name="file">File</string>
     <string name="folder_created">Folder created</string>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">FileManager</string>
+    <string name="app_name">Gestor Archivos</string>
     <string name="back">Volver</string>
     <string name="close">Cerrar</string>
     <string name="cancel">Cancelar</string>
@@ -11,6 +11,11 @@
     <string name="appearance_upper">APARIENCIA</string>
     <string name="about_upper">ACERCA DE</string>
     <string name="version">Versión</string>
+    <string name="quick_guide_title">Guía rápida</string>
+    <string name="quick_guide_subtitle">Abrir guía rápida online</string>
+    <string name="github_title">GitHub del proyecto</string>
+    <string name="github_subtitle">Abrir repositorio en navegador</string>
+    <string name="error_opening_link">No se pudo abrir el enlace</string>
 
     <string name="theme_title">Tema</string>
     <string name="theme_dark">Oscuro</string>
@@ -42,6 +47,7 @@
     <string name="default_app_saved">App por defecto guardada</string>
     <string name="no_apps_found">No se encontraron apps instaladas para seleccionar.</string>
     <string name="show_more_apps">Mostrar más aplicaciones...</string>
+    <string name="system_apps">Aplicaciones del sistema</string>
 
     <string name="storage">Almacenamiento</string>
     <string name="internal_storage">Almacenamiento interno</string>
@@ -85,6 +91,7 @@
     <string name="cut">Cortar</string>
     <string name="share">Compartir</string>
     <string name="details">Detalles</string>
+    <string name="info">Info</string>
     <string name="options">Opciones</string>
     <string name="collapse">Colapsar</string>
     <string name="move_to_trash">Mover a papelera</string>
@@ -129,6 +136,7 @@
     <string name="copied_count">Copiado: %1$d</string>
     <string name="cut_count">Cortado: %1$d</string>
     <string name="select_single_for_rename">Selecciona solo 1 elemento para renombrar</string>
+    <string name="select_single_file_for_info">Selecciona un único elemento para ver info</string>
     <string name="confirm_delete_title">Confirmar eliminación</string>
     <string name="confirm_delete_selected_message">Mover %1$d elemento(s) a la papelera?</string>
     <string name="confirm_delete_single_message">Mover \"%1$s\" a la papelera?</string>
@@ -179,7 +187,7 @@
     <string name="renamed">Renombrado</string>
     <string name="rename_error">Error al renombrar</string>
     <string name="details_title">Detalles</string>
-    <string name="details_message">Nombre: %1$s\nTipo: %2$s\nTamaño: %3$s\nFecha: %4$s\nRuta: %5$s</string>
+    <string name="details_message">Nombre: %1$s\nTipo: %2$s\nTamaño: %3$s\nCreación: %4$s\nModificación: %5$s\nRuta: %6$s</string>
     <string name="folder">Carpeta</string>
     <string name="file">Archivo</string>
     <string name="folder_created">Carpeta creada</string>
