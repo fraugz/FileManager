@@ -21,6 +21,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -2630,7 +2631,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private void showSetDefaultAppDialog(File file, boolean openAfterSelection) {
         List<AppChoice> candidates = getAppsForFileDefaultPicker(file);
         List<AppChoice> moreUserApps = getAllAppsForDefaultPicker(false);
-        List<AppChoice> allAppsWithSystem = getAllAppsForDefaultPicker(true);
         if (candidates.isEmpty()) {
             toast(getString(R.string.no_apps_found));
             return;
@@ -2640,8 +2640,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         showAppChoiceDialog(
                 getString(R.string.open),
                 candidates,
-            moreUserApps,
-            allAppsWithSystem,
+                moreUserApps,
                 currentPackage,
                 selected -> {
                     DefaultAppsManager.add(this, ext, selected.packageName, selected.label);
@@ -2760,7 +2759,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private void showAppChoiceDialog(String title,
                                      List<AppChoice> candidates,
                                      List<AppChoice> moreCandidates,
-                                     List<AppChoice> allWithSystemCandidates,
                                      String selectedPackage,
                                      java.util.function.Consumer<AppChoice> onSelected) {
         LinearLayout root = new LinearLayout(this);
@@ -2828,17 +2826,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 showExpandedAppChoiceDialog(
                         title,
                         moreCandidates,
-                        allWithSystemCandidates,
                         selectedPackage,
                         onSelected
                 );
             });
+            alignDialogButtonStart(dialog, AlertDialog.BUTTON_NEUTRAL);
         }
     }
 
     private void showExpandedAppChoiceDialog(String title,
                                              List<AppChoice> expandedCandidates,
-                                             List<AppChoice> allWithSystemCandidates,
                                              String selectedPackage,
                                              java.util.function.Consumer<AppChoice> onSelected) {
         LinearLayout root = new LinearLayout(this);
@@ -2863,16 +2860,10 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         AppChoiceAdapter adapter = new AppChoiceAdapter(expandedCandidates, selectedPackage);
         listView.setAdapter(adapter);
 
-        final boolean canShowSystem = allWithSystemCandidates != null
-                && allWithSystemCandidates.size() > expandedCandidates.size();
-
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this)
                 .setTitle(title)
                 .setView(root)
                 .setPositiveButton(R.string.cancel, null);
-        if (canShowSystem) {
-            dialogBuilder.setNegativeButton(R.string.system_apps, null);
-        }
         AlertDialog dialog = dialogBuilder.create();
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
@@ -2899,13 +2890,15 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         });
 
         dialog.show();
+    }
 
-        if (canShowSystem) {
-            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v -> {
-                adapter.replaceAll(allWithSystemCandidates);
-                dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setVisibility(View.GONE);
-            });
-        }
+    private void alignDialogButtonStart(AlertDialog dialog, int whichButton) {
+        if (dialog == null) return;
+        Button button = dialog.getButton(whichButton);
+        if (button == null) return;
+        button.setAllCaps(false);
+        button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        button.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
     }
 
     private class AppChoiceAdapter extends BaseAdapter {
