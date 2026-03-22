@@ -11,6 +11,9 @@
     <string name="appearance_upper">APARIENCIA</string>
     <string name="about_upper">ACERCA DE</string>
     <string name="version">Versión</string>
+    <string name="changelog_title">Changelog</string>
+    <string name="changelog_subtitle">Ver últimos cambios</string>
+    <string name="changelog_content">v1.2.9\n- Nombre de app localizado por idioma del sistema.\n- Mejora en selector de Abrir (flujo Mostrar más aplicaciones).\n- Acción Info disponible para un solo elemento, incluyendo carpetas.\n- Renombrar oculto en multiselección.\n- Enlaces a guía rápida y GitHub añadidos en Ajustes.\n\nv1.2.8\n- Nombres temporales de playlist más descriptivos.\n- Importación desde compartir con Guardar aquí.\n- Los archivos movidos se eliminan de Recientes.\n\nv1.2.7\n- Ajustes de UX en Abrir/app por defecto y barra de selección.</string>
     <string name="quick_guide_title">Guía rápida</string>
     <string name="quick_guide_subtitle">Abrir guía rápida online</string>
     <string name="github_title">GitHub del proyecto</string>

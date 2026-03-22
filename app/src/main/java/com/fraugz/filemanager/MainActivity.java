@@ -3169,7 +3169,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void showDetails(FileItem item) {
         File f = item.getFile();
-        String type = f.isDirectory() ? getString(R.string.folder) : getString(R.string.file);
+        String type = getDetailsTypeText(f);
         String createdAt = getFileCreatedAt(f);
         String modifiedAt = item.getFormattedDate();
         new AlertDialog.Builder(this).setTitle(R.string.details_title)
@@ -3181,6 +3181,31 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                     modifiedAt,
                     f.getAbsolutePath()))
             .setPositiveButton(R.string.close, null).show();
+    }
+
+    private String getDetailsTypeText(File file) {
+        if (file == null) return getString(R.string.file);
+        if (file.isDirectory()) return getString(R.string.folder);
+
+        String ext = getExtensionKey(file);
+        String extPart = "";
+        if (ext != null && !"*".equals(ext)) {
+            extPart = ext;
+        }
+
+        String mime = getMimeType(file);
+        boolean hasMime = mime != null && !mime.trim().isEmpty() && !"*/*".equals(mime);
+
+        if (hasMime && !extPart.isEmpty()) {
+            return mime + " (" + extPart + ")";
+        }
+        if (hasMime) {
+            return mime;
+        }
+        if (!extPart.isEmpty()) {
+            return extPart;
+        }
+        return getString(R.string.file);
     }
 
     private String getFileCreatedAt(File file) {

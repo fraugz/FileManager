@@ -11,6 +11,9 @@
     <string name="appearance_upper">APPEARANCE</string>
     <string name="about_upper">ABOUT</string>
     <string name="version">Version</string>
+    <string name="changelog_title">Changelog</string>
+    <string name="changelog_subtitle">See latest changes</string>
+    <string name="changelog_content">v1.2.9\n- App name localized by system language.\n- Open picker improved (Show more apps flow).\n- Info action available for single item, including folders.\n- Rename hidden on multi-selection.\n- Quick guide links and GitHub link added to Settings.\n\nv1.2.8\n- Smarter temporary playlist names.\n- Share sheet import with Save here.\n- Moved files are removed from Recents.\n\nv1.2.7\n- Open/default app UX refinements and selection bar adjustments.</string>
     <string name="quick_guide_title">Quick guide</string>
     <string name="quick_guide_subtitle">Open the online quick guide</string>
     <string name="github_title">Project GitHub</string>

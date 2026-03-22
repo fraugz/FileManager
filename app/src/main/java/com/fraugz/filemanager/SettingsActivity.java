@@ -106,6 +106,7 @@ public class SettingsActivity extends AppCompatActivity {
         findViewById(R.id.row_ui_scale).setOnClickListener(v -> showUiScaleDialog());
             findViewById(R.id.row_language).setOnClickListener(v -> showLanguageDialog());
         findViewById(R.id.row_default_apps).setOnClickListener(v -> showDefaultAppsDialog());
+        findViewById(R.id.row_changelog).setOnClickListener(v -> showChangelogDialog());
         findViewById(R.id.row_quick_guide).setOnClickListener(v -> openQuickGuideLink());
         findViewById(R.id.row_github).setOnClickListener(v -> openUrl(PROJECT_GITHUB_URL));
 
@@ -184,6 +185,8 @@ public class SettingsActivity extends AppCompatActivity {
         TextView uiScaleTitle = findViewById(R.id.ui_scale_title);
         TextView languageTitle = findViewById(R.id.language_title);
         TextView defaultAppsTitle = findViewById(R.id.default_apps_title);
+        TextView changelogTitle = findViewById(R.id.changelog_title);
+        TextView changelogSubtitle = findViewById(R.id.changelog_subtitle);
         TextView quickGuideTitle = findViewById(R.id.quick_guide_title);
         TextView quickGuideSubtitle = findViewById(R.id.quick_guide_subtitle);
         TextView githubTitle = findViewById(R.id.github_title);
@@ -201,6 +204,8 @@ public class SettingsActivity extends AppCompatActivity {
         if (languageSubtitle != null) languageSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
         if (defaultAppsTitle != null) defaultAppsTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * scale);
         if (defaultAppsSubtitle != null) defaultAppsSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
+        if (changelogTitle != null) changelogTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * scale);
+        if (changelogSubtitle != null) changelogSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
         if (quickGuideTitle != null) quickGuideTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * scale);
         if (quickGuideSubtitle != null) quickGuideSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * scale);
         if (githubTitle != null) githubTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * scale);
@@ -212,8 +217,17 @@ public class SettingsActivity extends AppCompatActivity {
         setSquareSize(findViewById(R.id.ui_scale_icon), dp(28f * scale));
         setSquareSize(findViewById(R.id.language_icon), dp(28f * scale));
         setSquareSize(findViewById(R.id.default_apps_icon), dp(28f * scale));
+        setSquareSize(findViewById(R.id.changelog_icon), dp(28f * scale));
         setSquareSize(findViewById(R.id.quick_guide_icon), dp(28f * scale));
         setSquareSize(findViewById(R.id.github_icon), dp(28f * scale));
+    }
+
+    private void showChangelogDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.changelog_title)
+                .setMessage(getString(R.string.changelog_content))
+                .setPositiveButton(R.string.close, null)
+                .show();
     }
 
     private void openQuickGuideLink() {
