@@ -22,11 +22,11 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
-import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.DecelerateInterpolator;
 import android.webkit.MimeTypeMap;
 import android.widget.BaseAdapter;
 import android.widget.Button;
@@ -68,6 +68,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -161,6 +162,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private final List<File> clipboardFiles = new ArrayList<>();
     private final List<IncomingSharedItem> incomingSharedItems = new ArrayList<>();
     private final List<IncomingSharedText> incomingSharedTexts = new ArrayList<>();
+    private final List<String> pendingSharedTextPayloads = new ArrayList<>();
+    private boolean pendingSharedTextConfig = false;
     private boolean clipboardIsCopy = false;
     private volatile boolean recursiveSearchCancelled = false;
     private Thread recursiveSearchThread;
@@ -170,7 +173,15 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private int directoryLoadRequestId = 0;
     private final Runnable deferredSearch = this::startRecursiveSearchFromInput;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private GestureDetector gestureDetector;
+    private boolean tabTransitionRunning = false;
+    private boolean tabSwipeTracking = false;
+    private boolean tabSwipeActive = false;
+    private int tabSwipeFromTab = TAB_STORAGE;
+    private int tabSwipeToTab = -1;
+    private float tabSwipeStartX = 0f;
+    private float tabSwipeStartY = 0f;
+    private float tabSwipeLastDx = 0f;
+    private long tabSwipeStartTimeMs = 0L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -429,6 +440,13 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void selectTab(int tab) {
         currentTab = tab;
+        updateTabVisualState(tab);
+
+        if (tab == TAB_STORAGE) showStorageView();
+        else                    showRecentView();
+    }
+
+    private void updateTabVisualState(int tab) {
         int accent   = isDark ? 0xFF1E88E5 : 0xFF1565C0;
         int inactive = isDark ? 0xFF666666 : 0xFF999999;
         int navBg    = isDark ? 0xFF111111 : 0xFFFFFFFF;
@@ -445,9 +463,62 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (!storageActive && adapter != null && adapter.isSelectionMode()) {
             exitSelectionMode();
         }
+    }
 
-        if (storageActive) showStorageView();
-        else               showRecentView();
+    private void animateToTabBySwipe(int tab, boolean swipeLeft) {
+        if (tabTransitionRunning || tab == currentTab) {
+            selectTab(tab);
+            return;
+        }
+
+        int fromTab = currentTab;
+        View fromView = fromTab == TAB_STORAGE ? viewStorage : viewRecent;
+        View toView = tab == TAB_STORAGE ? viewStorage : viewRecent;
+        if (fromView == null || toView == null) {
+            selectTab(tab);
+            return;
+        }
+
+        currentTab = tab;
+        updateTabVisualState(tab);
+
+        View sortBtn = findViewById(R.id.btn_filter);
+        if (sortBtn != null) sortBtn.setVisibility(tab == TAB_STORAGE ? View.VISIBLE : View.GONE);
+        View trashBtn = findViewById(R.id.btn_trash);
+        if (trashBtn != null) trashBtn.setVisibility(tab == TAB_STORAGE ? View.VISIBLE : View.GONE);
+        if (tab == TAB_RECENT) loadRecentFiles();
+
+        float width = mainRoot != null ? mainRoot.getWidth() : 0f;
+        if (width <= 0f) width = fromView.getWidth();
+        if (width <= 0f) width = getResources().getDisplayMetrics().widthPixels;
+        float offset = swipeLeft ? -width : width;
+
+        tabTransitionRunning = true;
+        toView.setVisibility(View.VISIBLE);
+        toView.setTranslationX(-offset);
+        toView.setAlpha(0.92f);
+
+        fromView.animate()
+                .translationX(offset)
+                .alpha(0.70f)
+                .setDuration(220)
+                .setInterpolator(new DecelerateInterpolator())
+                .start();
+
+        toView.animate()
+                .translationX(0f)
+                .alpha(1f)
+                .setDuration(220)
+                .setInterpolator(new DecelerateInterpolator())
+                .withEndAction(() -> {
+                    fromView.setVisibility(View.GONE);
+                    fromView.setTranslationX(0f);
+                    fromView.setAlpha(1f);
+                    toView.setTranslationX(0f);
+                    toView.setAlpha(1f);
+                    tabTransitionRunning = false;
+                })
+                .start();
     }
 
     // ─────────────────────── SETUP ───────────────────────────────────
@@ -511,6 +582,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             clipboardFiles.clear();
             incomingSharedItems.clear();
             incomingSharedTexts.clear();
+            pendingSharedTextPayloads.clear();
+            pendingSharedTextConfig = false;
             updatePasteBar();
         });
         setClickSafe(R.id.action_send,           v -> shareSelectedFiles());
@@ -543,42 +616,158 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     }
 
     private void setupSwipeNavigation() {
-        gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
-            private static final int SWIPE_MIN_DISTANCE = 80;
-            private static final int SWIPE_MIN_VELOCITY = 100;
-
-            @Override
-            public boolean onDown(MotionEvent e) {
-                return true;
-            }
-
-            @Override
-            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-                if (e1 == null || e2 == null) return false;
-                float dx = e2.getX() - e1.getX();
-                float dy = e2.getY() - e1.getY();
-                if (Math.abs(dx) < Math.abs(dy)) return false;
-                if (Math.abs(dx) < SWIPE_MIN_DISTANCE || Math.abs(velocityX) < SWIPE_MIN_VELOCITY) return false;
-
-                if (dx < 0 && currentTab != TAB_STORAGE) {
-                    selectTab(TAB_STORAGE);
-                    return true;
-                }
-                if (dx > 0 && currentTab != TAB_RECENT) {
-                    selectTab(TAB_RECENT);
-                    return true;
-                }
-                return false;
-            }
-        });
+        // Swipe gesture is handled in dispatchTouchEvent with finger-following animation.
     }
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
-        if (gestureDetector != null) {
-            gestureDetector.onTouchEvent(ev);
-        }
+        handleInteractiveTabSwipe(ev);
         return super.dispatchTouchEvent(ev);
+    }
+
+    private void handleInteractiveTabSwipe(MotionEvent ev) {
+        if (ev == null || tabTransitionRunning) return;
+        switch (ev.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                tabSwipeTracking = true;
+                tabSwipeActive = false;
+                tabSwipeToTab = -1;
+                tabSwipeFromTab = currentTab;
+                tabSwipeStartX = ev.getX();
+                tabSwipeStartY = ev.getY();
+                tabSwipeLastDx = 0f;
+                tabSwipeStartTimeMs = System.currentTimeMillis();
+                break;
+            case MotionEvent.ACTION_MOVE:
+                if (!tabSwipeTracking) break;
+                float dx = ev.getX() - tabSwipeStartX;
+                float dy = ev.getY() - tabSwipeStartY;
+                if (!tabSwipeActive) {
+                    if (Math.abs(dx) < dp(12)) break;
+                    if (Math.abs(dx) <= Math.abs(dy)) {
+                        tabSwipeTracking = false;
+                        break;
+                    }
+                    if (tabSwipeFromTab == TAB_STORAGE && dx > 0) {
+                        tabSwipeToTab = TAB_RECENT;
+                    } else if (tabSwipeFromTab == TAB_RECENT && dx < 0) {
+                        tabSwipeToTab = TAB_STORAGE;
+                    } else {
+                        tabSwipeTracking = false;
+                        break;
+                    }
+                    prepareInteractiveTabSwipe();
+                    tabSwipeActive = true;
+                }
+                if (tabSwipeActive) {
+                    applyInteractiveTabSwipe(dx);
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                if (tabSwipeActive) {
+                    finishInteractiveTabSwipe();
+                }
+                tabSwipeTracking = false;
+                break;
+        }
+    }
+
+    private void prepareInteractiveTabSwipe() {
+        View toView = tabSwipeToTab == TAB_STORAGE ? viewStorage : viewRecent;
+        if (toView == null) return;
+        toView.setVisibility(View.VISIBLE);
+        toView.setAlpha(0.92f);
+        tabSwipeLastDx = 0f;
+    }
+
+    private void applyInteractiveTabSwipe(float rawDx) {
+        View fromView = tabSwipeFromTab == TAB_STORAGE ? viewStorage : viewRecent;
+        View toView = tabSwipeToTab == TAB_STORAGE ? viewStorage : viewRecent;
+        if (fromView == null || toView == null) return;
+
+        float width = mainRoot != null ? mainRoot.getWidth() : 0f;
+        if (width <= 0f) width = getResources().getDisplayMetrics().widthPixels;
+
+        float dx = rawDx;
+        if (tabSwipeFromTab == TAB_STORAGE && tabSwipeToTab == TAB_RECENT) {
+            dx = Math.max(0f, Math.min(width, dx));
+            fromView.setTranslationX(dx);
+            toView.setTranslationX(dx - width);
+        } else if (tabSwipeFromTab == TAB_RECENT && tabSwipeToTab == TAB_STORAGE) {
+            dx = Math.min(0f, Math.max(-width, dx));
+            fromView.setTranslationX(dx);
+            toView.setTranslationX(dx + width);
+        }
+
+        float progress = Math.min(1f, Math.abs(dx) / Math.max(1f, width));
+        fromView.setAlpha(1f - (0.25f * progress));
+        toView.setAlpha(0.92f + (0.08f * progress));
+        tabSwipeLastDx = dx;
+    }
+
+    private void finishInteractiveTabSwipe() {
+        View fromView = tabSwipeFromTab == TAB_STORAGE ? viewStorage : viewRecent;
+        View toView = tabSwipeToTab == TAB_STORAGE ? viewStorage : viewRecent;
+        if (fromView == null || toView == null) {
+            tabSwipeActive = false;
+            return;
+        }
+
+        float width = mainRoot != null ? mainRoot.getWidth() : 0f;
+        if (width <= 0f) width = getResources().getDisplayMetrics().widthPixels;
+        float progress = Math.min(1f, Math.abs(tabSwipeLastDx) / Math.max(1f, width));
+
+        long elapsed = Math.max(1L, System.currentTimeMillis() - tabSwipeStartTimeMs);
+        float velocity = (tabSwipeLastDx / elapsed) * 1000f;
+        boolean commit = progress >= 0.35f || Math.abs(velocity) >= 900f;
+
+        tabTransitionRunning = true;
+
+        if (commit) {
+            float finalFromX = tabSwipeFromTab == TAB_STORAGE ? width : -width;
+            fromView.animate()
+                    .translationX(finalFromX)
+                    .alpha(0.72f)
+                    .setDuration(160)
+                    .withEndAction(() -> {
+                        fromView.setVisibility(View.GONE);
+                        fromView.setTranslationX(0f);
+                        fromView.setAlpha(1f);
+                    })
+                    .start();
+
+            toView.animate()
+                    .translationX(0f)
+                    .alpha(1f)
+                    .setDuration(160)
+                    .withEndAction(() -> {
+                        currentTab = tabSwipeToTab;
+                        updateTabVisualState(currentTab);
+                        if (currentTab == TAB_RECENT) {
+                            showRecentView();
+                        } else {
+                            showStorageView();
+                        }
+                        tabTransitionRunning = false;
+                        tabSwipeActive = false;
+                    })
+                    .start();
+        } else {
+            fromView.animate().translationX(0f).alpha(1f).setDuration(160).start();
+            toView.animate()
+                    .translationX(tabSwipeFromTab == TAB_STORAGE ? -width : width)
+                    .alpha(0.92f)
+                    .setDuration(160)
+                    .withEndAction(() -> {
+                        toView.setVisibility(View.GONE);
+                        toView.setTranslationX(0f);
+                        toView.setAlpha(1f);
+                        tabTransitionRunning = false;
+                        tabSwipeActive = false;
+                    })
+                    .start();
+        }
     }
 
     private void setClickSafe(int id, View.OnClickListener l) {
@@ -1917,6 +2106,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
         incomingSharedItems.clear();
         incomingSharedTexts.clear();
+        pendingSharedTextPayloads.clear();
+        pendingSharedTextConfig = false;
 
         if (!uris.isEmpty()) {
             for (Uri uri : uris) {
@@ -1926,6 +2117,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
 
         if (incomingSharedItems.isEmpty() && !textPayloads.isEmpty()) {
+            pendingSharedTextPayloads.addAll(textPayloads);
+            pendingSharedTextConfig = true;
             for (int i = 0; i < textPayloads.size(); i++) {
                 String text = textPayloads.get(i);
                 if (text == null || text.trim().isEmpty()) continue;
@@ -1938,6 +2131,10 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             return;
         }
 
+        notifyIncomingSharedReady();
+    }
+
+    private void notifyIncomingSharedReady() {
         updatePasteBar();
         selectTab(TAB_STORAGE);
         int totalReceived = incomingSharedItems.size() + incomingSharedTexts.size();
@@ -1974,7 +2171,99 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 }
             }
         }
-        return out;
+        LinkedHashSet<String> unique = new LinkedHashSet<>();
+        for (String text : out) {
+            if (text == null) continue;
+            String trimmed = text.trim();
+            if (trimmed.isEmpty()) continue;
+            unique.add(trimmed);
+        }
+        return new ArrayList<>(unique);
+    }
+
+    private void showSharedTextSaveDialog(List<String> textPayloads, Runnable onConfigured) {
+        if (textPayloads == null || textPayloads.isEmpty()) return;
+
+        String ts = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(20), dp(12), dp(20), dp(4));
+
+        TextView nameLabel = new TextView(this);
+        nameLabel.setText(getString(R.string.shared_text_name_label));
+        root.addView(nameLabel);
+
+        EditText nameInput = new EditText(this);
+        nameInput.setSingleLine(true);
+        nameInput.setHint(getString(R.string.shared_text_name_hint));
+        nameInput.setText("shared_text_" + ts);
+        root.addView(nameInput);
+
+        TextView typeLabel = new TextView(this);
+        typeLabel.setText(getString(R.string.shared_text_type_label));
+        typeLabel.setPadding(0, dp(10), 0, 0);
+        root.addView(typeLabel);
+
+        EditText typeInput = new EditText(this);
+        typeInput.setSingleLine(true);
+        typeInput.setHint(getString(R.string.shared_text_type_hint));
+        typeInput.setText("txt");
+        root.addView(typeInput);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.shared_text_save_options_title)
+                .setView(root)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.save_here, null)
+                .create();
+
+        dialog.setOnShowListener(d -> {
+            Button saveBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            saveBtn.setOnClickListener(v -> {
+                String baseName = sanitizeFilename(nameInput.getText() == null ? "" : nameInput.getText().toString());
+                if (baseName.trim().isEmpty()) {
+                    toast(getString(R.string.shared_text_invalid_name));
+                    return;
+                }
+
+                String ext = sanitizeSharedTextExtension(typeInput.getText() == null ? "" : typeInput.getText().toString());
+                if (ext.isEmpty()) {
+                    toast(getString(R.string.shared_text_invalid_type));
+                    return;
+                }
+
+                incomingSharedTexts.clear();
+                for (int i = 0; i < textPayloads.size(); i++) {
+                    String text = textPayloads.get(i);
+                    if (text == null || text.trim().isEmpty()) continue;
+                    String suffix = textPayloads.size() > 1 ? "_" + (i + 1) : "";
+                    String name = sanitizeFilename(baseName + suffix) + "." + ext;
+                    incomingSharedTexts.add(new IncomingSharedText(text, name));
+                }
+
+                dialog.dismiss();
+                if (!incomingSharedTexts.isEmpty()) {
+                    pendingSharedTextConfig = false;
+                    if (onConfigured != null) {
+                        onConfigured.run();
+                    } else {
+                        notifyIncomingSharedReady();
+                    }
+                }
+            });
+        });
+
+        dialog.show();
+    }
+
+    private String sanitizeSharedTextExtension(String raw) {
+        if (raw == null) return "";
+        String ext = raw.trim().toLowerCase(Locale.US);
+        if (ext.startsWith(".")) ext = ext.substring(1);
+        ext = ext.replaceAll("[^a-z0-9]", "");
+        if (ext.length() > 10) ext = ext.substring(0, 10);
+        return ext;
     }
 
     private String buildSharedTextFilename(int index) {
@@ -2241,6 +2530,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             return;
         }
 
+        if (pendingSharedTextConfig) {
+            showSharedTextSaveDialog(new ArrayList<>(pendingSharedTextPayloads), this::importSharedTextsToCurrentDirectory);
+            return;
+        }
+
         final List<IncomingSharedText> items = new ArrayList<>(incomingSharedTexts);
         final AtomicBoolean cancelled = new AtomicBoolean(false);
         final ProgressDialogHolder holder = showProgressDialog(
@@ -2287,6 +2581,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
                 if (importedCount > 0) {
                     incomingSharedTexts.clear();
+                    pendingSharedTextPayloads.clear();
+                    pendingSharedTextConfig = false;
                     updatePasteBar();
                     loadDirectory(currentDir);
                 }
@@ -2830,7 +3126,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         onSelected
                 );
             });
-            alignDialogButtonStart(dialog, AlertDialog.BUTTON_NEUTRAL);
         }
     }
 

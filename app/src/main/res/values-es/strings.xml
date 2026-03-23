@@ -49,7 +49,7 @@
     <string name="invalid_extension">Extensión no válida</string>
     <string name="default_app_saved">App por defecto guardada</string>
     <string name="no_apps_found">No se encontraron apps instaladas para seleccionar.</string>
-    <string name="show_more_apps">Mostrar más aplicaciones...</string>
+    <string name="show_more_apps">MÁS APPs</string>
     <string name="system_apps">Aplicaciones del sistema</string>
 
     <string name="storage">Almacenamiento</string>
@@ -166,6 +166,13 @@
     <string name="shared_files_ready">Archivos compartidos listos: %1$d</string>
     <string name="shared_text_ready">Texto compartido listo: %1$s</string>
     <string name="shared_texts_ready">Textos compartidos listos: %1$d</string>
+    <string name="shared_text_save_options_title">Guardar texto compartido</string>
+    <string name="shared_text_name_label">Nombre del archivo</string>
+    <string name="shared_text_name_hint">Ejemplo: notas_compartidas</string>
+    <string name="shared_text_type_label">Tipo de archivo (extension)</string>
+    <string name="shared_text_type_hint">Ejemplo: txt, md, json</string>
+    <string name="shared_text_invalid_name">Elige un nombre de archivo valido</string>
+    <string name="shared_text_invalid_type">Elige una extension valida</string>
     <string name="shared_files_received">Archivos compartidos recibidos: %1$d</string>
     <string name="importing_shared_files">Importando archivos compartidos</string>
     <string name="imported_shared_result">Importados: %1$d</string>

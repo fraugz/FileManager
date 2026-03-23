@@ -49,7 +49,7 @@
     <string name="invalid_extension">Invalid extension</string>
     <string name="default_app_saved">Default app saved</string>
     <string name="no_apps_found">No installed apps were found to select.</string>
-    <string name="show_more_apps">Show more applications...</string>
+    <string name="show_more_apps">More apps</string>
     <string name="system_apps">System apps</string>
 
     <string name="storage">Storage</string>
@@ -157,6 +157,13 @@
     <string name="shared_files_ready">Shared files ready: %1$d</string>
     <string name="shared_text_ready">Shared text ready: %1$s</string>
     <string name="shared_texts_ready">Shared text items ready: %1$d</string>
+    <string name="shared_text_save_options_title">Save shared text</string>
+    <string name="shared_text_name_label">File name</string>
+    <string name="shared_text_name_hint">Example: notes_from_share</string>
+    <string name="shared_text_type_label">File type (extension)</string>
+    <string name="shared_text_type_hint">Example: txt, md, json</string>
+    <string name="shared_text_invalid_name">Choose a valid file name</string>
+    <string name="shared_text_invalid_type">Choose a valid file extension</string>
     <string name="shared_files_received">Shared files received: %1$d</string>
     <string name="importing_shared_files">Importing shared files</string>
     <string name="imported_shared_result">Imported: %1$d</string>
