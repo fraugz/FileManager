@@ -188,7 +188,7 @@ Tags publicados:
 
 Siguiente version sugerida:
 
-- v1.3.0: consolidar mejoras de calidad y pruebas automatizadas.
+- v1.3.0: Recientes ahora permite fijar/desfijar (con indicador visual) y mantiene excluidos los elementos quitados hasta limpiar recientes; el flujo de guardar texto compartido ahora pide nombre/tipo personalizado antes de crear el fichero; el swipe horizontal entre Recientes y Almacenamiento sigue el dedo de forma fluida; y la etiqueta del selector Abrir se simplifico a MAS APPs.
 
 ## Testing recomendado
 

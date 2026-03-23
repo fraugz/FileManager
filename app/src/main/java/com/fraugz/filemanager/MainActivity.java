@@ -155,6 +155,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private final List<FileItem> fileItems = new ArrayList<>();
     private final List<File> recentFilesCache = new ArrayList<>();
     private final Map<String, Long> recentAccessByPath = new HashMap<>();
+    private final Map<String, Boolean> recentPinnedByPath = new HashMap<>();
 
     // State
     private File currentDir;
@@ -806,11 +807,13 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             List<RecentManager.RecentEntry> entries = RecentManager.getEntries(this);
             List<File> files = new ArrayList<>();
             recentAccessByPath.clear();
+            recentPinnedByPath.clear();
             for (RecentManager.RecentEntry entry : entries) {
                 File f = new File(entry.path);
                 if (f.exists() && f.isFile()) {
                     files.add(f);
                     recentAccessByPath.put(f.getAbsolutePath(), entry.accessedAt);
+                    recentPinnedByPath.put(f.getAbsolutePath(), entry.isPinned);
                 }
             }
 
@@ -829,7 +832,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             if (recyclerRecent != null)  recyclerRecent.setVisibility(empty ? View.GONE : View.VISIBLE);
             if (emptyRecentView != null) emptyRecentView.setVisibility(empty ? View.VISIBLE : View.GONE);
             updateClearRecentsButtonState(!files.isEmpty());
-            if (!empty && recentAdapter != null) recentAdapter.setFiles(files, recentAccessByPath);
+            if (!empty && recentAdapter != null) recentAdapter.setFiles(files, recentAccessByPath, recentPinnedByPath);
         } catch (Exception e) { Log.e(TAG, "loadRecentFiles", e); }
     }
 
@@ -1085,7 +1088,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (recyclerRecent != null) recyclerRecent.setVisibility(empty ? View.GONE : View.VISIBLE);
         if (emptyRecentView != null) emptyRecentView.setVisibility(empty ? View.VISIBLE : View.GONE);
         updateClearRecentsButtonState(!recentFilesCache.isEmpty());
-        if (!empty) recentAdapter.setFiles(filtered, recentAccessByPath);
+        if (!empty) recentAdapter.setFiles(filtered, recentAccessByPath, recentPinnedByPath);
     }
 
     private void updateClearRecentsButtonState(boolean hasItems) {
@@ -2904,7 +2907,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void showRecentItemMenu(File file, View anchor) {
         PopupMenu p = new PopupMenu(this, anchor);
+        boolean isPinned = RecentManager.isPinned(this, file.getAbsolutePath());
+        
         p.getMenu().add(0, 1, 0, getString(R.string.set_default_app));
+        if (isPinned) {
+            p.getMenu().add(0, 3, 0, getString(R.string.unpin_from_recent));
+        } else {
+            p.getMenu().add(0, 3, 0, getString(R.string.pin_to_recent));
+        }
         p.getMenu().add(0, 2, 0, getString(R.string.remove_from_recent));
 
         p.setOnMenuItemClickListener(mi -> {
@@ -2916,6 +2926,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                     RecentManager.remove(this, file.getAbsolutePath());
                     loadRecentFiles();
                     toast(getString(R.string.removed_from_recent));
+                    return true;
+                case 3:
+                    if (isPinned) {
+                        RecentManager.unpin(this, file.getAbsolutePath());
+                        toast(getString(R.string.unpinned_from_recent));
+                    } else {
+                        RecentManager.pin(this, file.getAbsolutePath());
+                        toast(getString(R.string.pinned_to_recent));
+                    }
+                    loadRecentFiles();
                     return true;
                 default:
                     return false;

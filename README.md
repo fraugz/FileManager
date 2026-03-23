@@ -188,7 +188,7 @@ Published tags:
 
 Suggested next version:
 
-- v1.3.0: consolidate quality improvements and automated tests.
+- v1.3.0: Recents now supports pin/unpin (with visual indicator) and keeps manually removed items excluded until clear recents; shared-text save flow now asks for custom file name/type before creating the file; horizontal swipe between Recents and Storage follows the finger smoothly; and the Open picker label was simplified to More apps.
 
 ## Recommended Testing
 

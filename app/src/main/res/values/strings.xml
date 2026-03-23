@@ -13,7 +13,7 @@
     <string name="version">Version</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_subtitle">See latest changes</string>
-    <string name="changelog_content">v1.2.9\n- App name localized by system language.\n- Open picker improved (Show more apps flow).\n- Info action available for single item, including folders.\n- Rename hidden on multi-selection.\n- Quick guide links and GitHub link added to Settings.\n\nv1.2.8\n- Smarter temporary playlist names.\n- Share sheet import with Save here.\n- Moved files are removed from Recents.\n\nv1.2.7\n- Open/default app UX refinements and selection bar adjustments.</string>
+    <string name="changelog_content">v1.3.0\n- Pinned items in Recents: pin files to keep them at the top.\n- Removed items stay hidden from Recents until Clear recents.\n- Visual pin indicator on recent file thumbnails.\n- Share text save now opens a name and type dialog before creating the file.\n- Interactive swipe between Recents and Storage now follows the finger smoothly.\n- Open picker label shortened to More apps for clearer actions.\n\nv1.2.9\n- App name localized by system language.\n- Open picker improved (Show more apps flow).\n- Info action available for single item, including folders.\n- Rename hidden on multi-selection.\n- Quick guide links and GitHub link added to Settings.\n\nv1.2.8\n- Smarter temporary playlist names.\n- Share sheet import with Save here.\n- Moved files are removed from Recents.\n\nv1.2.7\n- Open/default app UX refinements and selection bar adjustments.</string>
     <string name="quick_guide_title">Quick guide</string>
     <string name="quick_guide_subtitle">Open the online quick guide</string>
     <string name="github_title">Project GitHub</string>
@@ -81,6 +81,10 @@
     <string name="default_app_set_for_extension">Default app set for %1$s</string>
     <string name="remove_from_recent">Remove from recents</string>
     <string name="removed_from_recent">Removed from recents</string>
+    <string name="pin_to_recent">Pin to recents</string>
+    <string name="pinned_to_recent">Pinned to recents</string>
+    <string name="unpin_from_recent">Unpin from recents</string>
+    <string name="unpinned_from_recent">Unpinned from recents</string>
     <string name="cut">Cut</string>
     <string name="share">Share</string>
     <string name="details">Details</string>

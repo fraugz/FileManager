@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -63,6 +64,7 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     };
     private boolean darkTheme = true;
     private float uiScale = 1.0f;
+    private Map<String, Boolean> pinnedByPath = new HashMap<>();
 
     public RecentAdapter(Context ctx, List<File> files, OnFileClick listener) {
         this.ctx = ctx;
@@ -71,11 +73,20 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     }
 
     public void setFiles(List<File> files) {
-        setFiles(files, null);
+        setFiles(files, null, null);
     }
 
     public void setFiles(List<File> files, Map<String, Long> accessByPath) {
+        setFiles(files, accessByPath, null);
+    }
+
+    public void setFiles(List<File> files, Map<String, Long> accessByPath, Map<String, Boolean> pinnedByPath) {
         items.clear();
+        if (pinnedByPath != null) {
+            this.pinnedByPath = pinnedByPath;
+        } else {
+            this.pinnedByPath.clear();
+        }
 
         List<File> orderedFiles = new ArrayList<>(files);
         Collections.sort(orderedFiles, Comparator.comparingLong((File f) -> getAccessTime(f, accessByPath)).reversed());
@@ -172,6 +183,16 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             h.thumbnail.setPadding(thumbPadding, thumbPadding, thumbPadding, thumbPadding);
             h.thumbnail.setScaleType(ImageView.ScaleType.FIT_CENTER);
             setSquareSize(h.thumbnail, dp(88f * uiScale));
+            
+            // Show pin indicator if file is pinned
+            Boolean isPinned = pinnedByPath.get(file.getAbsolutePath());
+            if (h.pinIndicator != null) {
+                h.pinIndicator.setVisibility(isPinned != null && isPinned ? View.VISIBLE : View.GONE);
+                if (isPinned != null && isPinned) {
+                    h.pinIndicator.setColorFilter(darkTheme ? 0xFFFFD700 : 0xFFFFA500);
+                }
+            }
+            
             h.itemView.setOnClickListener(v -> listener.onClick(file));
 
             final float[] down = new float[]{0f, 0f};
@@ -452,11 +473,12 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     }
 
     static class FileVH extends RecyclerView.ViewHolder {
-        ImageView thumbnail;
+        ImageView thumbnail, pinIndicator;
         TextView name, size, path;
         FileVH(View v) {
             super(v);
             thumbnail = v.findViewById(R.id.thumbnail);
+            pinIndicator = v.findViewById(R.id.pin_indicator);
             name = v.findViewById(R.id.name);
             size = v.findViewById(R.id.size);
             path = v.findViewById(R.id.path);

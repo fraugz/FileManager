@@ -13,7 +13,7 @@
     <string name="version">Versión</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_subtitle">Ver últimos cambios</string>
-    <string name="changelog_content">v1.2.9\n- Nombre de app localizado por idioma del sistema.\n- Mejora en selector de Abrir (flujo Mostrar más aplicaciones).\n- Acción Info disponible para un solo elemento, incluyendo carpetas.\n- Renombrar oculto en multiselección.\n- Enlaces a guía rápida y GitHub añadidos en Ajustes.\n\nv1.2.8\n- Nombres temporales de playlist más descriptivos.\n- Importación desde compartir con Guardar aquí.\n- Los archivos movidos se eliminan de Recientes.\n\nv1.2.7\n- Ajustes de UX en Abrir/app por defecto y barra de selección.</string>
+    <string name="changelog_content">v1.3.0\n- Fijar elementos en Recientes: fija archivos para mantenerlos arriba.\n- Los elementos quitados no reaparecen en Recientes hasta Limpiar recientes.\n- Indicador visual de fijado en miniaturas de recientes.\n- Guardar texto compartido ahora abre un diálogo para elegir nombre y tipo de archivo.\n- El swipe entre Recientes y Almacenamiento ahora sigue el dedo de forma fluida.\n- Etiqueta del selector Abrir acortada para mostrar MÁS APPs.\n\nv1.2.9\n- Nombre de app localizado por idioma del sistema.\n- Mejora en selector de Abrir (flujo Mostrar más aplicaciones).\n- Acción Info disponible para un solo elemento, incluyendo carpetas.\n- Renombrar oculto en multiselección.\n- Enlaces a guía rápida y GitHub añadidos en Ajustes.\n\nv1.2.8\n- Nombres temporales de playlist más descriptivos.\n- Importación desde compartir con Guardar aquí.\n- Los archivos movidos se eliminan de Recientes.\n\nv1.2.7\n- Ajustes de UX en Abrir/app por defecto y barra de selección.</string>
     <string name="quick_guide_title">Guía rápida</string>
     <string name="quick_guide_subtitle">Abrir guía rápida online</string>
     <string name="github_title">GitHub del proyecto</string>
@@ -91,6 +91,10 @@
     <string name="default_app_set_for_extension">App por defecto guardada para %1$s</string>
     <string name="remove_from_recent">Quitar de recientes</string>
     <string name="removed_from_recent">Quitado de recientes</string>
+    <string name="pin_to_recent">Fijar en recientes</string>
+    <string name="pinned_to_recent">Fijado en recientes</string>
+    <string name="unpin_from_recent">Desfijar de recientes</string>
+    <string name="unpinned_from_recent">Desfijado de recientes</string>
     <string name="cut">Cortar</string>
     <string name="share">Compartir</string>
     <string name="details">Detalles</string>
