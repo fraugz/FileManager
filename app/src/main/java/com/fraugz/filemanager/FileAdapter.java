@@ -25,8 +25,12 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -45,6 +49,9 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     private boolean selectionMode = false;
     private boolean darkTheme = true;
     private float uiScale = 1.0f;
+    private boolean recentMode = false;
+    private final Map<String, Long> recentAccessByPath = new HashMap<>();
+    private final Map<String, Boolean> recentPinnedByPath = new HashMap<>();
     private final Listener listener;
     private final ExecutorService thumbExecutor = Executors.newFixedThreadPool(2);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -64,6 +71,14 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     public boolean isSelectionMode() { return selectionMode; }
     public void setDarkTheme(boolean dark) { this.darkTheme = dark; }
     public void setUiScale(float scale) { this.uiScale = Math.max(0.90f, Math.min(1.30f, scale)); notifyDataSetChanged(); }
+    public void setRecentMode(boolean mode) { this.recentMode = mode; }
+
+    public void setRecentMetadata(Map<String, Long> accessByPath, Map<String, Boolean> pinnedByPath) {
+        recentAccessByPath.clear();
+        recentPinnedByPath.clear();
+        if (accessByPath != null) recentAccessByPath.putAll(accessByPath);
+        if (pinnedByPath != null) recentPinnedByPath.putAll(pinnedByPath);
+    }
 
     @NonNull
     @Override
@@ -94,7 +109,34 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         h.meta.setTextColor(colorMeta);
         h.name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f * uiScale);
         h.meta.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
-        h.meta.setText(item.getFormattedDate() + "  ·  " + item.getFormattedSize(h.itemView.getContext()));
+        long accessTs = getAccessTimestamp(file);
+        h.meta.setText(formatDateTime(accessTs) + "  ·  " + item.getFormattedSize(h.itemView.getContext()));
+
+        if (recentMode && h.recentDayHeader != null) {
+            String currentDayKey = formatDayKey(accessTs);
+            String previousDayKey = null;
+            if (pos > 0) {
+                File prev = items.get(pos - 1).getFile();
+                previousDayKey = formatDayKey(getAccessTimestamp(prev));
+            }
+            boolean showHeader = pos == 0 || !currentDayKey.equals(previousDayKey);
+            h.recentDayHeader.setVisibility(showHeader ? View.VISIBLE : View.GONE);
+            if (showHeader) {
+                h.recentDayHeader.setText(formatDayLabel(accessTs, h.itemView.getContext()));
+                h.recentDayHeader.setTextColor(darkTheme ? 0xFF8FA3B8 : 0xFF5E6C7A);
+                h.recentDayHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
+            }
+        } else if (h.recentDayHeader != null) {
+            h.recentDayHeader.setVisibility(View.GONE);
+        }
+
+        if (h.pinBadge != null) {
+            boolean isPinned = recentMode && Boolean.TRUE.equals(recentPinnedByPath.get(file.getAbsolutePath()));
+            h.pinBadge.setVisibility(isPinned ? View.VISIBLE : View.GONE);
+            if (isPinned) {
+                h.pinBadge.setColorFilter(darkTheme ? 0xFFFFD54F : 0xFFFFA000);
+            }
+        }
 
         // Icon background
         h.icon.setBackgroundTintList(
@@ -190,6 +232,33 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     private boolean isAudioExtension(String ext) {
         String e = ext == null ? "" : ext.toLowerCase();
         return e.equals("mp3") || e.equals("wav") || e.equals("flac") || e.equals("aac") || e.equals("ogg") || e.equals("m4a");
+    }
+
+    private long getAccessTimestamp(File file) {
+        if (!recentMode || file == null) return file != null ? file.lastModified() : 0L;
+        Long access = recentAccessByPath.get(file.getAbsolutePath());
+        if (access == null || access <= 0L) return file.lastModified();
+        return access;
+    }
+
+    private String formatDateTime(long timestamp) {
+        return new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(new Date(timestamp));
+    }
+
+    private String formatDayKey(long timestamp) {
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date(timestamp));
+    }
+
+    private String formatDayLabel(long timestamp, Context context) {
+        String today = formatDayKey(System.currentTimeMillis());
+        String target = formatDayKey(timestamp);
+        if (today.equals(target)) return context.getString(R.string.today);
+
+        long oneDayMs = 24L * 60L * 60L * 1000L;
+        String yesterday = formatDayKey(System.currentTimeMillis() - oneDayMs);
+        if (yesterday.equals(target)) return context.getString(R.string.yesterday);
+
+        return new SimpleDateFormat("EEEE, dd MMM yyyy", Locale.getDefault()).format(new Date(timestamp));
     }
 
     private void applyConfiguredAppIconFallback(File file, ImageView iconView) {
@@ -410,13 +479,17 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     static class ViewHolder extends RecyclerView.ViewHolder {
         LinearLayout itemRoot;
         ImageView icon;
+        ImageView pinBadge;
         TextView name, meta;
+        TextView recentDayHeader;
         ImageButton btnMore;
 
         ViewHolder(View v) {
             super(v);
             itemRoot  = v.findViewById(R.id.item_root);
             icon      = v.findViewById(R.id.icon);
+            pinBadge  = v.findViewById(R.id.pin_badge);
+            recentDayHeader = v.findViewById(R.id.recent_day_header);
             name      = v.findViewById(R.id.name);
             meta      = v.findViewById(R.id.meta);
             btnMore   = v.findViewById(R.id.btn_more);

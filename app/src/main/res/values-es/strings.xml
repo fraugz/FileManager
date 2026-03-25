@@ -13,7 +13,7 @@
     <string name="version">Versión</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_subtitle">Ver últimos cambios</string>
-    <string name="changelog_content">v1.3.0\n- Fijar elementos en Recientes: fija archivos para mantenerlos arriba.\n- Los elementos quitados no reaparecen en Recientes hasta Limpiar recientes.\n- Indicador visual de fijado en miniaturas de recientes.\n- Guardar texto compartido ahora abre un diálogo para elegir nombre y tipo de archivo.\n- El swipe entre Recientes y Almacenamiento ahora sigue el dedo de forma fluida.\n- Etiqueta del selector Abrir acortada para mostrar MÁS APPs.\n\nv1.2.9\n- Nombre de app localizado por idioma del sistema.\n- Mejora en selector de Abrir (flujo Mostrar más aplicaciones).\n- Acción Info disponible para un solo elemento, incluyendo carpetas.\n- Renombrar oculto en multiselección.\n- Enlaces a guía rápida y GitHub añadidos en Ajustes.\n\nv1.2.8\n- Nombres temporales de playlist más descriptivos.\n- Importación desde compartir con Guardar aquí.\n- Los archivos movidos se eliminan de Recientes.\n\nv1.2.7\n- Ajustes de UX en Abrir/app por defecto y barra de selección.</string>
+    <string name="changelog_content">v1.3.0\n- Recientes se rediseña con el mismo estilo de lista y pulsación larga que Almacenamiento.\n- Las acciones de selección en Recientes se simplifican a Localizar/Fijar/Info (selección única) y Fijar/Info (multiselección).\n- Localizar desde Recientes abre Almacenamiento y selecciona automáticamente el fichero objetivo.\n- Se muestra una chincheta visible en los elementos fijados.\n- Recientes mantiene el orden por fecha de acceso con separadores claros por día (Hoy, Ayer y fechas).\n- Limpiar recientes ahora elimina solo elementos no fijados y conserva los fijados.\n- El autoescaneo ya no repuebla archivos antiguos después de limpiar recientes.\n- La confirmación de eliminar se reordena (Cancelar, Eliminar definitivamente, Mover a la papelera) con acción destructiva destacada.\n- Más aplicaciones en Abrir usa ahora la misma base de filtrado que el selector de añadir extensión/app.\n- El encabezado de Almacenamiento se compacta: acciones rápidas junto al título y botón Casa añadido.\n- El breadcrumb ahora ocupa todo el ancho útil con márgenes laterales y salta a más líneas solo cuando hace falta.\n- Guardar texto compartido ahora abre un diálogo para elegir nombre y tipo de archivo.\n- El swipe entre Recientes y Almacenamiento ahora sigue el dedo de forma fluida.\n- Etiqueta del selector Abrir acortada para mostrar MÁS APPs.\n\nv1.2.9\n- Nombre de app localizado por idioma del sistema.\n- Mejora en selector de Abrir (flujo Mostrar más aplicaciones).\n- Acción Info disponible para un solo elemento, incluyendo carpetas.\n- Renombrar oculto en multiselección.\n- Enlaces a guía rápida y GitHub añadidos en Ajustes.\n\nv1.2.8\n- Nombres temporales de playlist más descriptivos.\n- Importación desde compartir con Guardar aquí.\n- Los archivos movidos se eliminan de Recientes.\n\nv1.2.7\n- Ajustes de UX en Abrir/app por defecto y barra de selección.</string>
     <string name="quick_guide_title">Guía rápida</string>
     <string name="quick_guide_subtitle">Abrir guía rápida online</string>
     <string name="github_title">GitHub del proyecto</string>
@@ -56,8 +56,8 @@
     <string name="internal_storage">Almacenamiento interno</string>
     <string name="recent">Recientes</string>
     <string name="clear_recent">Limpiar recientes</string>
-    <string name="confirm_clear_recent_message">Se eliminarán todas las entradas de recientes. ¿Quieres continuar?</string>
-    <string name="recents_cleared">Recientes limpiados</string>
+    <string name="confirm_clear_recent_message">Se eliminarán todas las entradas no fijadas de recientes. ¿Quieres continuar?</string>
+    <string name="recents_cleared">Recientes limpiados (fijados conservados)</string>
     <string name="search_files">Buscar archivos...</string>
     <string name="filter">Filtrar</string>
     <string name="operation_progress">Procesando %1$d/%2$d...</string>
@@ -77,6 +77,7 @@
     <string name="paste">Pegar</string>
     <string name="save_here">Guardar aqui</string>
     <string name="send">Enviar</string>
+    <string name="locate">Localizar</string>
     <string name="play">Reproducir</string>
     <string name="move">Mover</string>
     <string name="copy">Copiar</string>
@@ -87,6 +88,8 @@
     <string name="set_default_app">App por defecto</string>
     <string name="set_default_app_short">App</string>
     <string name="select_single_file_for_open_with">Selecciona un único fichero para Abrir con</string>
+    <string name="select_single_file_to_locate">Selecciona un único fichero para localizar</string>
+    <string name="could_not_locate_file">No se pudo localizar el fichero en almacenamiento</string>
     <string name="select_single_file_for_default_app">Selecciona un único fichero para definir app por defecto</string>
     <string name="default_app_set_for_extension">App por defecto guardada para %1$s</string>
     <string name="remove_from_recent">Quitar de recientes</string>
@@ -133,6 +136,7 @@
 
     <string name="items_count">%1$d elementos</string>
     <string name="today">Hoy</string>
+    <string name="yesterday">Ayer</string>
     <string name="unknown_reason">motivo no disponible</string>
     <string name="error_with_reason">Error: %1$s</string>
     <string name="error_loading_storage">Error cargando almacenamiento: %1$s</string>

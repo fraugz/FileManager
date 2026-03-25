@@ -188,7 +188,7 @@ Tags publicados:
 
 Siguiente version sugerida:
 
-- v1.3.0: Recientes ahora permite fijar/desfijar (con indicador visual) y mantiene excluidos los elementos quitados hasta limpiar recientes; el flujo de guardar texto compartido ahora pide nombre/tipo personalizado antes de crear el fichero; el swipe horizontal entre Recientes y Almacenamiento sigue el dedo de forma fluida; y la etiqueta del selector Abrir se simplifico a MAS APPs.
+- v1.3.0: Recientes se rediseño para igualar la UX de lista/seleccion de Almacenamiento y luego se ajusto a acciones Localizar/Fijar/Info (seleccion unica) y Fijar/Info (multiseleccion), con Localizar abriendo Almacenamiento y seleccionando el fichero objetivo; incluye chincheta visible en fijados, orden por fecha de acceso con separadores por dia, limpieza de recientes conservando fijados, y proteccion para que el autoescaneo no repueble archivos antiguos tras limpiar; la confirmacion de borrado se reordeno (Cancelar, Eliminar definitivamente, Mover a papelera) resaltando la accion destructiva; Mas aplicaciones usa la misma base de filtrado que anadir extension/app; se compactaron controles del encabezado junto al titulo de Almacenamiento con acceso rapido de Casa; el breadcrumb ocupa todo el ancho util con margenes laterales y salta de linea solo cuando hace falta; ademas el flujo de guardar texto compartido pide nombre/tipo personalizado antes de crear el fichero, el swipe horizontal entre Recientes y Almacenamiento sigue el dedo de forma fluida, y la etiqueta del selector Abrir se simplifico a MAS APPs.
 
 ## Testing recomendado
 

@@ -49,7 +49,6 @@ import androidx.core.content.FileProvider;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.recyclerview.widget.DividerItemDecoration;
-import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -119,6 +118,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private static final int REQ_PERMISSION = 100;
     private static final int REQ_MANAGE_FILES = 101;
     private static final int SORT_NAME = 0, SORT_DATE = 1, SORT_SIZE = 2;
+    private static final long AUTO_RECENT_SCAN_INTERVAL_MS = 60_000L;
+    private static final long AUTO_RECENT_LOOKBACK_MS = 14L * 24L * 60L * 60L * 1000L;
+    private static final int AUTO_RECENT_MAX_CANDIDATES = 120;
+    private static final int AUTO_RECENT_MAX_SCAN_DEPTH = 4;
+    private static final int AUTO_RECENT_MAX_VISITED_DIRS = 300;
     private int sortMode = SORT_NAME;
     private boolean isDark;
     private float uiScale = ThemeManager.UI_SCALE_DEFAULT;
@@ -136,13 +140,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private LinearLayout breadcrumbContainer;
     private EditText searchInput;
     private LinearLayout pasteBar;
-    private TextView pasteLabel, sectionHeaderLabel, pageTitle, recentTitle, searchStatus, cancelSearchBtn, loadingStatusLabel;
+    private TextView pasteLabel, pageTitle, recentTitle, searchStatus, cancelSearchBtn, loadingStatusLabel;
     private TextView actionSendLabel, actionOpenWithLabel, actionPlayLabel, actionSelectAllLabel, actionMoveLabel, actionCopyLabel, actionDeleteLabel, actionRenameLabel, actionInfoLabel;
     private ImageView actionSendIcon, actionOpenWithIcon, actionPlayIcon, actionSelectAllIcon, actionMoveIcon, actionCopyIcon, actionDeleteIcon, actionRenameIcon, actionInfoIcon;
     private ProgressBar searchProgress;
     private SwipeRefreshLayout swipeRefresh;
     private ImageButton btnClearRecent;
     private ImageButton btnSelectAllInline;
+    private ImageButton btnHomeInline;
 
     // Custom bottom nav
     private LinearLayout bottomNav, tabRecent, tabStorage;
@@ -151,8 +156,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     // Adapters
     private FileAdapter adapter;
-    private RecentAdapter recentAdapter;
+    private FileAdapter recentListAdapter;
     private final List<FileItem> fileItems = new ArrayList<>();
+    private final List<FileItem> recentFileItems = new ArrayList<>();
     private final List<File> recentFilesCache = new ArrayList<>();
     private final Map<String, Long> recentAccessByPath = new HashMap<>();
     private final Map<String, Boolean> recentPinnedByPath = new HashMap<>();
@@ -183,6 +189,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private float tabSwipeStartY = 0f;
     private float tabSwipeLastDx = 0f;
     private long tabSwipeStartTimeMs = 0L;
+    private long suppressItemInteractionUntilMs = 0L;
+    private String pendingLocateFilePath = null;
+    private volatile boolean autoRecentScanRunning = false;
+    private long lastAutoRecentScanAtMs = 0L;
+    private Thread autoRecentScanThread;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -212,6 +223,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         handleIncomingShareIntent(intent);
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (currentTab == TAB_RECENT) {
+            loadRecentFiles();
+        } else {
+            triggerAutoRecentDiscovery(false);
+        }
+    }
+
     // ─────────────────────── BIND ────────────────────────────────────
 
     private void bindViews() {
@@ -230,11 +251,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         searchInput         = findViewById(R.id.search_input);
         pasteBar            = findViewById(R.id.paste_bar);
         pasteLabel          = findViewById(R.id.paste_label);
-        sectionHeaderLabel  = findViewById(R.id.section_header_label);
         pageTitle           = findViewById(R.id.page_title);
         recentTitle         = findViewById(R.id.recent_title);
         btnClearRecent      = findViewById(R.id.btn_clear_recent);
         btnSelectAllInline  = findViewById(R.id.btn_select_all_inline);
+        btnHomeInline       = findViewById(R.id.btn_home_inline);
         searchProgress      = findViewById(R.id.search_progress);
         searchStatus        = findViewById(R.id.search_status);
         cancelSearchBtn     = findViewById(R.id.btn_cancel_search);
@@ -301,7 +322,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (pageTitle != null) pageTitle.setTextColor(textPrimary);
         if (recentTitle != null) recentTitle.setTextColor(textPrimary);
         if (btnClearRecent != null) btnClearRecent.setColorFilter(iconTint);
-        if (sectionHeaderLabel != null) sectionHeaderLabel.setTextColor(accent);
 
         safeSetBg(searchBar, bgCard);
         if (searchInput != null) {
@@ -336,7 +356,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (actionRenameIcon != null) actionRenameIcon.setColorFilter(iconTint);
         if (actionInfoIcon != null) actionInfoIcon.setColorFilter(iconTint);
 
-        int[] iconBtns = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_select_all_inline, R.id.btn_new_folder_inline, R.id.btn_clear_recent};
+        int[] iconBtns = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_select_all_inline, R.id.btn_new_folder_inline, R.id.btn_home_inline, R.id.btn_clear_recent};
         for (int id : iconBtns) {
             View v = findViewById(id);
             if (v instanceof ImageButton) ((ImageButton) v).setColorFilter(iconTint);
@@ -367,9 +387,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     }
 
     private void applyUiScale() {
-        if (pageTitle != null) pageTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f * uiScale);
-        if (recentTitle != null) recentTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f * uiScale);
-        if (sectionHeaderLabel != null) sectionHeaderLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * uiScale);
+        if (pageTitle != null) pageTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f * uiScale);
+        if (recentTitle != null) recentTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f * uiScale);
         if (searchInput != null) searchInput.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f * uiScale);
         if (pasteLabel != null) pasteLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * uiScale);
         if (tabRecentLabel != null) tabRecentLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f * uiScale);
@@ -396,6 +415,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
         setSquareSize(findViewById(R.id.btn_new_folder_inline), dp(38f * uiScale));
         setSquareSize(findViewById(R.id.btn_select_all_inline), dp(38f * uiScale));
+        setSquareSize(findViewById(R.id.btn_home_inline), dp(38f * uiScale));
         setSquareSize(findViewById(R.id.btn_paste_dismiss), dp(36f * uiScale));
         setSquareSize(actionSendIcon, dp(24f * uiScale));
         setSquareSize(actionOpenWithIcon, dp(24f * uiScale));
@@ -408,7 +428,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setSquareSize(actionInfoIcon, dp(24f * uiScale));
 
         if (adapter != null) adapter.setUiScale(uiScale);
-        if (recentAdapter != null) recentAdapter.setUiScale(uiScale);
+        if (recentListAdapter != null) recentListAdapter.setUiScale(uiScale);
     }
 
     private int dp(float value) {
@@ -536,29 +556,29 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
 
         if (recyclerRecent != null) {
-            GridLayoutManager glm = new GridLayoutManager(this, 3);
-            glm.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
-                @Override public int getSpanSize(int pos) {
-                    return (recentAdapter != null && recentAdapter.getItemViewType(pos) == 0) ? 3 : 1;
-                }
-            });
-            recyclerRecent.setLayoutManager(glm);
+            recyclerRecent.setLayoutManager(new LinearLayoutManager(this));
+            recyclerRecent.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
             recyclerRecent.setVerticalScrollBarEnabled(true);
-            recentAdapter = new RecentAdapter(this, new ArrayList<>(), new RecentAdapter.OnFileClick() {
+            recentListAdapter = new FileAdapter(recentFileItems, new FileAdapter.Listener() {
                 @Override
-                public void onClick(File file) {
-                    RecentManager.add(MainActivity.this, file.getAbsolutePath());
-                    openFile(file);
+                public void onItemClick(FileItem item) {
+                    MainActivity.this.onItemClick(item);
                 }
 
                 @Override
-                public void onLongPress(File file, View anchor) {
-                    showRecentItemMenu(file, anchor);
+                public void onItemLongClick(FileItem item) {
+                    MainActivity.this.onItemLongClick(item);
+                }
+
+                @Override
+                public void onMoreClick(FileItem item, View anchor) {
+                    MainActivity.this.onMoreClick(item, anchor);
                 }
             });
-            recentAdapter.setDarkTheme(isDark);
-            recentAdapter.setUiScale(uiScale);
-            recyclerRecent.setAdapter(recentAdapter);
+            recentListAdapter.setDarkTheme(isDark);
+            recentListAdapter.setUiScale(uiScale);
+            recentListAdapter.setRecentMode(true);
+            recyclerRecent.setAdapter(recentListAdapter);
         }
     }
 
@@ -578,6 +598,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setClickSafe(R.id.btn_clear_recent,      v -> confirmClearRecents());
         setClickSafe(R.id.btn_select_all_inline, v -> toggleSelectAllInline());
         setClickSafe(R.id.btn_new_folder_inline, v -> showNewFolderDialog());
+        setClickSafe(R.id.btn_home_inline, v -> navigateToStorageRoot());
         setClickSafe(R.id.btn_paste,             v -> pasteClipboard());
         setClickSafe(R.id.btn_paste_dismiss,     v -> {
             clipboardFiles.clear();
@@ -587,9 +608,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             pendingSharedTextConfig = false;
             updatePasteBar();
         });
-        setClickSafe(R.id.action_send,           v -> shareSelectedFiles());
-        setClickSafe(R.id.action_open_with,      v -> setDefaultAppFromSelection());
-        setClickSafe(R.id.action_play,           v -> playSelectedFiles());
+        setClickSafe(R.id.action_send,           v -> handlePrimaryAction());
+        setClickSafe(R.id.action_open_with,      v -> handleOpenAction());
+        setClickSafe(R.id.action_play,           v -> handleSecondaryAction());
         setClickSafe(R.id.action_move,           v -> markSelectionForMove());
         setClickSafe(R.id.action_copy,           v -> copySelection());
         setClickSafe(R.id.action_delete,         v -> deleteSelectionToTrash());
@@ -659,6 +680,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                     }
                     prepareInteractiveTabSwipe();
                     tabSwipeActive = true;
+                    suppressItemInteractionUntilMs = System.currentTimeMillis() + 250L;
                 }
                 if (tabSwipeActive) {
                     applyInteractiveTabSwipe(dx);
@@ -668,10 +690,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             case MotionEvent.ACTION_CANCEL:
                 if (tabSwipeActive) {
                     finishInteractiveTabSwipe();
+                    suppressItemInteractionUntilMs = System.currentTimeMillis() + 250L;
                 }
                 tabSwipeTracking = false;
                 break;
         }
+    }
+
+    private boolean shouldBlockItemInteraction() {
+        if (tabTransitionRunning || tabSwipeActive) return true;
+        return System.currentTimeMillis() < suppressItemInteractionUntilMs;
     }
 
     private void prepareInteractiveTabSwipe() {
@@ -817,6 +845,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 }
             }
 
+            Collections.sort(files, (a, b) -> {
+                Long ta = recentAccessByPath.get(a.getAbsolutePath());
+                Long tb = recentAccessByPath.get(b.getAbsolutePath());
+                long va = ta != null ? ta : a.lastModified();
+                long vb = tb != null ? tb : b.lastModified();
+                return Long.compare(vb, va);
+            });
+
             recentFilesCache.clear();
             recentFilesCache.addAll(files);
 
@@ -828,12 +864,136 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 return;
             }
 
+            syncRecentItemsWithFiles(files);
+            if (recentListAdapter != null) {
+                recentListAdapter.setRecentMetadata(recentAccessByPath, recentPinnedByPath);
+            }
+
             boolean empty = files.isEmpty();
             if (recyclerRecent != null)  recyclerRecent.setVisibility(empty ? View.GONE : View.VISIBLE);
             if (emptyRecentView != null) emptyRecentView.setVisibility(empty ? View.VISIBLE : View.GONE);
             updateClearRecentsButtonState(!files.isEmpty());
-            if (!empty && recentAdapter != null) recentAdapter.setFiles(files, recentAccessByPath, recentPinnedByPath);
+            if (!empty && recentListAdapter != null) recentListAdapter.notifyDataSetChanged();
+            triggerAutoRecentDiscovery(false);
         } catch (Exception e) { Log.e(TAG, "loadRecentFiles", e); }
+    }
+
+    private void triggerAutoRecentDiscovery(boolean force) {
+        if (!hasStorageReadAccess()) return;
+        if (autoRecentScanRunning) return;
+
+        long now = System.currentTimeMillis();
+        if (!force && (now - lastAutoRecentScanAtMs) < AUTO_RECENT_SCAN_INTERVAL_MS) {
+            return;
+        }
+
+        autoRecentScanRunning = true;
+        lastAutoRecentScanAtMs = now;
+
+        autoRecentScanThread = new Thread(() -> {
+            try {
+                List<File> roots = getAutoRecentScanRoots();
+                if (roots.isEmpty()) return;
+
+                List<File> candidates = new ArrayList<>();
+                int[] visitedDirs = new int[]{0};
+                long since = System.currentTimeMillis() - AUTO_RECENT_LOOKBACK_MS;
+                for (File root : roots) {
+                    collectAutoRecentCandidates(root, 0, since, visitedDirs, candidates);
+                    if (candidates.size() >= AUTO_RECENT_MAX_CANDIDATES) break;
+                    if (visitedDirs[0] >= AUTO_RECENT_MAX_VISITED_DIRS) break;
+                }
+
+                if (candidates.isEmpty()) return;
+
+                Collections.sort(candidates, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+                if (candidates.size() > AUTO_RECENT_MAX_CANDIDATES) {
+                    candidates = new ArrayList<>(candidates.subList(0, AUTO_RECENT_MAX_CANDIDATES));
+                }
+
+                boolean changed = RecentManager.mergeAutoDiscovered(MainActivity.this, candidates);
+                if (changed) {
+                    mainHandler.post(() -> {
+                        if (currentTab == TAB_RECENT) {
+                            loadRecentFiles();
+                        }
+                    });
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "auto recent discovery failed", e);
+            } finally {
+                autoRecentScanRunning = false;
+                autoRecentScanThread = null;
+            }
+        }, "auto-recent-scan");
+        autoRecentScanThread.start();
+    }
+
+    private List<File> getAutoRecentScanRoots() {
+        List<File> roots = new ArrayList<>();
+        addScanRoot(roots, Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
+        addScanRoot(roots, Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS));
+
+        File storageRoot = Environment.getExternalStorageDirectory();
+        if (storageRoot != null) {
+            addScanRoot(roots, new File(storageRoot, "Download/WhatsApp Documents"));
+            addScanRoot(roots, new File(storageRoot, "WhatsApp/Media/WhatsApp Documents"));
+            addScanRoot(roots, new File(storageRoot, "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Documents"));
+        }
+        return roots;
+    }
+
+    private void addScanRoot(List<File> roots, File dir) {
+        if (dir == null || !dir.exists() || !dir.isDirectory()) return;
+        String abs = dir.getAbsolutePath();
+        for (File current : roots) {
+            if (abs.equals(current.getAbsolutePath())) return;
+        }
+        roots.add(dir);
+    }
+
+    private void collectAutoRecentCandidates(File dir,
+                                             int depth,
+                                             long since,
+                                             int[] visitedDirs,
+                                             List<File> out) {
+        if (dir == null || out == null || visitedDirs == null) return;
+        if (depth > AUTO_RECENT_MAX_SCAN_DEPTH) return;
+        if (visitedDirs[0] >= AUTO_RECENT_MAX_VISITED_DIRS) return;
+        if (out.size() >= AUTO_RECENT_MAX_CANDIDATES) return;
+        if (!dir.exists() || !dir.isDirectory() || !dir.canRead()) return;
+
+        visitedDirs[0]++;
+        File[] children = dir.listFiles();
+        if (children == null || children.length == 0) return;
+
+        for (File child : children) {
+            if (child == null) continue;
+            String name = child.getName();
+            if (name == null || name.startsWith(".")) continue;
+
+            if (child.isFile()) {
+                if (child.lastModified() >= since) {
+                    out.add(child);
+                    if (out.size() >= AUTO_RECENT_MAX_CANDIDATES) return;
+                }
+                continue;
+            }
+
+            if (child.isDirectory()) {
+                collectAutoRecentCandidates(child, depth + 1, since, visitedDirs, out);
+                if (out.size() >= AUTO_RECENT_MAX_CANDIDATES) return;
+                if (visitedDirs[0] >= AUTO_RECENT_MAX_VISITED_DIRS) return;
+            }
+        }
+    }
+
+    private boolean hasStorageReadAccess() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return Environment.isExternalStorageManager();
+        }
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED;
     }
 
     // ─────────────────────── PERMISSIONS ─────────────────────────────
@@ -969,6 +1129,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 if (directoryLoadCancelled || requestId != directoryLoadRequestId) return;
                 fileItems.clear();
                 fileItems.addAll(sorted);
+                applyPendingLocateSelection();
                 if (adapter != null) adapter.notifyDataSetChanged();
                 finishDirectoryLoading();
             });
@@ -1075,7 +1236,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     }
 
     private void applyRecentFilter(String query) {
-        if (recentAdapter == null) return;
+        if (recentListAdapter == null) return;
         String q = query.toLowerCase();
         List<File> filtered = new ArrayList<>();
         for (File f : recentFilesCache) {
@@ -1084,11 +1245,24 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             }
         }
 
+        Collections.sort(filtered, (a, b) -> {
+            Long ta = recentAccessByPath.get(a.getAbsolutePath());
+            Long tb = recentAccessByPath.get(b.getAbsolutePath());
+            long va = ta != null ? ta : a.lastModified();
+            long vb = tb != null ? tb : b.lastModified();
+            return Long.compare(vb, va);
+        });
+
+        syncRecentItemsWithFiles(filtered);
+        if (recentListAdapter != null) {
+            recentListAdapter.setRecentMetadata(recentAccessByPath, recentPinnedByPath);
+        }
+
         boolean empty = filtered.isEmpty();
         if (recyclerRecent != null) recyclerRecent.setVisibility(empty ? View.GONE : View.VISIBLE);
         if (emptyRecentView != null) emptyRecentView.setVisibility(empty ? View.VISIBLE : View.GONE);
         updateClearRecentsButtonState(!recentFilesCache.isEmpty());
-        if (!empty) recentAdapter.setFiles(filtered, recentAccessByPath, recentPinnedByPath);
+        if (!empty) recentListAdapter.notifyDataSetChanged();
     }
 
     private void updateClearRecentsButtonState(boolean hasItems) {
@@ -1107,7 +1281,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 .setTitle(R.string.confirm_clear_title)
                 .setMessage(R.string.confirm_clear_recent_message)
                 .setPositiveButton(R.string.clear_all, (d, w) -> {
-                    RecentManager.clear(this);
+                    RecentManager.clearUnpinned(this);
                     loadRecentFiles();
                     toast(getString(R.string.recents_cleared));
                 })
@@ -1205,9 +1379,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             File root = Environment.getExternalStorageDirectory();
             boolean isRoot = currentDir.equals(root);
             breadcrumbScroll.setVisibility(isRoot ? View.GONE : View.VISIBLE);
-            if (sectionHeaderLabel != null)
-                sectionHeaderLabel.setText(isRoot ? getString(R.string.internal_storage)
-                        : currentDir.getAbsolutePath().replace(root.getAbsolutePath() + "/", ""));
             if (isRoot || breadcrumbContainer == null) return;
 
             breadcrumbContainer.removeAllViews();
@@ -1218,20 +1389,49 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 if (f.equals(root)) break;
                 f = f.getParentFile();
             }
-            int accent = isDark ? 0xFF1E88E5 : 0xFF1565C0;
-            int muted  = isDark ? 0xFF666666 : 0xFF999999;
+
+            breadcrumbContainer.setOrientation(LinearLayout.VERTICAL);
+
+            final int maxLineChars = 46;
+            int currentLineChars = 0;
+            LinearLayout currentRow = new LinearLayout(this);
+            currentRow.setOrientation(LinearLayout.HORIZONTAL);
+            currentRow.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            breadcrumbContainer.addView(currentRow);
+
+            int accent = isDark ? 0xFF8EB3D8 : 0xFF2A5B87;
+            int muted = isDark ? 0xFFB7C2CF : 0xFF526478;
+
             for (int i = 0; i < parts.size(); i++) {
                 final File part = parts.get(i);
                 boolean isLast = (i == parts.size() - 1);
-                TextView tv = new TextView(this);
                 String label = part.equals(root) ? getString(R.string.internal_short) : part.getName();
-                tv.setText(isLast ? label : label + "  ›  ");
-                tv.setTextSize(12);
+                String segmentText = isLast ? label : (label + "  ›  ");
+
+                int segmentChars = segmentText.length();
+                if (currentLineChars > 0 && currentLineChars + segmentChars > maxLineChars) {
+                    currentRow = new LinearLayout(this);
+                    currentRow.setOrientation(LinearLayout.HORIZONTAL);
+                    currentRow.setLayoutParams(new LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT));
+                    breadcrumbContainer.addView(currentRow);
+                    currentLineChars = 0;
+                }
+
+                TextView tv = new TextView(this);
+                tv.setText(segmentText);
+                tv.setTextSize(13f);
                 tv.setTextColor(isLast ? muted : accent);
-                if (!isLast) tv.setOnClickListener(v -> navigateTo(part));
-                breadcrumbContainer.addView(tv);
+                tv.setSingleLine(true);
+                if (!isLast) {
+                    tv.setOnClickListener(v -> navigateTo(part));
+                }
+                currentRow.addView(tv);
+                currentLineChars += segmentChars;
             }
-            breadcrumbScroll.post(() -> breadcrumbScroll.fullScroll(View.FOCUS_RIGHT));
         } catch (Exception e) { Log.e(TAG, "breadcrumb", e); }
     }
 
@@ -1243,9 +1443,23 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         exitSelectionMode();
     }
 
+    private void navigateToStorageRoot() {
+        try {
+            backStack.clear();
+            File root = Environment.getExternalStorageDirectory();
+            if (root != null && root.exists() && root.isDirectory()) {
+                loadDirectory(root);
+                exitSelectionMode();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "navigateToStorageRoot", e);
+        }
+    }
+
     @Override
     public void onBackPressed() {
-        if (adapter != null && adapter.isSelectionMode()) { exitSelectionMode(); return; }
+        FileAdapter activeAdapter = getActiveAdapter();
+        if (activeAdapter != null && activeAdapter.isSelectionMode()) { exitSelectionMode(); return; }
         if (searchBar != null && searchBar.getVisibility() == View.VISIBLE) { toggleSearch(); return; }
         if (!backStack.isEmpty()) { loadDirectory(backStack.pop()); return; }
         super.onBackPressed();
@@ -1256,10 +1470,22 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     @Override
     public void onItemClick(FileItem item) {
         try {
-            if (adapter != null && adapter.isSelectionMode()) {
+            if (shouldBlockItemInteraction()) {
+                return;
+            }
+            FileAdapter activeAdapter = getActiveAdapter();
+            List<FileItem> activeItems = getActiveItems();
+            if (activeAdapter != null && activeAdapter.isSelectionMode()) {
                 item.setSelected(!item.isSelected());
-                adapter.notifyDataSetChanged();
-                if (fileItems.stream().noneMatch(FileItem::isSelected)) exitSelectionMode();
+                activeAdapter.notifyDataSetChanged();
+                boolean hasSelected = false;
+                for (FileItem fi : activeItems) {
+                    if (fi.isSelected()) {
+                        hasSelected = true;
+                        break;
+                    }
+                }
+                if (!hasSelected) exitSelectionMode();
                 else updateSelectionActionsBar();
                 return;
             }
@@ -1275,9 +1501,13 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     @Override
     public void onItemLongClick(FileItem item) {
         try {
-            if (adapter != null && !adapter.isSelectionMode()) adapter.setSelectionMode(true);
+            if (shouldBlockItemInteraction()) {
+                return;
+            }
+            FileAdapter activeAdapter = getActiveAdapter();
+            if (activeAdapter != null && !activeAdapter.isSelectionMode()) activeAdapter.setSelectionMode(true);
             item.setSelected(true);
-            if (adapter != null) adapter.notifyDataSetChanged();
+            if (activeAdapter != null) activeAdapter.notifyDataSetChanged();
             updateSelectionActionsBar();
         } catch (Exception e) { Log.e(TAG, "onItemLongClick", e); }
     }
@@ -1290,36 +1520,42 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     // ─────────────────────── SELECTION ───────────────────────────────
 
     private void exitSelectionMode() {
-        if (adapter == null) return;
-        adapter.setSelectionMode(false);
-        for (FileItem fi : fileItems) fi.setSelected(false);
-        adapter.notifyDataSetChanged();
+        clearSelectionState(adapter, fileItems);
+        clearSelectionState(recentListAdapter, recentFileItems);
         updateSelectionActionsBar();
     }
 
     private List<File> getSelectedFiles() {
         List<File> sel = new ArrayList<>();
-        for (FileItem fi : fileItems) if (fi.isSelected()) sel.add(fi.getFile());
+        for (FileItem fi : getActiveItems()) if (fi.isSelected()) sel.add(fi.getFile());
         return sel;
     }
 
     private void updateSelectionActionsBar() {
+        FileAdapter activeAdapter = getActiveAdapter();
         List<File> sel = getSelectedFiles();
-        boolean selectionMode = adapter != null && adapter.isSelectionMode() && !sel.isEmpty();
-        boolean showSetDefaultApp = sel.size() == 1 && sel.get(0).isFile();
+        boolean selectionMode = activeAdapter != null && activeAdapter.isSelectionMode() && !sel.isEmpty();
+        boolean isRecentTab = currentTab == TAB_RECENT;
+        boolean hasSingleFile = sel.size() == 1 && sel.get(0).isFile();
         boolean showPlay = sel.size() > 1 && areAllPlayableFiles(sel);
-        boolean showInfo = sel.size() == 1;
-        boolean showRename = sel.size() == 1;
+        boolean showInfo = isRecentTab ? !sel.isEmpty() : sel.size() == 1;
+        boolean showRename = isRecentTab ? false : sel.size() == 1;
+        boolean showLocate = isRecentTab && hasSingleFile;
+        boolean showPin = isRecentTab && !sel.isEmpty();
         if (selectionActionsBar != null) {
             selectionActionsBar.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
         }
+        View sendAction = findViewById(R.id.action_send);
+        if (sendAction != null) {
+            sendAction.setVisibility(selectionMode && (isRecentTab ? showLocate : true) ? View.VISIBLE : View.GONE);
+        }
         View openWithAction = findViewById(R.id.action_open_with);
         if (openWithAction != null) {
-            openWithAction.setVisibility(selectionMode && showSetDefaultApp ? View.VISIBLE : View.GONE);
+            openWithAction.setVisibility(selectionMode && (isRecentTab ? false : hasSingleFile) ? View.VISIBLE : View.GONE);
         }
         View playAction = findViewById(R.id.action_play);
         if (playAction != null) {
-            playAction.setVisibility(selectionMode && showPlay ? View.VISIBLE : View.GONE);
+            playAction.setVisibility(selectionMode && (isRecentTab ? showPin : showPlay) ? View.VISIBLE : View.GONE);
         }
         View infoAction = findViewById(R.id.action_info);
         if (infoAction != null) {
@@ -1332,6 +1568,37 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         View selectAllAction = findViewById(R.id.action_select_all);
         if (selectAllAction != null) {
             selectAllAction.setVisibility(View.GONE);
+        }
+
+        View deleteAction = findViewById(R.id.action_delete);
+        if (deleteAction != null) {
+            deleteAction.setVisibility(isRecentTab ? View.GONE : (selectionMode ? View.VISIBLE : View.GONE));
+        }
+
+        View moveAction = findViewById(R.id.action_move);
+        if (moveAction != null) {
+            moveAction.setVisibility(isRecentTab ? View.GONE : (selectionMode ? View.VISIBLE : View.GONE));
+        }
+        View copyAction = findViewById(R.id.action_copy);
+        if (copyAction != null) {
+            copyAction.setVisibility(isRecentTab ? View.GONE : (selectionMode ? View.VISIBLE : View.GONE));
+        }
+
+        if (actionSendLabel != null) {
+            actionSendLabel.setText(isRecentTab ? R.string.locate : R.string.send);
+        }
+        if (actionSendIcon != null) {
+            actionSendIcon.setImageResource(isRecentTab ? R.drawable.ic_storage : R.drawable.ic_action_send);
+        }
+
+        if (actionOpenWithLabel != null) {
+            actionOpenWithLabel.setText(R.string.open);
+        }
+        if (actionPlayLabel != null) {
+            actionPlayLabel.setText(isRecentTab ? R.string.pin_to_recent : R.string.play);
+        }
+        if (actionPlayIcon != null) {
+            actionPlayIcon.setImageResource(isRecentTab ? R.drawable.ic_pin : R.drawable.ic_action_play);
         }
         updateInlineSelectAllVisual();
     }
@@ -1397,12 +1664,54 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             toast(getString(R.string.no_items_selected));
             return;
         }
+
+        final String[] options = new String[]{
+                getString(R.string.cancel),
+                getString(R.string.delete_forever),
+                getString(R.string.move_to_trash)
+        };
+
+        BaseAdapter optionAdapter = new BaseAdapter() {
+            @Override
+            public int getCount() {
+                return options.length;
+            }
+
+            @Override
+            public Object getItem(int position) {
+                return options[position];
+            }
+
+            @Override
+            public long getItemId(int position) {
+                return position;
+            }
+
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                TextView tv = convertView instanceof TextView ? (TextView) convertView : new TextView(MainActivity.this);
+                tv.setText(options[position]);
+                tv.setPadding(dp(24), dp(14), dp(24), dp(14));
+                tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+                if (position == 1) {
+                    tv.setTextColor(0xFFD32F2F);
+                } else {
+                    tv.setTextColor(isDark ? 0xFFFFFFFF : 0xFF1C1C1E);
+                }
+                return tv;
+            }
+        };
+
         new AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(getString(R.string.confirm_delete_selected_message, sel.size()))
-                .setPositiveButton(R.string.move_to_trash, (d, w) -> runDeleteSelectionWithProgress(sel, false))
-                .setNeutralButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSelection(sel))
-                .setNegativeButton(R.string.cancel, null)
+                .setAdapter(optionAdapter, (dialog, which) -> {
+                    if (which == 1) {
+                        showDeleteForeverWarningForSelection(sel);
+                    } else if (which == 2) {
+                        runDeleteSelectionWithProgress(sel, false);
+                    }
+                })
                 .show();
     }
 
@@ -1799,14 +2108,17 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     }
 
     private void selectAllCurrentFiles() {
-        if (adapter == null) return;
-        adapter.setSelectionMode(true);
-        for (FileItem fi : fileItems) fi.setSelected(true);
-        adapter.notifyDataSetChanged();
+        FileAdapter activeAdapter = getActiveAdapter();
+        List<FileItem> activeItems = getActiveItems();
+        if (activeAdapter == null) return;
+        activeAdapter.setSelectionMode(true);
+        for (FileItem fi : activeItems) fi.setSelected(true);
+        activeAdapter.notifyDataSetChanged();
         updateSelectionActionsBar();
     }
 
     private void toggleSelectAllInline() {
+        if (currentTab != TAB_STORAGE) return;
         if (fileItems.isEmpty() || adapter == null) return;
         if (isAllCurrentSelected()) {
             exitSelectionMode();
@@ -1816,8 +2128,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     }
 
     private boolean isAllCurrentSelected() {
-        if (fileItems.isEmpty()) return false;
-        for (FileItem fi : fileItems) {
+        List<FileItem> activeItems = getActiveItems();
+        if (activeItems.isEmpty()) return false;
+        for (FileItem fi : activeItems) {
             if (!fi.isSelected()) return false;
         }
         return true;
@@ -1825,7 +2138,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void updateInlineSelectAllVisual() {
         if (btnSelectAllInline == null) return;
-        boolean allSelected = isAllCurrentSelected() && adapter != null && adapter.isSelectionMode();
+        FileAdapter activeAdapter = getActiveAdapter();
+        boolean allSelected = isAllCurrentSelected() && activeAdapter != null && activeAdapter.isSelectionMode();
         btnSelectAllInline.setImageResource(allSelected ? R.drawable.ic_action_select_all_checked : R.drawable.ic_action_select_all);
         btnSelectAllInline.setAlpha(1.0f);
 
@@ -1838,6 +2152,148 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 btnSelectAllInline.setImageTintList(newFolderButton.getImageTintList());
             }
         }
+    }
+
+    private void handlePrimaryAction() {
+        if (currentTab == TAB_RECENT) {
+            locateSelectedRecentFile();
+            return;
+        }
+        shareSelectedFiles();
+    }
+
+    private void handleOpenAction() {
+        if (currentTab == TAB_RECENT) {
+            openSelectedRecentFile();
+            return;
+        }
+        setDefaultAppFromSelection();
+    }
+
+    private void handleSecondaryAction() {
+        if (currentTab == TAB_RECENT) {
+            togglePinForSelectedRecent();
+            return;
+        }
+        playSelectedFiles();
+    }
+
+    private void openSelectedRecentFile() {
+        List<File> sel = getSelectedFiles();
+        if (sel.size() != 1 || !sel.get(0).isFile()) {
+            toast(getString(R.string.select_single_file_for_open_with));
+            return;
+        }
+        openFile(sel.get(0));
+        exitSelectionMode();
+    }
+
+    private void locateSelectedRecentFile() {
+        List<File> sel = getSelectedFiles();
+        if (sel.size() != 1 || !sel.get(0).isFile()) {
+            toast(getString(R.string.select_single_file_to_locate));
+            return;
+        }
+
+        File target = sel.get(0);
+        File parent = target.getParentFile();
+        if (parent == null || !parent.exists() || !parent.isDirectory()) {
+            toast(getString(R.string.could_not_locate_file));
+            return;
+        }
+
+        pendingLocateFilePath = target.getAbsolutePath();
+        exitSelectionMode();
+        selectTab(TAB_STORAGE);
+        loadDirectory(parent);
+    }
+
+    private void togglePinForSelectedRecent() {
+        List<File> sel = getSelectedFiles();
+        if (sel.isEmpty()) {
+            return;
+        }
+
+        boolean allPinned = true;
+        for (File file : sel) {
+            if (!file.isFile()) continue;
+            if (!RecentManager.isPinned(this, file.getAbsolutePath())) {
+                allPinned = false;
+                break;
+            }
+        }
+
+        if (allPinned) {
+            for (File file : sel) {
+                if (file.isFile()) {
+                    RecentManager.unpin(this, file.getAbsolutePath());
+                }
+            }
+            toast(getString(R.string.unpinned_from_recent));
+        } else {
+            for (File file : sel) {
+                if (file.isFile()) {
+                    RecentManager.pin(this, file.getAbsolutePath());
+                }
+            }
+            toast(getString(R.string.pinned_to_recent));
+        }
+        loadRecentFiles();
+        exitSelectionMode();
+    }
+
+    private void applyPendingLocateSelection() {
+        if (pendingLocateFilePath == null || pendingLocateFilePath.trim().isEmpty()) return;
+        if (currentTab != TAB_STORAGE) return;
+
+        int targetIndex = -1;
+        for (int i = 0; i < fileItems.size(); i++) {
+            FileItem item = fileItems.get(i);
+            if (item != null && item.getFile() != null
+                    && pendingLocateFilePath.equals(item.getFile().getAbsolutePath())) {
+                targetIndex = i;
+                item.setSelected(true);
+                break;
+            }
+        }
+
+        if (targetIndex >= 0) {
+            if (adapter != null) {
+                adapter.setSelectionMode(true);
+            }
+            if (recycler != null) {
+                recycler.scrollToPosition(targetIndex);
+            }
+            updateSelectionActionsBar();
+        } else {
+            toast(getString(R.string.could_not_locate_file));
+        }
+
+        pendingLocateFilePath = null;
+    }
+
+    private void syncRecentItemsWithFiles(List<File> files) {
+        recentFileItems.clear();
+        for (File file : files) {
+            recentFileItems.add(new FileItem(file));
+        }
+    }
+
+    private List<FileItem> getActiveItems() {
+        return currentTab == TAB_RECENT ? recentFileItems : fileItems;
+    }
+
+    private FileAdapter getActiveAdapter() {
+        return currentTab == TAB_RECENT ? recentListAdapter : adapter;
+    }
+
+    private void clearSelectionState(FileAdapter targetAdapter, List<FileItem> items) {
+        if (targetAdapter == null) return;
+        targetAdapter.setSelectionMode(false);
+        for (FileItem fi : items) {
+            fi.setSelected(false);
+        }
+        targetAdapter.notifyDataSetChanged();
     }
 
     // ─────────────────────── MENUS ───────────────────────────────────
@@ -2905,48 +3361,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
     }
 
-    private void showRecentItemMenu(File file, View anchor) {
-        PopupMenu p = new PopupMenu(this, anchor);
-        boolean isPinned = RecentManager.isPinned(this, file.getAbsolutePath());
-        
-        p.getMenu().add(0, 1, 0, getString(R.string.set_default_app));
-        if (isPinned) {
-            p.getMenu().add(0, 3, 0, getString(R.string.unpin_from_recent));
-        } else {
-            p.getMenu().add(0, 3, 0, getString(R.string.pin_to_recent));
-        }
-        p.getMenu().add(0, 2, 0, getString(R.string.remove_from_recent));
-
-        p.setOnMenuItemClickListener(mi -> {
-            switch (mi.getItemId()) {
-                case 1:
-                    showSetDefaultAppDialog(file, false);
-                    return true;
-                case 2:
-                    RecentManager.remove(this, file.getAbsolutePath());
-                    loadRecentFiles();
-                    toast(getString(R.string.removed_from_recent));
-                    return true;
-                case 3:
-                    if (isPinned) {
-                        RecentManager.unpin(this, file.getAbsolutePath());
-                        toast(getString(R.string.unpinned_from_recent));
-                    } else {
-                        RecentManager.pin(this, file.getAbsolutePath());
-                        toast(getString(R.string.pinned_to_recent));
-                    }
-                    loadRecentFiles();
-                    return true;
-                default:
-                    return false;
-            }
-        });
-        p.show();
-    }
-
     private void showSetDefaultAppDialog(File file, boolean openAfterSelection) {
         List<AppChoice> candidates = getAppsForFileDefaultPicker(file);
-        List<AppChoice> moreUserApps = getAllAppsForDefaultPicker(false);
+        List<AppChoice> moreUserApps = getAllAppsForDefaultPicker(true);
         if (candidates.isEmpty()) {
             toast(getString(R.string.no_apps_found));
             return;
@@ -3577,6 +3994,10 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     protected void onDestroy() {
         cancelRecursiveSearch(false);
         cancelDirectoryLoad();
+        if (autoRecentScanThread != null) {
+            autoRecentScanThread.interrupt();
+            autoRecentScanThread = null;
+        }
         if (isFinishing()) {
             cleanupTempPlaylist();
         }

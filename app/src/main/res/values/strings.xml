@@ -13,7 +13,7 @@
     <string name="version">Version</string>
     <string name="changelog_title">Changelog</string>
     <string name="changelog_subtitle">See latest changes</string>
-    <string name="changelog_content">v1.3.0\n- Pinned items in Recents: pin files to keep them at the top.\n- Removed items stay hidden from Recents until Clear recents.\n- Visual pin indicator on recent file thumbnails.\n- Share text save now opens a name and type dialog before creating the file.\n- Interactive swipe between Recents and Storage now follows the finger smoothly.\n- Open picker label shortened to More apps for clearer actions.\n\nv1.2.9\n- App name localized by system language.\n- Open picker improved (Show more apps flow).\n- Info action available for single item, including folders.\n- Rename hidden on multi-selection.\n- Quick guide links and GitHub link added to Settings.\n\nv1.2.8\n- Smarter temporary playlist names.\n- Share sheet import with Save here.\n- Moved files are removed from Recents.\n\nv1.2.7\n- Open/default app UX refinements and selection bar adjustments.</string>
+    <string name="changelog_content">v1.3.0\n- Recents redesigned with the same row style and long-press selection behavior as Storage.\n- Recents selection actions were streamlined to Locate/Pin/Info (single selection) and Pin/Info (multi-selection).\n- Locate from Recents now jumps to Storage and selects the target file automatically.\n- Visual pin badge is shown directly on pinned recent items.\n- Recents stay ordered by access date, with clear day separators (Today, Yesterday, and date groups).\n- Clear recents now removes only non-pinned items and keeps pinned ones.\n- Auto-discovery no longer repopulates old files after clearing recents.\n- Delete confirmation was reordered (Cancel, Delete permanently, Move to trash) with destructive action highlighted.\n- Open picker More apps now uses the same base filtering approach as add-extension app selection.\n- Storage header was compacted: quick actions moved next to title and a Home button was added.\n- Breadcrumb now uses full width with side margins and wraps to additional lines only when needed.\n- Share text save now opens a name and type dialog before creating the file.\n- Interactive swipe between Recents and Storage now follows the finger smoothly.\n- Open picker label shortened to More apps for clearer actions.\n\nv1.2.9\n- App name localized by system language.\n- Open picker improved (Show more apps flow).\n- Info action available for single item, including folders.\n- Rename hidden on multi-selection.\n- Quick guide links and GitHub link added to Settings.\n\nv1.2.8\n- Smarter temporary playlist names.\n- Share sheet import with Save here.\n- Moved files are removed from Recents.\n\nv1.2.7\n- Open/default app UX refinements and selection bar adjustments.</string>
     <string name="quick_guide_title">Quick guide</string>
     <string name="quick_guide_subtitle">Open the online quick guide</string>
     <string name="github_title">Project GitHub</string>
@@ -56,8 +56,8 @@
     <string name="internal_storage">Internal storage</string>
     <string name="recent">Recent</string>
     <string name="clear_recent">Clear recents</string>
-    <string name="confirm_clear_recent_message">All recent entries will be removed. Continue?</string>
-    <string name="recents_cleared">Recents cleared</string>
+    <string name="confirm_clear_recent_message">All non-pinned recent entries will be removed. Continue?</string>
+    <string name="recents_cleared">Recents cleared (pinned kept)</string>
     <string name="search_files">Search files...</string>
     <string name="filter">Filter</string>
     <string name="searching">Searching...</string>
@@ -67,6 +67,7 @@
     <string name="paste">Paste</string>
     <string name="save_here">Save here</string>
     <string name="send">Send</string>
+    <string name="locate">Locate</string>
     <string name="play">Play</string>
     <string name="move">Move</string>
     <string name="copy">Copy</string>
@@ -77,6 +78,8 @@
     <string name="set_default_app">Set default app</string>
     <string name="set_default_app_short">App</string>
     <string name="select_single_file_for_open_with">Select a single file to use Open with</string>
+    <string name="select_single_file_to_locate">Select a single file to locate</string>
+    <string name="could_not_locate_file">Could not locate file in storage</string>
     <string name="select_single_file_for_default_app">Select a single file to set the default app</string>
     <string name="default_app_set_for_extension">Default app set for %1$s</string>
     <string name="remove_from_recent">Remove from recents</string>
@@ -124,6 +127,7 @@
 
     <string name="items_count">%1$d item(s)</string>
     <string name="today">Today</string>
+    <string name="yesterday">Yesterday</string>
     <string name="unknown_reason">reason unavailable</string>
     <string name="error_with_reason">Error: %1$s</string>
     <string name="error_loading_storage">Error loading storage: %1$s</string>

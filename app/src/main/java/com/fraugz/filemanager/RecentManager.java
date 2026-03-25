@@ -3,6 +3,7 @@ package com.fraugz.filemanager;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -12,8 +13,8 @@ public class RecentManager {
 
     private static final String PREFS = "recent_files";
     private static final String KEY = "paths_ordered";
-    private static final String KEY_EXCLUDED = "excluded_paths";
     private static final String KEY_PINNED = "pinned_paths";
+    private static final String KEY_AUTO_DISCOVERY_SINCE = "auto_discovery_since";
     private static final int MAX = 50;
 
     public static class RecentEntry {
@@ -37,12 +38,6 @@ public class RecentManager {
 
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String cleanPath = path.trim();
-        
-        // Check if path is excluded
-        List<String> excluded = getExcludedPaths(prefs);
-        if (excluded.contains(cleanPath)) {
-            return; // Don't add if it's in the excluded list
-        }
 
         List<RecentEntry> entries = parseOrderedEntries(prefs.getString(KEY, ""), prefs);
 
@@ -56,25 +51,48 @@ public class RecentManager {
         prefs.edit().putString(KEY, joinOrderedEntries(entries)).apply();
     }
 
+    public static boolean mergeAutoDiscovered(Context ctx, List<File> files) {
+        if (files == null || files.isEmpty()) return false;
+
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        List<RecentEntry> entries = parseOrderedEntries(prefs.getString(KEY, ""), prefs);
+        boolean changed = false;
+        long autoDiscoverySince = prefs.getLong(KEY_AUTO_DISCOVERY_SINCE, 0L);
+
+        for (File file : files) {
+            if (file == null || !file.exists() || !file.isFile()) continue;
+            String path = file.getAbsolutePath();
+            if (path.trim().isEmpty()) continue;
+            if (autoDiscoverySince > 0L && file.lastModified() < autoDiscoverySince) continue;
+            if (containsPath(entries, path)) continue;
+
+            boolean isPinned = isPinned(prefs, path);
+            long accessedAt = Math.max(1L, file.lastModified());
+            entries.add(new RecentEntry(path, accessedAt, isPinned));
+            changed = true;
+        }
+
+        if (!changed) return false;
+
+        sortByPinnedAndAccessDesc(entries);
+        if (entries.size() > MAX) {
+            entries = new ArrayList<>(entries.subList(0, MAX));
+        }
+        prefs.edit().putString(KEY, joinOrderedEntries(entries)).apply();
+        return true;
+    }
+
     public static List<RecentEntry> getEntries(Context ctx) {
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         String raw = prefs.getString(KEY, null);
-        List<String> excluded = getExcludedPaths(prefs);
-        
+
         if (raw != null) {
             List<RecentEntry> parsed = parseOrderedEntries(raw, prefs);
-            // Filter out excluded entries
-            List<RecentEntry> filtered = new ArrayList<>();
-            for (RecentEntry entry : parsed) {
-                if (!excluded.contains(entry.path)) {
-                    filtered.add(entry);
-                }
-            }
-            sortByPinnedAndAccessDesc(filtered);
+            sortByPinnedAndAccessDesc(parsed);
             if (!parsed.isEmpty() && !raw.equals(joinOrderedEntries(parsed))) {
                 prefs.edit().putString(KEY, joinOrderedEntries(parsed)).apply();
             }
-            return filtered;
+            return parsed;
         }
 
         // Legacy migration from StringSet based storage.
@@ -86,7 +104,7 @@ public class RecentManager {
                 String p = migrated.get(i);
                 if (p == null) continue;
                 String clean = p.trim();
-                if (clean.isEmpty() || excluded.contains(clean)) continue;
+                if (clean.isEmpty()) continue;
                 out.add(new RecentEntry(clean, now - i, false));
             }
             sortByPinnedAndAccessDesc(out);
@@ -105,8 +123,32 @@ public class RecentManager {
     }
 
     public static void clear(Context ctx) {
-        // Clear everything including excluded list when user clears all recents
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply();
+        clearUnpinned(ctx);
+    }
+
+    public static void clearUnpinned(Context ctx) {
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        List<RecentEntry> entries = parseOrderedEntries(prefs.getString(KEY, ""), prefs);
+        List<RecentEntry> pinnedEntries = new ArrayList<>();
+        List<String> pinnedPaths = getPinnedPaths(prefs);
+
+        for (RecentEntry entry : entries) {
+            if (entry.isPinned) {
+                pinnedEntries.add(entry);
+            }
+        }
+
+        List<String> validPinned = new ArrayList<>();
+        for (RecentEntry entry : pinnedEntries) {
+            validPinned.add(entry.path);
+        }
+
+        // Keep only currently pinned entries in both ordered list and pinned registry.
+        prefs.edit()
+                .putString(KEY, joinOrderedEntries(pinnedEntries))
+                .putString(KEY_PINNED, joinLines(validPinned))
+            .putLong(KEY_AUTO_DISCOVERY_SINCE, System.currentTimeMillis())
+                .apply();
     }
 
     public static void remove(Context ctx, String path) {
@@ -116,15 +158,11 @@ public class RecentManager {
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         List<RecentEntry> entries = parseOrderedEntries(prefs.getString(KEY, ""), prefs);
         removePath(entries, target);
+        List<String> pinned = getPinnedPaths(prefs);
+        pinned.remove(target);
+        savePinnedPaths(prefs, pinned);
         sortByPinnedAndAccessDesc(entries);
-        
-        // Add to excluded list so it doesn't reappear
-        List<String> excluded = getExcludedPaths(prefs);
-        if (!excluded.contains(target)) {
-            excluded.add(target);
-            saveExcludedPaths(prefs, excluded);
-        }
-        
+
         prefs.edit().putString(KEY, joinOrderedEntries(entries)).apply();
     }
 
@@ -222,29 +260,6 @@ public class RecentManager {
         return out;
     }
 
-    private static List<String> getExcludedPaths(SharedPreferences prefs) {
-        String raw = prefs.getString(KEY_EXCLUDED, "");
-        List<String> out = new ArrayList<>();
-        if (!raw.isEmpty()) {
-            for (String line : raw.split("\\n")) {
-                String trimmed = line.trim();
-                if (!trimmed.isEmpty()) {
-                    out.add(trimmed);
-                }
-            }
-        }
-        return out;
-    }
-
-    private static void saveExcludedPaths(SharedPreferences prefs, List<String> excluded) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < excluded.size(); i++) {
-            if (i > 0) sb.append('\n');
-            sb.append(excluded.get(i));
-        }
-        prefs.edit().putString(KEY_EXCLUDED, sb.toString()).apply();
-    }
-
     private static List<String> getPinnedPaths(SharedPreferences prefs) {
         String raw = prefs.getString(KEY_PINNED, "");
         List<String> out = new ArrayList<>();
@@ -260,12 +275,7 @@ public class RecentManager {
     }
 
     private static void savePinnedPaths(SharedPreferences prefs, List<String> pinned) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < pinned.size(); i++) {
-            if (i > 0) sb.append('\n');
-            sb.append(pinned.get(i));
-        }
-        prefs.edit().putString(KEY_PINNED, sb.toString()).apply();
+        prefs.edit().putString(KEY_PINNED, joinLines(pinned)).apply();
     }
 
     private static boolean isPinned(SharedPreferences prefs, String path) {
@@ -290,6 +300,15 @@ public class RecentManager {
             if (i > 0) sb.append('\n');
             RecentEntry e = entries.get(i);
             sb.append(e.path).append('\t').append(e.accessedAt);
+        }
+        return sb.toString();
+    }
+
+    private static String joinLines(List<String> items) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < items.size(); i++) {
+            if (i > 0) sb.append('\n');
+            sb.append(items.get(i));
         }
         return sb.toString();
     }

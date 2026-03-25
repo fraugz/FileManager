@@ -19,6 +19,13 @@
 
     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
         android:layout_weight="1" android:orientation="vertical">
+        <TextView android:id="@+id/recent_day_header"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginBottom="2dp"
+            android:singleLine="true"
+            android:textColor="#5E6C7A" android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone"/>
         <TextView android:id="@+id/name"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:singleLine="false"
@@ -35,5 +42,16 @@
         android:src="@drawable/ic_more_vert"
         android:tint="#555555"
         android:contentDescription="@string/options"/>
+
+    <ImageView
+        android:id="@+id/pin_badge"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="6dp"
+        android:src="@drawable/ic_pin"
+        android:tint="#FFD54F"
+        android:contentDescription="@string/pin_to_recent"
+        android:visibility="gone"/>
 
 </LinearLayout>

@@ -188,7 +188,7 @@ Published tags:
 
 Suggested next version:
 
-- v1.3.0: Recents now supports pin/unpin (with visual indicator) and keeps manually removed items excluded until clear recents; shared-text save flow now asks for custom file name/type before creating the file; horizontal swipe between Recents and Storage follows the finger smoothly; and the Open picker label was simplified to More apps.
+- v1.3.0: Recents was redesigned to match Storage list/selection UX, then refined to Locate/Pin/Info actions (single select) and Pin/Info (multi-select), with Locate jumping to Storage and selecting the target file; includes visible pin badge, access-date ordering with day separators, clear-recents preserving pinned items, and a safeguard so auto-discovery does not repopulate old files after clearing; delete confirmation order was improved (Cancel, Delete permanently, Move to trash) with destructive emphasis; More apps now follows the same base filtering strategy as add-extension selection; storage header controls were compacted next to the title with a Home shortcut; breadcrumb now uses full width with side margins and wraps only when needed; plus shared-text save now asks for custom name/type before creating the file, horizontal swipe between Recents and Storage follows the finger smoothly, and the Open picker label was simplified to More apps.
 
 ## Recommended Testing
 
