@@ -1665,54 +1665,18 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             return;
         }
 
-        final String[] options = new String[]{
-                getString(R.string.cancel),
-                getString(R.string.delete_forever),
-                getString(R.string.move_to_trash)
-        };
-
-        BaseAdapter optionAdapter = new BaseAdapter() {
-            @Override
-            public int getCount() {
-                return options.length;
-            }
-
-            @Override
-            public Object getItem(int position) {
-                return options[position];
-            }
-
-            @Override
-            public long getItemId(int position) {
-                return position;
-            }
-
-            @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
-                TextView tv = convertView instanceof TextView ? (TextView) convertView : new TextView(MainActivity.this);
-                tv.setText(options[position]);
-                tv.setPadding(dp(24), dp(14), dp(24), dp(14));
-                tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
-                if (position == 1) {
-                    tv.setTextColor(0xFFD32F2F);
-                } else {
-                    tv.setTextColor(isDark ? 0xFFFFFFFF : 0xFF1C1C1E);
-                }
-                return tv;
-            }
-        };
-
-        new AlertDialog.Builder(this)
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(getString(R.string.confirm_delete_selected_message, sel.size()))
-                .setAdapter(optionAdapter, (dialog, which) -> {
-                    if (which == 1) {
-                        showDeleteForeverWarningForSelection(sel);
-                    } else if (which == 2) {
-                        runDeleteSelectionWithProgress(sel, false);
-                    }
-                })
-                .show();
+                .setNegativeButton(R.string.cancel, null)
+                .setNeutralButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSelection(sel))
+                .setPositiveButton(R.string.move_to_trash, (d, w) -> runDeleteSelectionWithProgress(sel, false))
+                .create();
+        dialog.setOnShowListener(d -> {
+            Button deleteForever = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+            if (deleteForever != null) deleteForever.setTextColor(0xFFD32F2F);
+        });
+        dialog.show();
     }
 
     private void showDeleteForeverWarningForSelection(List<File> sel) {
@@ -3248,9 +3212,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     // ─────────────────────── FILE OPS ────────────────────────────────
 
     private void moveToTrash(File file) {
-        new AlertDialog.Builder(this)
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(getString(R.string.confirm_delete_single_message, file.getName()))
+                .setNegativeButton(R.string.cancel, null)
+                .setNeutralButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSingle(file))
                 .setPositiveButton(R.string.move_to_trash, (d, w) -> {
                     if (TrashManager.moveToTrash(this, file)) {
                         loadDirectory(currentDir);
@@ -3261,9 +3227,12 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         toast(getString(R.string.error_moving_to_trash, reason));
                     }
                 })
-                .setNeutralButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSingle(file))
-                .setNegativeButton(R.string.cancel, null)
-                .show();
+                .create();
+        dialog.setOnShowListener(d -> {
+            Button deleteForever = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+            if (deleteForever != null) deleteForever.setTextColor(0xFFD32F2F);
+        });
+        dialog.show();
     }
 
     private void showDeleteForeverWarningForSingle(File file) {
