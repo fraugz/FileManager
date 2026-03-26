@@ -17,6 +17,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.OpenableColumns;
 import android.provider.Settings;
+import android.provider.DocumentsContract;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -1538,7 +1539,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         boolean isRecentTab = currentTab == TAB_RECENT;
         boolean hasSingleFile = sel.size() == 1 && sel.get(0).isFile();
         boolean showPlay = sel.size() > 1 && areAllPlayableFiles(sel);
-        boolean showInfo = isRecentTab ? !sel.isEmpty() : sel.size() == 1;
+        boolean showInfo = !isRecentTab || sel.size() == 1;
         boolean showRename = isRecentTab ? false : sel.size() == 1;
         boolean showLocate = isRecentTab && hasSingleFile;
         boolean showPin = isRecentTab && !sel.isEmpty();
@@ -1782,19 +1783,42 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
         try {
             ArrayList<Uri> uris = new ArrayList<>();
+            int directoryCount = 0;
             for (File f : sel) {
-                if (f.isFile()) {
+                if (f.exists()) {
+                    if (f.isDirectory()) directoryCount++;
                     uris.add(FileProvider.getUriForFile(this, getPackageName() + ".provider", f));
                 }
             }
             if (uris.isEmpty()) {
-                toast(getString(R.string.only_files_can_be_shared));
+                toast(getString(R.string.error_sharing_selection));
                 return;
             }
 
-            Intent i = new Intent(Intent.ACTION_SEND_MULTIPLE);
-            i.setType("*/*");
-            i.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+            Intent i;
+            if (uris.size() == 1) {
+                i = new Intent(Intent.ACTION_SEND);
+                i.putExtra(Intent.EXTRA_STREAM, uris.get(0));
+                if (directoryCount == 1) {
+                    i.setType(DocumentsContract.Document.MIME_TYPE_DIR);
+                } else {
+                    i.setType("*/*");
+                }
+            } else {
+                i = new Intent(Intent.ACTION_SEND_MULTIPLE);
+                i.setType("*/*");
+                i.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+            }
+            if (!uris.isEmpty()) {
+                ClipData clipData = new ClipData(
+                        new ClipDescription("shared_items", new String[]{"*/*"}),
+                        new ClipData.Item(uris.get(0))
+                );
+                for (int idx = 1; idx < uris.size(); idx++) {
+                    clipData.addItem(new ClipData.Item(uris.get(idx)));
+                }
+                i.setClipData(clipData);
+            }
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             startActivity(Intent.createChooser(i, getString(R.string.share_via)));
         } catch (Exception e) {
