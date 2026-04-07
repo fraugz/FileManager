@@ -614,7 +614,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setClickSafe(R.id.action_play,           v -> handleSecondaryAction());
         setClickSafe(R.id.action_move,           v -> markSelectionForMove());
         setClickSafe(R.id.action_copy,           v -> copySelection());
-        setClickSafe(R.id.action_delete,         v -> deleteSelectionToTrash());
+        setClickSafe(R.id.action_delete,         v -> handleDeleteAction());
         setClickSafe(R.id.action_rename,         v -> renameSelection());
         setClickSafe(R.id.action_info,           v -> showInfoForSelection());
 
@@ -1573,7 +1573,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
         View deleteAction = findViewById(R.id.action_delete);
         if (deleteAction != null) {
-            deleteAction.setVisibility(isRecentTab ? View.GONE : (selectionMode ? View.VISIBLE : View.GONE));
+            deleteAction.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
         }
 
         View moveAction = findViewById(R.id.action_move);
@@ -1601,7 +1601,44 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (actionPlayIcon != null) {
             actionPlayIcon.setImageResource(isRecentTab ? R.drawable.ic_pin : R.drawable.ic_action_play);
         }
+        if (actionDeleteLabel != null) {
+            actionDeleteLabel.setText(isRecentTab ? R.string.remove_from_recent : R.string.delete);
+        }
         updateInlineSelectAllVisual();
+    }
+
+    private void handleDeleteAction() {
+        if (currentTab == TAB_RECENT) {
+            removeSelectedFromRecent();
+            return;
+        }
+        deleteSelectionToTrash();
+    }
+
+    private void removeSelectedFromRecent() {
+        List<File> sel = getSelectedFiles();
+        if (sel.isEmpty()) {
+            toast(getString(R.string.no_items_selected));
+            return;
+        }
+
+        int removed = 0;
+        for (File file : sel) {
+            if (file == null) continue;
+            String path = file.getAbsolutePath();
+            if (path == null || path.trim().isEmpty()) continue;
+            RecentManager.remove(this, path);
+            removed++;
+        }
+
+        if (removed == 1) {
+            toast(getString(R.string.removed_from_recent));
+        } else if (removed > 1) {
+            toast(getString(R.string.removed_from_recent_count, removed));
+        }
+
+        loadRecentFiles();
+        exitSelectionMode();
     }
 
     private void showInfoForSelection() {

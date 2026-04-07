@@ -186,9 +186,7 @@ Published tags:
 - v1.2.8: smarter temporary playlist names for multi-file playback, FileManager added as Android share target with Save here import flow, and moved files are now removed from Recents at their previous path.
 - v1.2.9: app name localized by system language (File Manager / Gestor Archivos), Open app picker expanded to a second step with an additional System apps button, Info action added to selection bar (single item, including folders), Rename hidden for multi-selection, plus new Quick Guide links (EN/ES) and direct project GitHub link in Settings.
 
-Suggested next version:
-
-- v1.3.0: Recents was redesigned to match Storage list/selection UX, then refined to Locate/Pin/Info actions (single select) and Pin-only action on multi-select (Info hidden for 2+ items), with Locate jumping to Storage and selecting the target file; includes visible pin badge, access-date ordering with day separators, clear-recents preserving pinned items, and a safeguard so auto-discovery does not repopulate old files after clearing; delete confirmation order was improved (Cancel, Delete permanently, Move to trash) with destructive emphasis; More apps now follows the same base filtering strategy as add-extension selection; storage header controls were compacted next to the title with a Home shortcut; breadcrumb now uses full width with side margins and wraps only when needed; Send from Storage now also supports folder selection and opens compatible apps from chooser; plus shared-text save now asks for custom name/type before creating the file, horizontal swipe between Recents and Storage follows the finger smoothly, and the Open picker label was simplified to More apps.
+- v1.3.0: Recents was redesigned to match Storage list/selection UX, then refined to Locate/Pin/Info actions (single select) and Pin/Remove-from-recents actions on multi-select (Info hidden for 2+ items), with direct remove-from-recents support for one or multiple selected items, with Locate jumping to Storage and selecting the target file; includes visible pin badge, access-date ordering with day separators, clear-recents preserving pinned items, and a safeguard so auto-discovery does not repopulate old files after clearing; delete confirmation order was improved (Cancel, Delete permanently, Move to trash) with destructive emphasis; More apps now follows the same base filtering strategy as add-extension selection; storage header controls were compacted next to the title with a Home shortcut; breadcrumb now uses full width with side margins and wraps only when needed; Send from Storage now also supports folder selection and opens compatible apps from chooser; plus shared-text save now asks for custom name/type before creating the file, horizontal swipe between Recents and Storage follows the finger smoothly, and the Open picker label was simplified to More apps.
 
 ## Recommended Testing
 
@@ -237,3 +235,4 @@ Minimum checklist before release:
 - Make small and focused commits.
 - Include screenshots for visual changes.
 - Describe how you validated changes before opening a PR.
+
