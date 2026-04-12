@@ -17,3 +17,6 @@ Thumbs.db
 # Logs and temp
 *.log
 *.tmp
+
+# Release assets (binaries for GitHub Releases)
+release-assets/

@@ -28,6 +28,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.DecelerateInterpolator;
+import android.view.inputmethod.InputMethodManager;
 import android.webkit.MimeTypeMap;
 import android.widget.BaseAdapter;
 import android.widget.Button;
@@ -4009,6 +4010,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             cancelRecursiveSearch(false);
             searchBar.setVisibility(View.GONE);
             if (searchInput != null) searchInput.setText("");
+            // Hide keyboard
+            if (searchInput != null) {
+                InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                if (imm != null) imm.hideSoftInputFromWindow(searchInput.getWindowToken(), 0);
+            }
             if (currentTab == TAB_RECENT) {
                 loadRecentFiles();
             } else if (currentDir != null) {
@@ -4016,7 +4022,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             }
         } else {
             searchBar.setVisibility(View.VISIBLE);
-            if (searchInput != null) searchInput.requestFocus();
+            if (searchInput != null) {
+                searchInput.requestFocus();
+                // Show keyboard automatically
+                searchInput.postDelayed(() -> {
+                    InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                    if (imm != null) imm.showSoftInput(searchInput, InputMethodManager.SHOW_IMPLICIT);
+                }, 100);
+            }
         }
     }
 
