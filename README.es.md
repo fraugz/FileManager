@@ -1,69 +1,127 @@
-# FileManager
+# GestorArchivos / FileManager
 
-Aplicacion Android de gestion de archivos con interfaz moderna, papelera, vista de recientes, miniaturas ligeras y localizacion bilingue (espanol/ingles).
+> Un gestor de archivos Android limpio y ligero, con papelera, previsualizaciones ricas, archivos recientes e interfaz bilingüe.
 
-## Idioma
+[![Release](https://img.shields.io/github/v/release/fraugz/FileManager)](https://github.com/fraugz/FileManager/releases/latest)
+[![Android](https://img.shields.io/badge/Android-7.0%2B-green)](https://github.com/fraugz/FileManager/releases/latest)
+[![License](https://img.shields.io/github/license/fraugz/FileManager)](LICENSE)
+[![Language](https://img.shields.io/badge/language-Java-orange)](https://github.com/fraugz/FileManager/search?l=java)
 
-| Idioma | Documento |
-| --- | --- |
-| Ingles | [README.md](README.md) |
-| Espanol | [README.es.md](README.es.md) |
+---
 
-## Contents
+| Idioma   | Documento |
+|----------|-----------|
+| English  | [README.md](README.md) |
+| Español  | [README.es.md](README.es.md) |
 
-- [Descripcion general](#descripcion-general)
-- [Funciones principales](#funciones-principales)
-- [Stack tecnico](#stack-tecnico)
-- [Requisitos](#requisitos)
-- [Compilacion y ejecucion](#compilacion-y-ejecucion)
-- [Configuracion](#configuracion)
-- [Comportamiento de la aplicacion](#comportamiento-de-la-aplicacion)
-- [Estructura del proyecto](#estructura-del-proyecto)
-- [Versiones y changelog](#versiones-y-changelog)
-- [Testing recomendado](#testing-recomendado)
-- [Problemas comunes](#problemas-comunes)
-- [Roadmap](#roadmap)
-- [Contribuir](#contribuir)
+---
 
-## Descripcion general
+## Capturas de pantalla
 
-FileManager permite navegar almacenamiento interno, buscar archivos, gestionar papelera y abrir archivos con apps externas recordando preferencias de apertura.
+<p align="center">
+  <img src="screenshots/1_storage_dark.jpg" width="160"/>
+  <img src="screenshots/2_recents_dark.jpg" width="160"/>
+  <img src="screenshots/3_multiselect_light.jpg" width="160"/>
+  <img src="screenshots/4_trash_light.jpg" width="160"/>
+  <img src="screenshots/6_breadcrumb_light.jpg" width="160"/>
+</p>
+<p align="center">
+  <img src="screenshots/5_settings_dark_es.jpg" width="160"/>
+  <img src="screenshots/5_settings_light_en.jpg" width="160"/>
+</p>
 
-## Funciones principales
+---
 
-- Navegacion por carpetas con breadcrumb.
-- Busqueda con carga incremental y cancelacion.
-- Vista de recientes ordenada por ultimo acceso.
-- Cuando un fichero se mueve a otra ruta, la entrada de la ruta anterior se elimina de Recientes.
-- Gestos de deslizamiento horizontal para cambiar entre las vistas Recientes y Archivos.
-- Gesto de arrastrar hacia abajo en la vista Archivos para refrescar el directorio actual.
-- Acciones rapidas en Recientes:
-  - limpiar todos los recientes con confirmacion
-  - pulsacion prolongada en un fichero reciente para definir App por defecto o Quitar de recientes
-- Renombrado con control de extension (nombre completo o solo nombre), sin preseleccion forzada en el campo.
-- Acciones en multiseleccion: copiar, mover, compartir y enviar a papelera.
-- Destino de compartir entrante: FileManager aparece en la hoja de compartir de Android y permite navegar hasta la carpeta destino antes de guardar archivos compartidos.
-- La barra de acciones de seleccion incluye accion directa de App por defecto cuando hay exactamente un fichero seleccionado.
-- Papelera con restauracion y borrado permanente.
-- Previsualizaciones enriquecidas con cache: miniaturas de imagen, frame de video, cover embebido en audio, icono de APK y fallback al icono de la app configurada cuando no hay preview.
-- Los nombres largos de fichero se muestran en tantas lineas como haga falta en Archivos y Recientes.
-- Ajustes de apariencia: tema, escala UI e idioma.
-- Gestion de apps predeterminadas para apertura de archivos.
+## Funcionalidades
 
-## Stack tecnico
+- 📁 Navegación por carpetas con breadcrumb y acceso directo al inicio
+- 🕐 Archivos recientes ordenados por fecha de acceso, con separadores de día y soporte de anclaje
+- ☑️ Selección múltiple con acciones de copiar, mover, compartir, eliminar e información
+- 🗑️ Papelera con restauración y eliminación permanente
+- 🖼️ Previsualizaciones ricas: miniaturas de imágenes, fotogramas de vídeo, portadas de audio, iconos de APK
+- 🔍 Búsqueda incremental con cancelación
+- 📤 Destino de compartir: recibe archivos de otras apps y guárdalos en cualquier carpeta
+- 🎨 Ajustes de apariencia: tema oscuro/claro, escala de interfaz (4 tamaños), idioma
+- 🌐 Soporte bilingüe completo: español e inglés
+- 📱 Android 7.0 mínimo (API 24)
 
-- Lenguaje: Java
-- Plataforma: Android
-- Build: Gradle (Android Application plugin)
-- UI: AppCompat, RecyclerView, SwipeRefreshLayout
-- Min SDK: 24
-- Target SDK: 34
-- Namespace/ApplicationId: com.fraugz.filemanager
+---
 
-## Requisitos
+## Descarga
 
-- Android Studio actualizado
-- JDK compatible con Android Gradle Plugin
+**[⬇️ Descargar último APK](https://github.com/fraugz/FileManager/releases/latest)**
+
+> Envío a F-Droid planificado.
+
+---
+
+## Inicio rápido
+
+¿Nuevo en FileManager? Consulta la **[Guía Rápida](QUICK_GUIDE.es.md)** para tareas comunes y consejos.
+
+---
+
+## Compilar desde el código fuente
+
+### Android Studio (recomendado)
+
+1. Clona el repositorio.
+2. Abre el proyecto en Android Studio.
+3. Espera a que Gradle sincronice.
+4. Ejecuta en un dispositivo o emulador (API 24+).
+
+### Línea de comandos
+
+> **Nota:** Este repositorio no incluye el wrapper de Gradle (`gradlew`/`gradlew.bat`). Usa una instalación local de Gradle o genera los archivos del wrapper.
+
+```bash
+gradle :app:assembleDebug
+```
+
+Salida: `app/build/outputs/apk/debug/app-debug.apk`
+
+**Requisitos:** Android Studio, JDK compatible con AGP, Android SDK 34.
+
+---
+
+## Feedback y comunidad
+
+¿Encontraste un bug o tienes una idea? Hay tres formas de contactar:
+
+- 🐛 **Bug o crash** → [Abre un Issue](https://github.com/fraugz/FileManager/issues) con los pasos para reproducirlo
+- 💡 **Ideas o preguntas** → [Únete a las Discussions](https://github.com/fraugz/FileManager/discussions)
+- 📬 **Contacto directo** → [satin-speed-friday@duck.com](mailto:satin-speed-friday@duck.com)
+
+Todo el feedback es bienvenido — el proyecto está en desarrollo activo.
+
+---
+
+## Hoja de ruta
+
+- Migración a Storage Access Framework para mejor compatibilidad con Android 11+
+- Vista dual: lista y cuadrícula con ordenación persistente
+- Previsualizaciones en la propia app (PDF, vídeo, texto)
+- Favoritos y colecciones inteligentes (Descargas, Imágenes, Documentos)
+- Tests de UI instrumentados para flujos críticos
+- Mejora de accesibilidad: descripciones de contenido, contraste, navegación por teclado
+
+---
+
+## Contribuir
+
+- Abre un issue con contexto y pasos de reproducción
+- Una rama por función o corrección
+- Commits pequeños y enfocados
+- Incluye capturas para cambios visuales
+- Describe cómo validaste los cambios antes de abrir un PR
+
+Para detalles técnicos e información de desarrollo, consulta **[DEVELOPMENT.md](DEVELOPMENT.md)**.
+
+---
+
+## Licencia
+
+Distribuido bajo la licencia MIT. Consulta [LICENSE](LICENSE) para más detalles.
 - Android SDK 34 instalado
 - Dispositivo Android o emulador (API 24+)
 
