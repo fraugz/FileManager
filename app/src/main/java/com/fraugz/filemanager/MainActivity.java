@@ -3332,6 +3332,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 preferred.setDataAndType(uri, mime);
                 preferred.setPackage(preferredPackage);
                 preferred.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                attachSiblingImagesIfNeeded(preferred, file, uri, mime);
                 try {
                     startActivity(preferred);
                     return;
@@ -3343,10 +3344,44 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             Intent i = new Intent(Intent.ACTION_VIEW);
             i.setDataAndType(uri, mime);
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            attachSiblingImagesIfNeeded(i, file, uri, mime);
 
             captureDefaultHandler(i, file);
             startActivity(i);
         } catch (Exception e) { Log.e(TAG, "openFile", e); toast(getString(R.string.cannot_open_file, file.getName())); }
+    }
+
+    /**
+     * When opening an image file, attaches all sibling images from the same directory
+     * as ClipData extras. Gallery apps that support this pattern (Simple Gallery, etc.)
+     * use it to enable swiping between images. Apps that don't support it open only the
+     * primary URI, so there is no regression for other apps.
+     */
+    private void attachSiblingImagesIfNeeded(Intent intent, File file, Uri primaryUri, String mime) {
+        if (mime == null || !mime.startsWith("image/")) return;
+        File dir = file.getParentFile();
+        if (dir == null) return;
+
+        File[] siblings = dir.listFiles(f -> {
+            if (!f.isFile()) return false;
+            String m = getMimeType(f);
+            return m.startsWith("image/");
+        });
+        if (siblings == null || siblings.length <= 1) return;
+
+        java.util.Arrays.sort(siblings, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+
+        ClipData clip = new ClipData(new ClipDescription("images", new String[]{"image/*"}),
+                new ClipData.Item(primaryUri));
+        for (File sibling : siblings) {
+            if (sibling.getName().equals(file.getName())) continue;
+            try {
+                Uri sibUri = FileProvider.getUriForFile(this, getPackageName() + ".provider", sibling);
+                clip.addItem(new ClipData.Item(sibUri));
+            } catch (Exception ignored) {}
+        }
+        intent.setClipData(clip);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
     }
 
     private void confirmAndInstallApk(File file) {
