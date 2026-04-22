@@ -272,13 +272,36 @@ public class SettingsActivity extends AppCompatActivity {
             labels.add(row.extension + "\n" + row.packageName);
         }
 
-        new AlertDialog.Builder(this)
+        // Cap the list at 5 visible items so dialog buttons are never cut off.
+        // Heights are calculated from item count to avoid unreliable pre-layout measurement.
+        float density = getResources().getDisplayMetrics().density;
+        // Each item uses simple_list_item_1 with 2 lines of text (~64 dp per row).
+        int itemHeightPx = Math.round(64 * density);
+        int listHeightPx = labels.size() > 4
+                ? Math.round(5 * 64 * density)   // cap: 5 rows visible, rest scrollable
+                : android.widget.FrameLayout.LayoutParams.WRAP_CONTENT;
+        android.widget.ListView listView = new android.widget.ListView(this);
+        listView.setAdapter(new android.widget.ArrayAdapter<>(this,
+                android.R.layout.simple_list_item_1, labels));
+        android.widget.FrameLayout container = new android.widget.FrameLayout(this);
+        android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT, listHeightPx);
+        container.addView(listView, lp);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
             .setTitle(R.string.default_apps_title)
-                .setItems(labels.toArray(new String[0]), (d, which) -> showDefaultAppItemActions(entries.get(which)))
+            .setView(container)
             .setNeutralButton(R.string.clear_all, (d, w) -> confirmClearAllDefaultApps())
             .setNegativeButton(R.string.add_extension_app, (d, w) -> showAddExtensionDefaultAppDialog())
             .setPositiveButton(R.string.close, null)
-                .show();
+            .create();
+
+        listView.setOnItemClickListener((parent, view, which, id) -> {
+            dialog.dismiss();
+            showDefaultAppItemActions(entries.get(which));
+        });
+
+        dialog.show();
     }
 
     private void showAddExtensionDefaultAppDialog() {

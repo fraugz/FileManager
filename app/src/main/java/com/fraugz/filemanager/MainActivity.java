@@ -488,6 +488,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (!storageActive && adapter != null && adapter.isSelectionMode()) {
             exitSelectionMode();
         }
+        if (storageActive && recentListAdapter != null && recentListAdapter.isSelectionMode()) {
+            exitSelectionMode();
+        }
     }
 
     private void animateToTabBySwipe(int tab, boolean swipeLeft) {
@@ -1709,12 +1712,12 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(getString(R.string.confirm_delete_selected_message, sel.size()))
+                .setPositiveButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSelection(sel))
                 .setNegativeButton(R.string.cancel, null)
-                .setNeutralButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSelection(sel))
-                .setPositiveButton(R.string.move_to_trash, (d, w) -> runDeleteSelectionWithProgress(sel, false))
+                .setNeutralButton(R.string.move_to_trash, (d, w) -> runDeleteSelectionWithProgress(sel, false))
                 .create();
         dialog.setOnShowListener(d -> {
-            Button deleteForever = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+            Button deleteForever = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
             if (deleteForever != null) deleteForever.setTextColor(0xFFD32F2F);
         });
         dialog.show();
@@ -3276,12 +3279,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     // ─────────────────────── FILE OPS ────────────────────────────────
 
     private void moveToTrash(File file) {
+        // When buttons stack vertically the order is Positive (top) → Negative → Neutral (bottom).
+        // Desired order: Eliminar definitivamente / Cancelar / Mover a la papelera.
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.confirm_delete_title)
                 .setMessage(getString(R.string.confirm_delete_single_message, file.getName()))
+                .setPositiveButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSingle(file))
                 .setNegativeButton(R.string.cancel, null)
-                .setNeutralButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSingle(file))
-                .setPositiveButton(R.string.move_to_trash, (d, w) -> {
+                .setNeutralButton(R.string.move_to_trash, (d, w) -> {
                     if (TrashManager.moveToTrash(this, file)) {
                         loadDirectory(currentDir);
                         toast(getString(R.string.moved_to_trash_done));
@@ -3293,7 +3298,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 })
                 .create();
         dialog.setOnShowListener(d -> {
-            Button deleteForever = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+            Button deleteForever = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
             if (deleteForever != null) deleteForever.setTextColor(0xFFD32F2F);
         });
         dialog.show();
