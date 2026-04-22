@@ -71,7 +71,7 @@
     <string name="no_app_available">No hay ninguna app disponible para abrir estos ficheros</string>
     <string name="searching">Buscando...</string>
     <string name="loading">Cargando...</string>
-    <string name="trash_total_size">Tamano total en papelera: %1$s</string>
+    <string name="trash_total_size">Tamaño total en papelera: %1$s</string>
     <string name="empty_folder">Esta carpeta está vacía</string>
     <string name="recent_empty">Los ficheros recientes aparecerán aquí</string>
     <string name="paste">Pegar</string>
@@ -136,6 +136,19 @@
     <string name="restart">Reiniciar</string>
 
     <string name="items_count">%1$d elementos</string>
+    <string name="items_count_with_trash">%1$d elemento(s) · %2$d en papelera</string>
+    <string name="system_trash_section">Papelera del sistema</string>
+    <string name="app_trash_section">Papelera de la app</string>
+    <string name="system_trash_restore_failed">No se pudo restaurar: el archivo puede haber sido movido</string>
+    <string name="empty_trash_message_both">Se eliminarán permanentemente %1$d elemento(s) de la papelera de la app y %2$d de la papelera del sistema.</string>
+    <string name="empty_trash_message_system">Se eliminarán permanentemente %1$d elemento(s) de la papelera del sistema.</string>
+    <string name="trash_empty_section">Vacía</string>
+    <string name="trash_info_app">La papelera de la app almacena archivos eliminados desde esta app. Los elementos se conservan 30 días y pueden restaurarse a su ubicación original.</string>
+    <string name="trash_info_system">La papelera del sistema contiene archivos eliminados por otras apps usando el mecanismo de papelera nativo de Android. Se almacenan como archivos ocultos .trashed-* en su carpeta original.</string>
+    <string name="path">Ruta</string>
+    <string name="trash_days_left">%1$d día(s) restante(s)</string>
+    <string name="trash_expires_today">Se borra hoy</string>
+    <string name="trash_expires">Borrado automático</string>
     <string name="today">Hoy</string>
     <string name="yesterday">Ayer</string>
     <string name="unknown_reason">motivo no disponible</string>

@@ -127,6 +127,19 @@
     <string name="restart">Restart</string>
 
     <string name="items_count">%1$d item(s)</string>
+    <string name="items_count_with_trash">%1$d item(s) · %2$d in trash</string>
+    <string name="system_trash_section">System trash</string>
+    <string name="app_trash_section">App trash</string>
+    <string name="system_trash_restore_failed">Could not restore: file may have been moved</string>
+    <string name="empty_trash_message_both">This will permanently delete %1$d item(s) from the app trash and %2$d from the system trash.</string>
+    <string name="empty_trash_message_system">This will permanently delete %1$d item(s) from the system trash.</string>
+    <string name="trash_empty_section">Empty</string>
+    <string name="trash_info_app">The app trash stores files deleted from within this app. Items are kept for 30 days and can be restored to their original location.</string>
+    <string name="trash_info_system">The system trash contains files deleted by other apps using Android\'s native trash mechanism. These are stored as hidden .trashed-* files in their original folder.</string>
+    <string name="path">Path</string>
+    <string name="trash_days_left">%1$d day(s) left</string>
+    <string name="trash_expires_today">Deletes today</string>
+    <string name="trash_expires">Auto-deletes</string>
     <string name="today">Today</string>
     <string name="yesterday">Yesterday</string>
     <string name="unknown_reason">reason unavailable</string>

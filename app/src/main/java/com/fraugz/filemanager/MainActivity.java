@@ -15,9 +15,11 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.provider.Settings;
 import android.provider.DocumentsContract;
+import android.content.ContentUris;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -3322,17 +3324,27 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 return;
             }
 
-            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
             String mime = getMimeType(file);
             String ext = getExtensionKey(file);
+
+            // For images, prefer a MediaStore URI so apps like Google Photos can
+            // navigate to adjacent images in the same album/folder.
+            Uri mediaStoreUri = mime.startsWith("image/") ? getMediaStoreUri(file) : null;
+            Uri uri = mediaStoreUri != null
+                    ? mediaStoreUri
+                    : FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+            int grantFlags = mediaStoreUri != null ? 0 : Intent.FLAG_GRANT_READ_URI_PERMISSION;
 
             String preferredPackage = DefaultAppsManager.getPackageForExtension(this, ext);
             if (preferredPackage != null && !preferredPackage.trim().isEmpty()) {
                 Intent preferred = new Intent(Intent.ACTION_VIEW);
                 preferred.setDataAndType(uri, mime);
                 preferred.setPackage(preferredPackage);
-                preferred.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                attachSiblingImagesIfNeeded(preferred, file, uri, mime);
+                if (grantFlags != 0) preferred.addFlags(grantFlags);
+                if (mediaStoreUri == null) {
+                    Uri providerUri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+                    attachSiblingImagesIfNeeded(preferred, file, providerUri, mime);
+                }
                 try {
                     startActivity(preferred);
                     return;
@@ -3343,12 +3355,36 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
             Intent i = new Intent(Intent.ACTION_VIEW);
             i.setDataAndType(uri, mime);
-            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            attachSiblingImagesIfNeeded(i, file, uri, mime);
+            if (grantFlags != 0) i.addFlags(grantFlags);
+            if (mediaStoreUri == null) {
+                Uri providerUri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+                attachSiblingImagesIfNeeded(i, file, providerUri, mime);
+            }
 
             captureDefaultHandler(i, file);
             startActivity(i);
         } catch (Exception e) { Log.e(TAG, "openFile", e); toast(getString(R.string.cannot_open_file, file.getName())); }
+    }
+
+    /**
+     * Looks up the MediaStore URI for an image file by its absolute path.
+     * Returns null if the file is not indexed in MediaStore yet.
+     */
+    private Uri getMediaStoreUri(File file) {
+        String[] projection = {MediaStore.Images.Media._ID};
+        String selection = MediaStore.Images.Media.DATA + "=?";
+        String[] selectionArgs = {file.getAbsolutePath()};
+        try (Cursor cursor = getContentResolver().query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection, selection, selectionArgs, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
+                return ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "getMediaStoreUri", e);
+        }
+        return null;
     }
 
     /**

@@ -31,12 +31,21 @@ public class FileItem {
 
     public String getFormattedSize(Context context) {
         if (file.isDirectory()) {
-            String[] children = file.list();
-            int count = (children != null) ? children.length : 0;
-            if (context != null) {
-                return context.getString(R.string.items_count, count);
+            File[] children = file.listFiles();
+            int visible = 0;
+            int trashed = 0;
+            if (children != null) {
+                for (File child : children) {
+                    String n = child.getName();
+                    if (n.startsWith(".trashed-")) trashed++;
+                    else if (!n.startsWith(".")) visible++;
+                }
             }
-            return count + " elements";
+            if (context != null) {
+                if (trashed > 0) return context.getString(R.string.items_count_with_trash, visible, trashed);
+                return context.getString(R.string.items_count, visible);
+            }
+            return trashed > 0 ? visible + " item(s) (" + trashed + " in trash)" : visible + " item(s)";
         }
         long size = file.length();
         if (size < 1024) return size + " B";
