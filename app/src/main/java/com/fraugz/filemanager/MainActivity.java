@@ -1508,7 +1508,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 return;
             }
             if (item.isDirectory()) {
-                navigateTo(item.getFile());
+                if (currentTab == TAB_RECENT) {
+                    // Pinned folder in Recents: switch to Storage and navigate into it
+                    exitSelectionMode();
+                    selectTab(TAB_STORAGE);
+                    loadDirectory(item.getFile());
+                } else {
+                    navigateTo(item.getFile());
+                }
             } else {
                 RecentManager.add(this, item.getFile().getAbsolutePath());
                 openFile(item.getFile());
@@ -1763,14 +1770,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         android.app.PendingIntent pi = TrashManager.createSystemTrashRequest(MainActivity.this, publicFiles);
                         if (pi != null) {
                             try {
-                                for (File f : privateFiles) TrashManager.moveToTrash(MainActivity.this, f);
+                                // Delete private files directly (no app trash)
+                                if (!privateFiles.isEmpty()) runDeleteSelectionWithProgress(privateFiles, true);
                                 startIntentSenderForResult(pi.getIntentSender(), REQ_SYSTEM_TRASH, null, 0, 0, 0);
                                 exitSelectionMode();
                                 return;
                             } catch (Exception ignored) {}
                         }
                     }
-                    runDeleteSelectionWithProgress(sel, false);
+                    // System trash unavailable or all private: delete directly
+                    runDeleteSelectionWithProgress(sel, true);
                 })
                 .create();
         dialog.setOnShowListener(d -> {
@@ -2292,22 +2301,34 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void locateSelectedRecentFile() {
         List<File> sel = getSelectedFiles();
-        if (sel.size() != 1 || !sel.get(0).isFile()) {
+        if (sel.size() != 1) {
             toast(getString(R.string.select_single_file_to_locate));
             return;
         }
 
         File target = sel.get(0);
-        File parent = target.getParentFile();
-        if (parent == null || !parent.exists() || !parent.isDirectory()) {
-            toast(getString(R.string.could_not_locate_file));
-            return;
+        if (target.isDirectory()) {
+            // Locate a pinned folder: navigate to its parent and highlight it
+            File parent = target.getParentFile();
+            if (parent == null || !parent.exists() || !parent.isDirectory()) {
+                toast(getString(R.string.could_not_locate_file));
+                return;
+            }
+            pendingLocateFilePath = target.getAbsolutePath();
+            exitSelectionMode();
+            selectTab(TAB_STORAGE);
+            loadDirectory(parent);
+        } else {
+            File parent = target.getParentFile();
+            if (parent == null || !parent.exists() || !parent.isDirectory()) {
+                toast(getString(R.string.could_not_locate_file));
+                return;
+            }
+            pendingLocateFilePath = target.getAbsolutePath();
+            exitSelectionMode();
+            selectTab(TAB_STORAGE);
+            loadDirectory(parent);
         }
-
-        pendingLocateFilePath = target.getAbsolutePath();
-        exitSelectionMode();
-        selectTab(TAB_STORAGE);
-        loadDirectory(parent);
     }
 
     private void togglePinForSelectedRecent() {
@@ -2597,6 +2618,18 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (clipboardFiles.isEmpty() || currentDir == null) {
             toast(getString(R.string.clipboard_empty));
             return;
+        }
+
+        // Guard: prevent copying/moving a folder into itself or one of its subdirectories
+        String dstPath = currentDir.getAbsolutePath();
+        for (File src : clipboardFiles) {
+            if (src.isDirectory()) {
+                String srcPath = src.getAbsolutePath();
+                if (dstPath.equals(srcPath) || dstPath.startsWith(srcPath + java.io.File.separator)) {
+                    toast(getString(R.string.cannot_paste_into_self));
+                    return;
+                }
+            }
         }
 
         final List<File> sources = new ArrayList<>(clipboardFiles);
@@ -3385,13 +3418,12 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                             return;
                         } catch (Exception ignored) {}
                     }
-                    if (TrashManager.moveToTrash(this, file)) {
+                    // System trash unavailable: delete directly
+                    if (FileOperations.delete(file)) {
                         loadDirectory(currentDir);
-                        toast(getString(R.string.moved_to_trash_done));
+                        toast(getString(R.string.deleted_done));
                     } else {
-                        String reason = TrashManager.getLastError();
-                        if (reason == null || reason.trim().isEmpty()) reason = getString(R.string.unknown_reason);
-                        toast(getString(R.string.error_moving_to_trash, reason));
+                        toast(getString(R.string.error_deleting_item));
                     }
                 })
                 .create();

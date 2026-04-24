@@ -173,6 +173,7 @@
     <string name="cut_simple">Cut</string>
     <string name="moved_count">Moved: %1$d</string>
     <string name="clipboard_empty">Clipboard is empty</string>
+    <string name="cannot_paste_into_self">Cannot paste a folder into itself</string>
     <string name="open_folder_to_save_shared">Open a folder to save shared files</string>
     <string name="no_shared_files_pending">No shared files pending</string>
     <string name="shared_file_ready">Shared file ready: %1$s</string>

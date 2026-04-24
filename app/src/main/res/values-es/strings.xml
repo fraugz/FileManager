@@ -182,6 +182,7 @@
     <string name="cut_simple">Cortado</string>
     <string name="moved_count">Movidos: %1$d</string>
     <string name="clipboard_empty">Portapapeles vacío</string>
+    <string name="cannot_paste_into_self">No se puede pegar una carpeta dentro de sí misma</string>
     <string name="open_folder_to_save_shared">Abre una carpeta para guardar los archivos compartidos</string>
     <string name="no_shared_files_pending">No hay archivos compartidos pendientes</string>
     <string name="shared_file_ready">Archivo compartido listo: %1$s</string>
