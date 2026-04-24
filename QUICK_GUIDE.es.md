@@ -22,13 +22,16 @@ Esta guía rápida cubre las acciones más comunes.
 
 ## 4. Recientes
 
-- Abre la pestaña Recientes para ver archivos abiertos recientemente.
+- Abre la pestaña Recientes para ver archivos abiertos recientemente y carpetas visitadas.
 - Mantén pulsado un elemento reciente para acciones rápidas.
 - Limpiar recientes solo borra la lista, no tus archivos.
 
 ## 5. Papelera
 
 - Eliminar envía elementos a la Papelera por defecto.
+- Pulsa un elemento para abrirlo.
+- Mantén pulsado un elemento para seleccionarlo. Pulsa más elementos para añadirlos a la selección.
+- Acciones disponibles con elementos seleccionados: **Restaurar**, **Info** (elemento único), **Eliminar definitivamente**.
 - Puedes restaurar elementos desde la Papelera.
 - Vaciar Papelera elimina definitivamente.
 

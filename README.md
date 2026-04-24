@@ -55,9 +55,14 @@
 
 ---
 
-## Quick Start
+## Documentation
 
-New to FileManager? Check out the **[Quick Guide](QUICK_GUIDE.md)** for common tasks and tips.
+| Document | Description |
+|----------|-------------|
+| [Quick Guide](QUICK_GUIDE.md) | Common tasks and tips for end users |
+| [Quick Guide (ES)](QUICK_GUIDE.es.md) | Tareas comunes y consejos (Spanish) |
+| [Development Guide](DEVELOPMENT.md) | Architecture, behavior, changelog, testing, common issues |
+| [Development Guide (ES)](DEVELOPMENT.es.md) | Same content in Spanish |
 
 ---
 
@@ -104,6 +109,22 @@ All feedback is welcome — the project is actively maintained.
 - Favorites and smart collections (Downloads, Images, Documents)
 - Instrumented UI tests for critical flows
 - Improved accessibility: content descriptions, contrast, keyboard navigation
+
+---
+
+## Versions & changelog
+
+- **v1.3.2** — Critical fix: files now move to app trash instead of being deleted directly. Multi-selection also fixed. Multi-selection support added to Trash screen. Trash thumbnails use original filename for media detection. Visited folders now appear in Recents.
+- **v1.3.1** — Trash screen redesigned with rich thumbnails, tap to open, long-press action bar, always-visible sections, info badge, combined empty confirmation, auto-delete countdown, and delete order changed.
+- **v1.3.0** — Recents redesigned with selection, Locate, Pin, day separators, clear-keeping-pinned, compacted Storage header, breadcrumb full-width, folder sharing, share-text name dialog, smooth swipe.
+- **v1.2.9** — Localized app name, extended Open picker, Info action for single item (including folders), Rename hidden on multi-selection, quick guide and GitHub links in Settings.
+- **v1.2.8** — Smarter playlist names, Save here from share sheet, moved files removed from Recents.
+- **v1.2.7** — Open/default app UX refinements and selection bar adjustments.
+- **v1.2.6** — Multi-play playlists, select-all, paste label, progress bar, cancel long ops, delete-forever confirmation.
+- **v1.2.5** — Default app direct action, searchable app picker, rich previews (audio/video/APK), APK install warning.
+- **v1.2.0–v1.2.4** — Bilingual UI, language selector, stability fixes and incremental UX improvements.
+- **v1.1.0** — Branding and package rename.
+- **v1.0.0** — Initial baseline.
 
 ---
 

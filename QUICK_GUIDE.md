@@ -22,13 +22,16 @@ This quick guide covers the most common actions.
 
 ## 4. Recents
 
-- Open the Recents tab to see recently opened files.
+- Open the Recents tab to see recently opened files and visited folders.
 - Long-press a recent item for quick actions.
 - Clearing recents removes only the list, not your files.
 
 ## 5. Trash
 
 - Deleting sends items to Trash by default.
+- Tap an item to open it.
+- Long-press an item to select it. Tap more items to add to selection.
+- Bottom bar actions when items are selected: **Restore**, **Info** (single item), **Delete forever**.
 - You can restore items from Trash.
 - Empty Trash deletes items permanently.
 

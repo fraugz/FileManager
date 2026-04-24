@@ -848,7 +848,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             recentPinnedByPath.clear();
             for (RecentManager.RecentEntry entry : entries) {
                 File f = new File(entry.path);
-                if (f.exists() && (f.isFile() || entry.isPinned)) {
+                if (f.exists() && (f.isFile() || f.isDirectory())) {
                     files.add(f);
                     recentAccessByPath.put(f.getAbsolutePath(), entry.accessedAt);
                     recentPinnedByPath.put(f.getAbsolutePath(), entry.isPinned);
@@ -1457,6 +1457,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void navigateTo(File dir) {
         backStack.push(currentDir);
+        RecentManager.add(this, dir.getAbsolutePath());
         loadDirectory(dir);
         exitSelectionMode();
     }
@@ -1509,7 +1510,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             }
             if (item.isDirectory()) {
                 if (currentTab == TAB_RECENT) {
-                    // Pinned folder in Recents: switch to Storage and navigate into it
+                    // Folder in Recents: update access time, switch to Storage and navigate into it
+                    RecentManager.add(this, item.getFile().getAbsolutePath());
                     exitSelectionMode();
                     selectTab(TAB_STORAGE);
                     loadDirectory(item.getFile());
@@ -1770,16 +1772,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         android.app.PendingIntent pi = TrashManager.createSystemTrashRequest(MainActivity.this, publicFiles);
                         if (pi != null) {
                             try {
-                                // Delete private files directly (no app trash)
-                                if (!privateFiles.isEmpty()) runDeleteSelectionWithProgress(privateFiles, true);
+                                // Private files go to app trash
+                                if (!privateFiles.isEmpty()) runDeleteSelectionWithProgress(privateFiles, false);
                                 startIntentSenderForResult(pi.getIntentSender(), REQ_SYSTEM_TRASH, null, 0, 0, 0);
                                 exitSelectionMode();
                                 return;
                             } catch (Exception ignored) {}
                         }
                     }
-                    // System trash unavailable or all private: delete directly
-                    runDeleteSelectionWithProgress(sel, true);
+                    // System trash unavailable or all private: move to app trash
+                    runDeleteSelectionWithProgress(sel, false);
                 })
                 .create();
         dialog.setOnShowListener(d -> {
@@ -3420,10 +3422,10 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                             return;
                         } catch (Exception ignored) {}
                     }
-                    // System trash unavailable: delete directly
-                    if (FileOperations.delete(file)) {
+                    // System trash unavailable: move to app trash
+                    if (TrashManager.moveToTrash(this, file)) {
                         loadDirectory(currentDir);
-                        toast(getString(R.string.deleted_done));
+                        toast(getString(R.string.moved_to_trash_done));
                     } else {
                         toast(getString(R.string.error_deleting_item));
                     }

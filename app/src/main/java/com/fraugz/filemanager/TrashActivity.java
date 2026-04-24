@@ -51,7 +51,7 @@ public class TrashActivity extends AppCompatActivity {
 
     // Bottom action bar
     private LinearLayout bottomBar;
-    private Object selectedItem;
+    private final java.util.Set<Object> selectedItems = new java.util.LinkedHashSet<>();
 
     // Thumbnail support
     private final ExecutorService thumbExecutor = Executors.newFixedThreadPool(2);
@@ -173,45 +173,92 @@ public class TrashActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
-    private void showBottomBar(Object item) {
-        selectedItem = item;
-        bottomBar.setVisibility(View.VISIBLE);
+    private void toggleSelection(Object item) {
+        if (selectedItems.contains(item)) {
+            selectedItems.remove(item);
+        } else {
+            selectedItems.add(item);
+        }
+        notifySelectionChanged(item);
+        if (selectedItems.isEmpty()) {
+            bottomBar.setVisibility(View.GONE);
+        } else {
+            bottomBar.setVisibility(View.VISIBLE);
+        }
     }
 
     private void hideBottomBar() {
-        selectedItem = null;
+        List<Object> prev = new ArrayList<>(selectedItems);
+        selectedItems.clear();
         bottomBar.setVisibility(View.GONE);
+        for (Object o : prev) notifySelectionChanged(o);
+    }
+
+    private void notifySelectionChanged(Object item) {
+        if (item == null || recycler.getAdapter() == null) return;
+        int idx = allItems.indexOf(item);
+        if (idx >= 0) recycler.getAdapter().notifyItemChanged(idx);
     }
 
     private void onBottomBarAction(int action) {
-        Object item = selectedItem;
+        List<Object> items = new ArrayList<>(selectedItems);
         hideBottomBar();
-        if (item == null) return;
+        if (items.isEmpty()) return;
+
         if (action == 0) {
-            // Restore
-            if (item instanceof TrashManager.TrashEntry) {
-                TrashManager.TrashEntry e = (TrashManager.TrashEntry) item;
-                if (TrashManager.restore(this, e)) {
-                    Toast.makeText(this, R.string.item_restored, Toast.LENGTH_SHORT).show();
-                } else {
-                    String reason = TrashManager.getLastError();
-                    if (reason == null || reason.trim().isEmpty()) reason = getString(R.string.unknown_reason);
-                    Toast.makeText(this, getString(R.string.restore) + ": " + reason, Toast.LENGTH_LONG).show();
-                }
-                loadTrash();
-            } else if (item instanceof SystemTrashEntry) {
-                restoreSystemEntry((SystemTrashEntry) item);
+            // Restore all selected
+            List<TrashManager.TrashEntry> appEntries = new ArrayList<>();
+            List<SystemTrashEntry> sysEntries = new ArrayList<>();
+            for (Object o : items) {
+                if (o instanceof TrashManager.TrashEntry) appEntries.add((TrashManager.TrashEntry) o);
+                else if (o instanceof SystemTrashEntry) sysEntries.add((SystemTrashEntry) o);
             }
+            int restored = 0;
+            String lastErr = null;
+            for (TrashManager.TrashEntry e : appEntries) {
+                if (TrashManager.restore(this, e)) restored++;
+                else lastErr = TrashManager.getLastError();
+            }
+            for (SystemTrashEntry e : sysEntries) {
+                restoreSystemEntry(e);
+                restored++;
+            }
+            if (lastErr != null && !lastErr.trim().isEmpty()) {
+                Toast.makeText(this, getString(R.string.restore) + ": " + lastErr, Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, R.string.item_restored, Toast.LENGTH_SHORT).show();
+            }
+            loadTrash();
+
         } else if (action == 1) {
-            // Info
-            showItemInfo(item);
+            // Info: only show for single selection
+            if (items.size() == 1) showItemInfo(items.get(0));
+
         } else {
-            // Delete forever
-            if (item instanceof TrashManager.TrashEntry) {
-                showDeleteForeverWarning((TrashManager.TrashEntry) item);
-            } else if (item instanceof SystemTrashEntry) {
-                showDeleteSystemEntryWarning((SystemTrashEntry) item);
+            // Delete forever all selected
+            List<TrashManager.TrashEntry> appEntries = new ArrayList<>();
+            List<SystemTrashEntry> sysEntries = new ArrayList<>();
+            for (Object o : items) {
+                if (o instanceof TrashManager.TrashEntry) appEntries.add((TrashManager.TrashEntry) o);
+                else if (o instanceof SystemTrashEntry) sysEntries.add((SystemTrashEntry) o);
             }
+            int total = items.size();
+            String names = items.size() == 1
+                    ? (items.get(0) instanceof TrashManager.TrashEntry
+                        ? ((TrashManager.TrashEntry) items.get(0)).getOriginalName()
+                        : ((SystemTrashEntry) items.get(0)).originalName)
+                    : getString(R.string.items_count, total);
+            new AlertDialog.Builder(this)
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .setTitle(R.string.warning_title)
+                    .setMessage(getString(R.string.warning_delete_forever_single_message, names))
+                    .setPositiveButton(R.string.delete_forever, (d, w) -> {
+                        for (SystemTrashEntry e : sysEntries) e.file.delete();
+                        if (!appEntries.isEmpty()) runDeleteTrashEntriesWithProgress(appEntries, false);
+                        else loadTrash();
+                    })
+                    .setNegativeButton(R.string.cancel, null)
+                    .show();
         }
     }
 
@@ -682,7 +729,9 @@ public class TrashActivity extends AppCompatActivity {
             EntryVH h = (EntryVH) vh;
             h.name.setTextColor(textPrimary);
             h.meta.setTextColor(textSecondary);
-            h.itemView.setBackgroundColor(bgColor);
+            boolean isSelected = selectedItems.contains(item);
+            int selectedBg = isDark ? 0xFF1A3A5C : 0xFFD0E8FF;
+            h.itemView.setBackgroundColor(isSelected ? selectedBg : bgColor);
             h.icon.setVisibility(View.VISIBLE);
             // Override the hardcoded dark bg_icon_circle to match the current theme
             android.graphics.drawable.GradientDrawable iconBg =
@@ -699,11 +748,14 @@ public class TrashActivity extends AppCompatActivity {
                 h.name.setText(entry.getOriginalName());
                 h.meta.setText(fi.getFormattedSize(TrashActivity.this) + "  \u00b7  "
                         + fi.getFormattedDate() + "  \u00b7  " + formatDaysLeft(entry.getDeletedAt()));
-                bindPreview(file, h.icon);
+                bindPreview(file, entry.getOriginalName(), h.icon);
 
-                h.itemView.setOnClickListener(v -> openFile(file, entry.getOriginalName()));
+                h.itemView.setOnClickListener(v -> {
+                    if (!selectedItems.isEmpty()) { toggleSelection(entry); return; }
+                    openFile(file, entry.getOriginalName());
+                });
                 h.itemView.setOnLongClickListener(v -> {
-                    showBottomBar(entry);
+                    toggleSelection(entry);
                     return true;
                 });
 
@@ -714,9 +766,12 @@ public class TrashActivity extends AppCompatActivity {
                 h.meta.setText(fi.getFormattedSize(TrashActivity.this) + "  ·  " + fi.getFormattedDate());
                 bindPreview(entry.file, h.icon);
 
-                h.itemView.setOnClickListener(v -> openFile(entry.file, entry.originalName));
+                h.itemView.setOnClickListener(v -> {
+                    if (!selectedItems.isEmpty()) { toggleSelection(entry); return; }
+                    openFile(entry.file, entry.originalName);
+                });
                 h.itemView.setOnLongClickListener(v -> {
-                    showBottomBar(entry);
+                    toggleSelection(entry);
                     return true;
                 });
             }
@@ -862,8 +917,12 @@ public class TrashActivity extends AppCompatActivity {
     // -------------------------------------------------------------------------
 
     private void bindPreview(File file, ImageView iv) {
+        bindPreview(file, file != null ? file.getName() : "", iv);
+    }
+
+    private void bindPreview(File file, String nameHint, ImageView iv) {
         if (file == null || !file.exists()) {
-            setDefaultIcon(file, iv);
+            setDefaultIcon(nameHint, iv);
             return;
         }
         String key = file.getAbsolutePath() + "@" + file.lastModified();
@@ -873,10 +932,10 @@ public class TrashActivity extends AppCompatActivity {
             iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
             return;
         }
-        setDefaultIcon(file, iv);
+        setDefaultIcon(nameHint, iv);
         iv.setTag(key);
         thumbExecutor.execute(() -> {
-            Bitmap bmp = generateThumbnail(file);
+            Bitmap bmp = generateThumbnail(file, nameHint);
             if (bmp == null) return;
             previewCache.put(key, bmp);
             mainHandler.post(() -> {
@@ -889,7 +948,11 @@ public class TrashActivity extends AppCompatActivity {
     }
 
     private Bitmap generateThumbnail(File file) {
-        String name = file.getName().toLowerCase(java.util.Locale.ROOT);
+        return generateThumbnail(file, file != null ? file.getName() : "");
+    }
+
+    private Bitmap generateThumbnail(File file, String nameHint) {
+        String name = nameHint.toLowerCase(java.util.Locale.ROOT);
         int dot = name.lastIndexOf('.');
         String ext = dot >= 0 ? name.substring(dot + 1) : "";
         if (isImageExt(ext)) return decodeImageThumb(file);
@@ -948,13 +1011,16 @@ public class TrashActivity extends AppCompatActivity {
     }
 
     private void setDefaultIcon(File file, ImageView iv) {
-        if (file == null) { iv.setImageResource(R.drawable.ic_file); return; }
-        String name = file.getName().toLowerCase(java.util.Locale.ROOT);
+        setDefaultIcon(file != null ? file.getName() : "", iv);
+        if (file != null && file.isDirectory()) iv.setImageResource(R.drawable.ic_folder);
+    }
+
+    private void setDefaultIcon(String nameHint, ImageView iv) {
+        String name = nameHint.toLowerCase(java.util.Locale.ROOT);
         int dot = name.lastIndexOf('.');
         String ext = dot >= 0 ? name.substring(dot + 1) : "";
         iv.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        if (file.isDirectory()) iv.setImageResource(R.drawable.ic_folder);
-        else if (isImageExt(ext)) iv.setImageResource(R.drawable.ic_image);
+        if (isImageExt(ext)) iv.setImageResource(R.drawable.ic_image);
         else if (isVideoExt(ext)) iv.setImageResource(R.drawable.ic_video);
         else if (isAudioExt(ext)) iv.setImageResource(R.drawable.ic_audio);
         else if ("pdf".equals(ext)) iv.setImageResource(R.drawable.ic_pdf);
