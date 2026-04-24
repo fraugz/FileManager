@@ -5,6 +5,7 @@ import android.content.ContentUris;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Environment;
 import android.provider.MediaStore;
 
 import java.io.File;
@@ -84,14 +85,43 @@ public class TrashManager {
 
     private static Uri getMediaStoreUriForFile(Context ctx, File file) {
         if (file == null) return null;
-        Uri externalUri = MediaStore.Files.getContentUri("external");
-        String[] proj = {MediaStore.Files.FileColumns._ID};
-        String sel = MediaStore.Files.FileColumns.DATA + "=?";
-        String[] args = {file.getAbsolutePath()};
-        try (Cursor c = ctx.getContentResolver().query(externalUri, proj, sel, args, null)) {
-            if (c != null && c.moveToFirst()) {
-                long id = c.getLong(0);
-                return ContentUris.withAppendedId(externalUri, id);
+        String path = file.getAbsolutePath();
+        String[] proj = {MediaStore.MediaColumns._ID};
+
+        // Query each specific collection with the DATA column (most reliable method).
+        Uri[] collections = {
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            MediaStore.Files.getContentUri("external"),
+        };
+        for (Uri col : collections) {
+            try (Cursor c = ctx.getContentResolver().query(
+                    col, proj, MediaStore.MediaColumns.DATA + "=?", new String[]{path}, null)) {
+                if (c != null && c.moveToFirst()) {
+                    return ContentUris.withAppendedId(col, c.getLong(0));
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Fallback: query by RELATIVE_PATH + DISPLAY_NAME (API 29+, avoids DATA column issues).
+        try {
+            String externalRoot = Environment.getExternalStorageDirectory().getAbsolutePath();
+            if (path.startsWith(externalRoot + "/")) {
+                String rel = path.substring(externalRoot.length() + 1);
+                int lastSlash = rel.lastIndexOf('/');
+                String relDir = (lastSlash > 0 ? rel.substring(0, lastSlash) : "") + "/";
+                String displayName = file.getName();
+                String sel2 = MediaStore.MediaColumns.RELATIVE_PATH + "=? AND "
+                        + MediaStore.MediaColumns.DISPLAY_NAME + "=?";
+                String[] args2 = {relDir, displayName};
+                for (Uri col : collections) {
+                    try (Cursor c = ctx.getContentResolver().query(col, proj, sel2, args2, null)) {
+                        if (c != null && c.moveToFirst()) {
+                            return ContentUris.withAppendedId(col, c.getLong(0));
+                        }
+                    } catch (Exception ignored) {}
+                }
             }
         } catch (Exception ignored) {}
         return null;

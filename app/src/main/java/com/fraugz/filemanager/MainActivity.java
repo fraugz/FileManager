@@ -1572,8 +1572,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
         if (isRecentTab) {
             // RECENTES: Enviar | Abrir/Reproducir | Localizar | Mover | Copiar | Eliminar/Quitar | Renombrar | Fijar/Desfijar
-            setVis(R.id.action_send,       selectionMode);
-            setVis(R.id.action_open_with,  false); // not shown in Recents
+            setVis(R.id.action_send,       selectionMode && !allDirs);
+            setVis(R.id.action_open_with,  selectionMode && showPlay); // Reproducir: multi-playable only
             setVis(R.id.action_play,       selectionMode && hasSingleItem); // Localizar: single item only
             setVis(R.id.action_select_all, false);
             setVis(R.id.action_move,       selectionMode);
@@ -1604,7 +1604,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             boolean showRename = hasSingleItem;
             boolean showPinFolder = allDirs;
 
-            setVis(R.id.action_send,       selectionMode);
+            setVis(R.id.action_send,       selectionMode && !allDirs);
             setVis(R.id.action_open_with,  selectionMode && hasSingleFile);
             setVis(R.id.action_play,       selectionMode && (showPlay || showPinFolder));
             setVis(R.id.action_select_all, false);
@@ -1890,14 +1890,20 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             toast(getString(R.string.no_items_selected));
             return;
         }
+        // Directories cannot be shared via standard Android intents — skip them.
+        List<File> shareable = new ArrayList<>();
+        for (File f : sel) { if (f.exists() && f.isFile()) shareable.add(f); }
+        if (shareable.isEmpty()) {
+            toast(getString(R.string.cannot_share_directories));
+            return;
+        }
+        if (shareable.size() < sel.size()) {
+            toast(getString(R.string.sharing_files_only_warning));
+        }
         try {
             ArrayList<Uri> uris = new ArrayList<>();
-            int directoryCount = 0;
-            for (File f : sel) {
-                if (f.exists()) {
-                    if (f.isDirectory()) directoryCount++;
-                    uris.add(FileProvider.getUriForFile(this, getPackageName() + ".provider", f));
-                }
+            for (File f : shareable) {
+                uris.add(FileProvider.getUriForFile(this, getPackageName() + ".provider", f));
             }
             if (uris.isEmpty()) {
                 toast(getString(R.string.error_sharing_selection));
@@ -1908,11 +1914,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             if (uris.size() == 1) {
                 i = new Intent(Intent.ACTION_SEND);
                 i.putExtra(Intent.EXTRA_STREAM, uris.get(0));
-                if (directoryCount == 1) {
-                    i.setType(DocumentsContract.Document.MIME_TYPE_DIR);
-                } else {
-                    i.setType("*/*");
-                }
+                i.setType("*/*");
             } else {
                 i = new Intent(Intent.ACTION_SEND_MULTIPLE);
                 i.setType("*/*");
