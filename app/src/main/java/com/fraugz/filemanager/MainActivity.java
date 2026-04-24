@@ -1763,24 +1763,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 .setPositiveButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSelection(sel))
                 .setNegativeButton(R.string.cancel, null)
                 .setNeutralButton(R.string.move_to_trash, (d, w) -> {
-                    List<File> publicFiles = new ArrayList<>(), privateFiles = new ArrayList<>();
-                    for (File f : sel) {
-                        if (isPublicStorageFile(f)) publicFiles.add(f);
-                        else privateFiles.add(f);
-                    }
-                    if (!publicFiles.isEmpty()) {
-                        android.app.PendingIntent pi = TrashManager.createSystemTrashRequest(MainActivity.this, publicFiles);
-                        if (pi != null) {
-                            try {
-                                // Private files go to app trash
-                                if (!privateFiles.isEmpty()) runDeleteSelectionWithProgress(privateFiles, false);
-                                startIntentSenderForResult(pi.getIntentSender(), REQ_SYSTEM_TRASH, null, 0, 0, 0);
-                                exitSelectionMode();
-                                return;
-                            } catch (Exception ignored) {}
-                        }
-                    }
-                    // System trash unavailable or all private: move to app trash
                     runDeleteSelectionWithProgress(sel, false);
                 })
                 .create();
@@ -1849,7 +1831,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 }
                 if (processedFinal > 0) {
                     exitSelectionMode();
-                    loadDirectory(currentDir);
+                    if (currentTab == TAB_RECENT) {
+                        loadRecentFiles();
+                    } else {
+                        loadDirectory(currentDir);
+                    }
                 }
             });
         }, "delete-selection").start();
@@ -3415,16 +3401,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 .setPositiveButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSingle(file))
                 .setNegativeButton(R.string.cancel, null)
                 .setNeutralButton(R.string.move_to_trash, (d, w) -> {
-                    android.app.PendingIntent pi = TrashManager.createSystemTrashRequest(this, Collections.singletonList(file));
-                    if (pi != null) {
-                        try {
-                            startIntentSenderForResult(pi.getIntentSender(), REQ_SYSTEM_TRASH, null, 0, 0, 0);
-                            return;
-                        } catch (Exception ignored) {}
-                    }
-                    // System trash unavailable: move to app trash
                     if (TrashManager.moveToTrash(this, file)) {
-                        loadDirectory(currentDir);
+                        if (currentTab == TAB_RECENT) loadRecentFiles(); else loadDirectory(currentDir);
                         toast(getString(R.string.moved_to_trash_done));
                     } else {
                         toast(getString(R.string.error_deleting_item));

@@ -933,6 +933,7 @@ public class TrashActivity extends AppCompatActivity {
             return;
         }
         setDefaultIcon(nameHint, iv);
+        if (file.isDirectory()) iv.setImageResource(R.drawable.ic_folder);
         iv.setTag(key);
         thumbExecutor.execute(() -> {
             Bitmap bmp = generateThumbnail(file, nameHint);
@@ -975,8 +976,8 @@ public class TrashActivity extends AppCompatActivity {
 
     private Bitmap decodeVideoThumb(File file) {
         MediaMetadataRetriever mmr = new MediaMetadataRetriever();
-        try {
-            mmr.setDataSource(file.getAbsolutePath());
+        try (java.io.FileInputStream fis = new java.io.FileInputStream(file)) {
+            mmr.setDataSource(fis.getFD());
             return mmr.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
         } catch (Exception e) { return null; }
         finally { try { mmr.release(); } catch (Exception ignored) {} }
@@ -984,8 +985,8 @@ public class TrashActivity extends AppCompatActivity {
 
     private Bitmap decodeAudioCover(File file) {
         MediaMetadataRetriever mmr = new MediaMetadataRetriever();
-        try {
-            mmr.setDataSource(file.getAbsolutePath());
+        try (java.io.FileInputStream fis = new java.io.FileInputStream(file)) {
+            mmr.setDataSource(fis.getFD());
             byte[] art = mmr.getEmbeddedPicture();
             if (art != null) return BitmapFactory.decodeByteArray(art, 0, art.length);
         } catch (Exception ignored) {}
