@@ -1,6 +1,11 @@
 package com.fraugz.filemanager;
 
+import android.app.PendingIntent;
+import android.content.ContentUris;
 import android.content.Context;
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.MediaStore;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -56,6 +61,40 @@ public class TrashManager {
         File trash = new File(ctx.getExternalFilesDir(null), TRASH_FOLDER);
         if (!trash.exists()) trash.mkdirs();
         return trash;
+    }
+
+    /**
+     * Attempts to move the given files to the OS system trash (Android 11+).
+     * Returns a PendingIntent to launch via startIntentSenderForResult, or null if
+     * no file could be resolved in MediaStore (fall back to app trash in that case).
+     */
+    public static PendingIntent createSystemTrashRequest(Context ctx, List<File> files) {
+        List<Uri> uris = new ArrayList<>();
+        for (File f : files) {
+            Uri uri = getMediaStoreUriForFile(ctx, f);
+            if (uri != null) uris.add(uri);
+        }
+        if (uris.isEmpty()) return null;
+        try {
+            return MediaStore.createTrashRequest(ctx.getContentResolver(), uris, true);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static Uri getMediaStoreUriForFile(Context ctx, File file) {
+        if (file == null) return null;
+        Uri externalUri = MediaStore.Files.getContentUri("external");
+        String[] proj = {MediaStore.Files.FileColumns._ID};
+        String sel = MediaStore.Files.FileColumns.DATA + "=?";
+        String[] args = {file.getAbsolutePath()};
+        try (Cursor c = ctx.getContentResolver().query(externalUri, proj, sel, args, null)) {
+            if (c != null && c.moveToFirst()) {
+                long id = c.getLong(0);
+                return ContentUris.withAppendedId(externalUri, id);
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     public static boolean moveToTrash(Context ctx, File file) {

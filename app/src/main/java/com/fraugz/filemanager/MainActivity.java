@@ -121,6 +121,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private static final String TAG = "MainActivity";
     private static final int REQ_PERMISSION = 100;
     private static final int REQ_MANAGE_FILES = 101;
+    private static final int REQ_SYSTEM_TRASH = 102;
     private static final int SORT_NAME = 0, SORT_DATE = 1, SORT_SIZE = 2;
     private static final long AUTO_RECENT_SCAN_INTERVAL_MS = 60_000L;
     private static final long AUTO_RECENT_LOOKBACK_MS = 14L * 24L * 60L * 60L * 1000L;
@@ -622,7 +623,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setClickSafe(R.id.action_copy,           v -> copySelection());
         setClickSafe(R.id.action_delete,         v -> handleDeleteAction());
         setClickSafe(R.id.action_rename,         v -> renameSelection());
-        setClickSafe(R.id.action_info,           v -> showInfoForSelection());
+        setClickSafe(R.id.action_info,           v -> { if (currentTab == TAB_RECENT) togglePinForSelectedRecent(); else showInfoForSelection(); });
 
         setupSwipeNavigation();
 
@@ -1041,6 +1042,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
         if (req == REQ_MANAGE_FILES) loadRootDirectory();
+        if (req == REQ_SYSTEM_TRASH) {
+            if (res == RESULT_OK) {
+                loadDirectory(currentDir);
+                loadRecentFiles();
+                toast(getString(R.string.moved_to_trash_done));
+            }
+            exitSelectionMode();
+        }
     }
 
     @Override
@@ -1543,82 +1552,108 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         List<File> sel = getSelectedFiles();
         boolean selectionMode = activeAdapter != null && activeAdapter.isSelectionMode() && !sel.isEmpty();
         boolean isRecentTab = currentTab == TAB_RECENT;
-        boolean hasSingleFile = sel.size() == 1 && sel.get(0).isFile();
+        boolean hasSingleItem = sel.size() == 1;
+        boolean hasSingleFile = hasSingleItem && sel.get(0).isFile();
         boolean showPlay = sel.size() > 1 && areAllPlayableFiles(sel);
-        boolean showInfo = !isRecentTab || sel.size() == 1;
-        boolean showRename = isRecentTab ? false : sel.size() == 1;
-        boolean showLocate = isRecentTab && hasSingleFile;
-        boolean showPin = isRecentTab && !sel.isEmpty();
+        boolean allDirs = isAllDirectories(sel);
+
         if (selectionActionsBar != null) {
             selectionActionsBar.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
         }
-        View sendAction = findViewById(R.id.action_send);
-        if (sendAction != null) {
-            sendAction.setVisibility(selectionMode && (isRecentTab ? showLocate : true) ? View.VISIBLE : View.GONE);
-        }
-        View openWithAction = findViewById(R.id.action_open_with);
-        if (openWithAction != null) {
-            openWithAction.setVisibility(selectionMode && (isRecentTab ? false : hasSingleFile) ? View.VISIBLE : View.GONE);
-        }
-        View playAction = findViewById(R.id.action_play);
-        if (playAction != null) {
-            playAction.setVisibility(selectionMode && (isRecentTab ? showPin : showPlay) ? View.VISIBLE : View.GONE);
-        }
-        View infoAction = findViewById(R.id.action_info);
-        if (infoAction != null) {
-            infoAction.setVisibility(selectionMode && showInfo ? View.VISIBLE : View.GONE);
-        }
-        View renameAction = findViewById(R.id.action_rename);
-        if (renameAction != null) {
-            renameAction.setVisibility(selectionMode && showRename ? View.VISIBLE : View.GONE);
-        }
-        View selectAllAction = findViewById(R.id.action_select_all);
-        if (selectAllAction != null) {
-            selectAllAction.setVisibility(View.GONE);
+
+        if (isRecentTab) {
+            // RECENTES: Enviar | Abrir/Reproducir | Localizar | Mover | Copiar | Eliminar/Quitar | Renombrar | Fijar/Desfijar
+            setVis(R.id.action_send,       selectionMode);
+            setVis(R.id.action_open_with,  selectionMode && (hasSingleItem || showPlay));
+            setVis(R.id.action_play,       selectionMode); // Localizar
+            setVis(R.id.action_select_all, false);
+            setVis(R.id.action_move,       selectionMode);
+            setVis(R.id.action_copy,       selectionMode);
+            setVis(R.id.action_delete,     selectionMode);
+            setVis(R.id.action_rename,     selectionMode && hasSingleItem);
+            setVis(R.id.action_info,       selectionMode); // Fijar/Desfijar
+
+            if (actionSendLabel != null)     actionSendLabel.setText(R.string.send);
+            if (actionSendIcon != null)      actionSendIcon.setImageResource(R.drawable.ic_action_send);
+
+            if (actionOpenWithLabel != null) actionOpenWithLabel.setText(showPlay ? R.string.play : R.string.open);
+            if (actionOpenWithIcon != null)  actionOpenWithIcon.setImageResource(showPlay ? R.drawable.ic_action_play : R.drawable.ic_action_open_with);
+
+            if (actionPlayLabel != null)     actionPlayLabel.setText(R.string.locate);
+            if (actionPlayIcon != null)      actionPlayIcon.setImageResource(R.drawable.ic_storage);
+
+            if (actionDeleteLabel != null)   actionDeleteLabel.setText(R.string.delete);
+
+            // Fijar/Desfijar: check pin state of all selected
+            boolean allPinned = !sel.isEmpty() && isAllPinned(sel);
+            if (actionInfoLabel != null)     actionInfoLabel.setText(allPinned ? R.string.unpin_from_recent : R.string.pin_to_recent);
+            if (actionInfoIcon != null)      actionInfoIcon.setImageResource(R.drawable.ic_pin);
+
+        } else {
+            // STORAGE: existing behavior + pin for folder selections
+            boolean showInfo   = hasSingleItem;
+            boolean showRename = hasSingleItem;
+            boolean showPinFolder = allDirs;
+
+            setVis(R.id.action_send,       selectionMode);
+            setVis(R.id.action_open_with,  selectionMode && hasSingleFile);
+            setVis(R.id.action_play,       selectionMode && (showPlay || showPinFolder));
+            setVis(R.id.action_select_all, false);
+            setVis(R.id.action_move,       selectionMode);
+            setVis(R.id.action_copy,       selectionMode);
+            setVis(R.id.action_delete,     selectionMode);
+            setVis(R.id.action_rename,     selectionMode && showRename);
+            setVis(R.id.action_info,       selectionMode && showInfo);
+
+            if (actionSendLabel != null)     actionSendLabel.setText(R.string.send);
+            if (actionSendIcon != null)      actionSendIcon.setImageResource(R.drawable.ic_action_send);
+            if (actionOpenWithLabel != null) actionOpenWithLabel.setText(R.string.open);
+            if (actionOpenWithIcon != null)  actionOpenWithIcon.setImageResource(R.drawable.ic_action_open_with);
+
+            if (showPinFolder) {
+                boolean allPinned = isAllPinned(sel);
+                if (actionPlayLabel != null) actionPlayLabel.setText(allPinned ? R.string.unpin_from_recent : R.string.pin_to_recent);
+                if (actionPlayIcon != null)  actionPlayIcon.setImageResource(R.drawable.ic_pin);
+            } else {
+                if (actionPlayLabel != null) actionPlayLabel.setText(R.string.play);
+                if (actionPlayIcon != null)  actionPlayIcon.setImageResource(R.drawable.ic_action_play);
+            }
+
+            if (actionInfoLabel != null)     actionInfoLabel.setText(R.string.info);
+            if (actionInfoIcon != null)      actionInfoIcon.setImageResource(android.R.drawable.ic_menu_info_details);
+            if (actionDeleteLabel != null)   actionDeleteLabel.setText(R.string.delete);
         }
 
-        View deleteAction = findViewById(R.id.action_delete);
-        if (deleteAction != null) {
-            deleteAction.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
-        }
-
-        View moveAction = findViewById(R.id.action_move);
-        if (moveAction != null) {
-            moveAction.setVisibility(isRecentTab ? View.GONE : (selectionMode ? View.VISIBLE : View.GONE));
-        }
-        View copyAction = findViewById(R.id.action_copy);
-        if (copyAction != null) {
-            copyAction.setVisibility(isRecentTab ? View.GONE : (selectionMode ? View.VISIBLE : View.GONE));
-        }
-
-        if (actionSendLabel != null) {
-            actionSendLabel.setText(isRecentTab ? R.string.locate : R.string.send);
-        }
-        if (actionSendIcon != null) {
-            actionSendIcon.setImageResource(isRecentTab ? R.drawable.ic_storage : R.drawable.ic_action_send);
-        }
-
-        if (actionOpenWithLabel != null) {
-            actionOpenWithLabel.setText(R.string.open);
-        }
-        if (actionPlayLabel != null) {
-            actionPlayLabel.setText(isRecentTab ? R.string.pin_to_recent : R.string.play);
-        }
-        if (actionPlayIcon != null) {
-            actionPlayIcon.setImageResource(isRecentTab ? R.drawable.ic_pin : R.drawable.ic_action_play);
-        }
-        if (actionDeleteLabel != null) {
-            actionDeleteLabel.setText(isRecentTab ? R.string.remove_from_recent : R.string.delete);
-        }
         updateInlineSelectAllVisual();
+    }
+
+    private boolean isAllPinned(List<File> files) {
+        for (File f : files) {
+            if (!RecentManager.isPinned(this, f.getAbsolutePath())) return false;
+        }
+        return true;
     }
 
     private void handleDeleteAction() {
         if (currentTab == TAB_RECENT) {
-            removeSelectedFromRecent();
+            showDeleteOrRemoveMenu();
             return;
         }
         deleteSelectionToTrash();
+    }
+
+    private void showDeleteOrRemoveMenu() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.delete)
+                .setItems(new String[]{
+                        getString(R.string.remove_from_recent),
+                        getString(R.string.delete)
+                }, (d, which) -> {
+                    if (which == 0) removeSelectedFromRecent();
+                    else deleteSelectionToTrash();
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
     }
 
     private void removeSelectedFromRecent() {
@@ -1714,7 +1749,25 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 .setMessage(getString(R.string.confirm_delete_selected_message, sel.size()))
                 .setPositiveButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSelection(sel))
                 .setNegativeButton(R.string.cancel, null)
-                .setNeutralButton(R.string.move_to_trash, (d, w) -> runDeleteSelectionWithProgress(sel, false))
+                .setNeutralButton(R.string.move_to_trash, (d, w) -> {
+                    List<File> publicFiles = new ArrayList<>(), privateFiles = new ArrayList<>();
+                    for (File f : sel) {
+                        if (isPublicStorageFile(f)) publicFiles.add(f);
+                        else privateFiles.add(f);
+                    }
+                    if (!publicFiles.isEmpty()) {
+                        android.app.PendingIntent pi = TrashManager.createSystemTrashRequest(MainActivity.this, publicFiles);
+                        if (pi != null) {
+                            try {
+                                for (File f : privateFiles) TrashManager.moveToTrash(MainActivity.this, f);
+                                startIntentSenderForResult(pi.getIntentSender(), REQ_SYSTEM_TRASH, null, 0, 0, 0);
+                                exitSelectionMode();
+                                return;
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                    runDeleteSelectionWithProgress(sel, false);
+                })
                 .create();
         dialog.setOnShowListener(d -> {
             Button deleteForever = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
@@ -2186,16 +2239,24 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     }
 
     private void handlePrimaryAction() {
-        if (currentTab == TAB_RECENT) {
-            locateSelectedRecentFile();
-            return;
-        }
         shareSelectedFiles();
     }
 
     private void handleOpenAction() {
         if (currentTab == TAB_RECENT) {
-            openSelectedRecentFile();
+            List<File> sel = getSelectedFiles();
+            if (sel.size() == 1) {
+                File f = sel.get(0);
+                if (f.isDirectory()) {
+                    exitSelectionMode();
+                    selectTab(TAB_STORAGE);
+                    loadDirectory(f);
+                } else {
+                    openSelectedRecentFile();
+                }
+            } else {
+                playSelectedFiles();
+            }
             return;
         }
         setDefaultAppFromSelection();
@@ -2203,10 +2264,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void handleSecondaryAction() {
         if (currentTab == TAB_RECENT) {
-            togglePinForSelectedRecent();
+            locateSelectedRecentFile(); // action_play is now Localizar in Recentes
             return;
         }
-        playSelectedFiles();
+        // Storage: play for playable files, or pin/unpin when all selected are folders
+        List<File> sel = getSelectedFiles();
+        if (isAllDirectories(sel)) {
+            togglePinForStorageFolders(sel);
+        } else {
+            playSelectedFiles();
+        }
     }
 
     private void openSelectedRecentFile() {
@@ -2241,35 +2308,34 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     private void togglePinForSelectedRecent() {
         List<File> sel = getSelectedFiles();
-        if (sel.isEmpty()) {
-            return;
-        }
+        if (sel.isEmpty()) return;
 
-        boolean allPinned = true;
-        for (File file : sel) {
-            if (!file.isFile()) continue;
-            if (!RecentManager.isPinned(this, file.getAbsolutePath())) {
-                allPinned = false;
-                break;
-            }
-        }
-
+        boolean allPinned = isAllPinned(sel);
         if (allPinned) {
-            for (File file : sel) {
-                if (file.isFile()) {
-                    RecentManager.unpin(this, file.getAbsolutePath());
-                }
-            }
+            for (File file : sel) RecentManager.unpin(this, file.getAbsolutePath());
             toast(getString(R.string.unpinned_from_recent));
         } else {
-            for (File file : sel) {
-                if (file.isFile()) {
-                    RecentManager.pin(this, file.getAbsolutePath());
-                }
-            }
+            for (File file : sel) RecentManager.pin(this, file.getAbsolutePath());
             toast(getString(R.string.pinned_to_recent));
         }
         loadRecentFiles();
+        exitSelectionMode();
+    }
+
+    private void togglePinForStorageFolders(List<File> folders) {
+        if (folders.isEmpty()) return;
+        boolean allPinned = isAllPinned(folders);
+        for (File folder : folders) {
+            String path = folder.getAbsolutePath();
+            if (allPinned) {
+                RecentManager.unpin(this, path);
+            } else {
+                // Add to recents so the folder appears in the list, then pin it
+                RecentManager.add(this, path);
+                RecentManager.pin(this, path);
+            }
+        }
+        toast(getString(allPinned ? R.string.unpinned_from_recent : R.string.pinned_to_recent));
         exitSelectionMode();
     }
 
@@ -3278,6 +3344,27 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
     // ─────────────────────── FILE OPS ────────────────────────────────
 
+    private boolean isPublicStorageFile(File file) {
+        if (file == null) return false;
+        String extRoot = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
+        String path = file.getAbsolutePath();
+        if (!path.startsWith(extRoot)) return false;
+        java.io.File appDir = getExternalFilesDir(null);
+        if (appDir != null && path.startsWith(appDir.getAbsolutePath())) return false;
+        return true;
+    }
+
+    private boolean isAllDirectories(List<File> files) {
+        if (files == null || files.isEmpty()) return false;
+        for (File f : files) if (!f.isDirectory()) return false;
+        return true;
+    }
+
+    private void setVis(int id, boolean show) {
+        View v = findViewById(id);
+        if (v != null) v.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
     private void moveToTrash(File file) {
         // When buttons stack vertically the order is Positive (top) → Negative → Neutral (bottom).
         // Desired order: Eliminar definitivamente / Cancelar / Mover a la papelera.
@@ -3287,6 +3374,13 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 .setPositiveButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSingle(file))
                 .setNegativeButton(R.string.cancel, null)
                 .setNeutralButton(R.string.move_to_trash, (d, w) -> {
+                    android.app.PendingIntent pi = TrashManager.createSystemTrashRequest(this, Collections.singletonList(file));
+                    if (pi != null) {
+                        try {
+                            startIntentSenderForResult(pi.getIntentSender(), REQ_SYSTEM_TRASH, null, 0, 0, 0);
+                            return;
+                        } catch (Exception ignored) {}
+                    }
                     if (TrashManager.moveToTrash(this, file)) {
                         loadDirectory(currentDir);
                         toast(getString(R.string.moved_to_trash_done));

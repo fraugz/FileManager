@@ -154,6 +154,7 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
 
         // Icon resource
         if (item.isDirectory()) {
+            h.icon.setTag(null); // cancel any pending async thumbnail for this recycled view
             h.icon.setImageResource(R.drawable.ic_folder);
         } else {
             switch (ext) {
