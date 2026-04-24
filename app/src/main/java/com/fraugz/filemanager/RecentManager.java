@@ -151,6 +151,37 @@ public class RecentManager {
                 .apply();
     }
 
+    /** Replaces oldPath with newPath in both the ordered list and the pinned registry, preserving pin state and accessedAt. */
+    public static void renamePath(Context ctx, String oldPath, String newPath) {
+        if (oldPath == null || newPath == null) return;
+        String oldClean = oldPath.trim();
+        String newClean = newPath.trim();
+        if (oldClean.isEmpty() || newClean.isEmpty() || oldClean.equals(newClean)) return;
+
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        List<RecentEntry> entries = parseOrderedEntries(prefs.getString(KEY, ""), prefs);
+
+        boolean found = false;
+        for (int i = 0; i < entries.size(); i++) {
+            RecentEntry e = entries.get(i);
+            if (oldClean.equals(e.path)) {
+                entries.set(i, new RecentEntry(newClean, e.accessedAt, e.isPinned));
+                found = true;
+                break;
+            }
+        }
+        if (!found) return;
+
+        // Update pinned registry if needed
+        List<String> pinned = getPinnedPaths(prefs);
+        if (pinned.remove(oldClean)) {
+            pinned.add(newClean);
+            savePinnedPaths(prefs, pinned);
+        }
+
+        prefs.edit().putString(KEY, joinOrderedEntries(entries)).apply();
+    }
+
     public static void remove(Context ctx, String path) {
         if (path == null || path.trim().isEmpty()) return;
         String target = path.trim();

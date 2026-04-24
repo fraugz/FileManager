@@ -232,7 +232,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     protected void onResume() {
         super.onResume();
         if (currentTab == TAB_RECENT) {
-            loadRecentFiles();
+            // Skip reload if we're in selection mode (e.g. returning from share chooser)
+            boolean inSelection = recentListAdapter != null && recentListAdapter.isSelectionMode();
+            if (!inSelection) loadRecentFiles();
         } else {
             triggerAutoRecentDiscovery(false);
         }
@@ -846,7 +848,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             recentPinnedByPath.clear();
             for (RecentManager.RecentEntry entry : entries) {
                 File f = new File(entry.path);
-                if (f.exists() && f.isFile()) {
+                if (f.exists() && (f.isFile() || entry.isPinned)) {
                     files.add(f);
                     recentAccessByPath.put(f.getAbsolutePath(), entry.accessedAt);
                     recentPinnedByPath.put(f.getAbsolutePath(), entry.isPinned);
@@ -1564,8 +1566,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (isRecentTab) {
             // RECENTES: Enviar | Abrir/Reproducir | Localizar | Mover | Copiar | Eliminar/Quitar | Renombrar | Fijar/Desfijar
             setVis(R.id.action_send,       selectionMode);
-            setVis(R.id.action_open_with,  selectionMode && (hasSingleItem || showPlay));
-            setVis(R.id.action_play,       selectionMode); // Localizar
+            setVis(R.id.action_open_with,  false); // not shown in Recents
+            setVis(R.id.action_play,       selectionMode && hasSingleItem); // Localizar: single item only
             setVis(R.id.action_select_all, false);
             setVis(R.id.action_move,       selectionMode);
             setVis(R.id.action_copy,       selectionMode);
@@ -1712,6 +1714,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         updatePasteBar();
         toast(getString(R.string.move_prepared, sel.size()));
         exitSelectionMode();
+        if (currentTab == TAB_RECENT) selectTab(TAB_STORAGE);
     }
 
     private void copySelection() {
@@ -1726,6 +1729,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         updatePasteBar();
         toast(getString(R.string.copied_count, sel.size()));
         exitSelectionMode();
+        if (currentTab == TAB_RECENT) selectTab(TAB_STORAGE);
     }
 
     private void renameSelection() {
@@ -4035,13 +4039,17 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     }
 
     private void applyRename(File source, String newName, boolean clearSelectionOnSuccess) {
+        String oldPath = source.getAbsolutePath();
         if (FileOperations.rename(source, newName)) {
+            String newPath = new File(source.getParentFile(), newName).getAbsolutePath();
+            RecentManager.renamePath(this, oldPath, newPath);
             if (clearSelectionOnSuccess) {
                 exitSelectionMode();
             }
             if (!updateRenamedItemInCurrentList(source, newName) && currentDir != null) {
                 loadDirectory(currentDir);
             }
+            if (currentTab == TAB_RECENT) loadRecentFiles();
             toast(getString(R.string.renamed));
         } else {
             toast(getString(R.string.rename_error));
