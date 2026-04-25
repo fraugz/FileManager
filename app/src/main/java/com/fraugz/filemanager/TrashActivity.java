@@ -32,6 +32,8 @@ import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import android.database.Cursor;
+import android.provider.MediaStore;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -369,16 +371,36 @@ public class TrashActivity extends AppCompatActivity {
 
     private List<SystemTrashEntry> scanSystemTrash() {
         List<SystemTrashEntry> result = new ArrayList<>();
-        String[] publicDirs = {
-                Environment.DIRECTORY_DCIM,
-                Environment.DIRECTORY_PICTURES,
-                Environment.DIRECTORY_DOWNLOADS,
-                Environment.DIRECTORY_DOCUMENTS,
-                Environment.DIRECTORY_MOVIES,
-                Environment.DIRECTORY_MUSIC,
+        Uri uri = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL);
+        String[] projection = {
+                MediaStore.MediaColumns.DATA,
+                MediaStore.MediaColumns.DISPLAY_NAME,
         };
-        for (String d : publicDirs) {
-            scanDirForTrashed(Environment.getExternalStoragePublicDirectory(d), result, 0);
+        android.os.Bundle queryArgs = new android.os.Bundle();
+        queryArgs.putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY);
+        try (Cursor c = getContentResolver().query(uri, projection, queryArgs, null)) {
+            if (c != null) {
+                int dataCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA);
+                while (c.moveToNext()) {
+                    String path = c.getString(dataCol);
+                    if (path == null) continue;
+                    File f = new File(path);
+                    if (f.exists()) result.add(new SystemTrashEntry(f));
+                }
+            }
+        } catch (Exception e) {
+            // Fallback: scan filesystem if MediaStore query fails
+            String[] publicDirs = {
+                    Environment.DIRECTORY_DCIM,
+                    Environment.DIRECTORY_PICTURES,
+                    Environment.DIRECTORY_DOWNLOADS,
+                    Environment.DIRECTORY_DOCUMENTS,
+                    Environment.DIRECTORY_MOVIES,
+                    Environment.DIRECTORY_MUSIC,
+            };
+            for (String d : publicDirs) {
+                scanDirForTrashed(Environment.getExternalStoragePublicDirectory(d), result, 0);
+            }
         }
         return result;
     }

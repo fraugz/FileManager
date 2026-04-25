@@ -218,6 +218,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         selectTab(TAB_STORAGE);
         handleIncomingShareIntent(getIntent());
         requestPermissions();
+        UpdateChecker.checkOnce(this);
         Log.d(TAG, "onCreate complete");
     }
 
@@ -516,7 +517,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         View sortBtn = findViewById(R.id.btn_filter);
         if (sortBtn != null) sortBtn.setVisibility(tab == TAB_STORAGE ? View.VISIBLE : View.GONE);
         View trashBtn = findViewById(R.id.btn_trash);
-        if (trashBtn != null) trashBtn.setVisibility(tab == TAB_STORAGE ? View.VISIBLE : View.GONE);
+        if (trashBtn != null) trashBtn.setVisibility(View.VISIBLE);
         if (tab == TAB_RECENT) loadRecentFiles();
 
         float width = mainRoot != null ? mainRoot.getWidth() : 0f;
@@ -836,7 +837,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         View sortBtn = findViewById(R.id.btn_filter);
         if (sortBtn != null) sortBtn.setVisibility(View.GONE);
         View trashBtn = findViewById(R.id.btn_trash);
-        if (trashBtn != null) trashBtn.setVisibility(View.GONE);
+        if (trashBtn != null) trashBtn.setVisibility(View.VISIBLE);
         loadRecentFiles();
     }
 
@@ -848,7 +849,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             recentPinnedByPath.clear();
             for (RecentManager.RecentEntry entry : entries) {
                 File f = new File(entry.path);
-                if (f.exists() && (f.isFile() || f.isDirectory())) {
+                if (!f.exists()) continue;
+                if (f.isDirectory() && !entry.isPinned) continue; // only pinned folders in Recientes
+                if (f.isFile() || f.isDirectory()) {
                     files.add(f);
                     recentAccessByPath.put(f.getAbsolutePath(), entry.accessedAt);
                     recentPinnedByPath.put(f.getAbsolutePath(), entry.isPinned);

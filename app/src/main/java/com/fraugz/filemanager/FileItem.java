@@ -41,11 +41,13 @@ public class FileItem {
                     else if (!n.startsWith(".")) visible++;
                 }
             }
+            int localTrashed = TrashManager.countLocalTrashedInDir(context, file.getAbsolutePath());
+            int totalTrashed = trashed + localTrashed;
             if (context != null) {
-                if (trashed > 0) return context.getString(R.string.items_count_with_trash, visible, trashed);
+                if (totalTrashed > 0) return context.getString(R.string.items_count_with_trash, visible, totalTrashed);
                 return context.getString(R.string.items_count, visible);
             }
-            return trashed > 0 ? visible + " item(s) (" + trashed + " in trash)" : visible + " item(s)";
+            return totalTrashed > 0 ? visible + " item(s) (" + totalTrashed + " in trash)" : visible + " item(s)";
         }
         long size = file.length();
         if (size < 1024) return size + " B";

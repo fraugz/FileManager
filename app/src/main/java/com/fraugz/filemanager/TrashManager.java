@@ -31,6 +31,27 @@ public class TrashManager {
     private static final long TRASH_RETENTION_MS = 30L * 24L * 60L * 60L * 1000L;
     private static volatile String lastError = "";
 
+    // Short-lived cache for directory item-count queries (avoids disk reads per adapter bind)
+    private static volatile List<TrashEntry> dirCountCache = null;
+    private static volatile long dirCountCacheTimeMs = 0L;
+    private static final long DIR_COUNT_CACHE_TTL_MS = 3000L;
+
+    /** Returns how many local-trash entries originally lived directly inside {@code dirPath}. */
+    public static int countLocalTrashedInDir(Context ctx, String dirPath) {
+        if (ctx == null || dirPath == null) return 0;
+        long now = System.currentTimeMillis();
+        if (dirCountCache == null || (now - dirCountCacheTimeMs) > DIR_COUNT_CACHE_TTL_MS) {
+            dirCountCache = getTrashFiles(ctx);
+            dirCountCacheTimeMs = now;
+        }
+        int count = 0;
+        for (TrashEntry e : dirCountCache) {
+            String orig = e.getOriginalPath();
+            if (orig != null && dirPath.equals(new File(orig).getParent())) count++;
+        }
+        return count;
+    }
+
     public static String getLastError() {
         return lastError == null ? "" : lastError;
     }
