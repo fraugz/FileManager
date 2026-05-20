@@ -55,7 +55,11 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     private final Listener listener;
     private final ExecutorService thumbExecutor = Executors.newFixedThreadPool(2);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final LruCache<String, Bitmap> previewCache = new LruCache<String, Bitmap>(20) {
+    // Cache size: 1/8 of available heap in KB (typically 4–16 MB on modern devices).
+    // sizeOf returns KB so maxSize must also be in KB.
+    private static final int THUMB_CACHE_KB =
+            (int) (Runtime.getRuntime().maxMemory() / 1024L / 8L);
+    private final LruCache<String, Bitmap> previewCache = new LruCache<String, Bitmap>(THUMB_CACHE_KB) {
         @Override
         protected int sizeOf(String key, Bitmap value) {
             return Math.max(1, value.getByteCount() / 1024);

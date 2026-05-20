@@ -107,6 +107,18 @@ public class SettingsActivity extends AppCompatActivity {
             findViewById(R.id.row_language).setOnClickListener(v -> showLanguageDialog());
         findViewById(R.id.row_default_apps).setOnClickListener(v -> showDefaultAppsDialog());
         findViewById(R.id.row_changelog).setOnClickListener(v -> showChangelogDialog());
+        findViewById(R.id.row_version).setOnClickListener(v -> {
+            String[] items = {
+                getString(R.string.changelog_title),
+                getString(R.string.check_for_updates)
+            };
+            new AlertDialog.Builder(this)
+                .setItems(items, (d, which) -> {
+                    if (which == 0) showChangelogDialog();
+                    else UpdateChecker.checkNow(this);
+                })
+                .show();
+        });
         findViewById(R.id.row_quick_guide).setOnClickListener(v -> openQuickGuideLink());
         findViewById(R.id.row_github).setOnClickListener(v -> openUrl(PROJECT_GITHUB_URL));
 

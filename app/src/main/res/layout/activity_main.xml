@@ -252,6 +252,24 @@
                     android:textStyle="bold"/>
 
                 <ImageButton
+                    android:id="@+id/btn_select_day_recent"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/select_by_day"
+                    android:src="@drawable/ic_calendar"
+                    android:tint="#FFFFFF"/>
+
+                <ImageButton
+                    android:id="@+id/btn_select_all_recent"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/select_all"
+                    android:src="@drawable/ic_action_select_all"
+                    android:tint="#FFFFFF"/>
+
+                <ImageButton
                     android:id="@+id/btn_clear_recent"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
@@ -261,31 +279,55 @@
                     android:tint="#FFFFFF"/>
             </LinearLayout>
 
-            <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+                android:orientation="vertical">
 
-                <!-- Empty recents -->
-                <LinearLayout android:id="@+id/empty_recent_view"
-                    android:layout_width="match_parent" android:layout_height="match_parent"
-                    android:gravity="center" android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="&#128337;" android:textSize="64sp"/>
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/recent_empty"
-                        android:textColor="#666666" android:textSize="15sp" android:gravity="center"
-                        android:paddingStart="40dp" android:paddingEnd="40dp"/>
-                </LinearLayout>
-
+                <!-- Burst-group strip (MediaStore) — visible only when groups exist -->
                 <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recycler_recent"
-                    android:layout_width="match_parent" android:layout_height="match_parent"
-                    android:paddingBottom="8dp" android:clipToPadding="false"
-                    android:scrollbars="vertical"
-                    android:fadeScrollbars="false"
-                    android:fastScrollEnabled="true"
+                    android:id="@+id/recycler_recent_groups"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="6dp"
+                    android:clipToPadding="false"
                     android:visibility="gone"/>
 
-            </FrameLayout>
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+
+                    <!-- Empty recents -->
+                    <LinearLayout android:id="@+id/empty_recent_view"
+                        android:layout_width="match_parent" android:layout_height="match_parent"
+                        android:gravity="center" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="&#128337;" android:textSize="64sp"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:text="@string/recent_empty"
+                            android:textColor="#666666" android:textSize="15sp" android:gravity="center"
+                            android:paddingStart="40dp" android:paddingEnd="40dp"/>
+                    </LinearLayout>
+
+                    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+                        android:id="@+id/swipe_refresh_recent"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/recycler_recent"
+                            android:layout_width="match_parent" android:layout_height="match_parent"
+                            android:paddingBottom="8dp" android:clipToPadding="false"
+                            android:scrollbars="vertical"
+                            android:fadeScrollbars="false"
+                            android:fastScrollEnabled="true"
+                            android:visibility="gone"/>
+
+                    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+                </FrameLayout>
+
+            </LinearLayout>
 
         </LinearLayout>
 
@@ -549,6 +591,18 @@
         </LinearLayout>
 
     </LinearLayout>
+
+    <!-- Selection count label — shown above action bar when items are selected -->
+    <TextView
+        android:id="@+id/tv_selection_count"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="2dp"
+        android:textColor="#AAAAAA"
+        android:textSize="12sp"
+        android:visibility="gone"/>
 
     <!-- Bottom Navigation — custom, no Material dependency -->
     <LinearLayout

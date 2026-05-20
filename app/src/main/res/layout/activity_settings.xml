@@ -273,9 +273,12 @@
                 android:letterSpacing="0.1"/>
 
             <LinearLayout
+                android:id="@+id/row_version"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
                 android:background="@drawable/bg_settings_card"
+                android:clickable="true"
+                android:focusable="true"
                 android:gravity="center_vertical"
                 android:paddingStart="20dp"
                 android:paddingEnd="20dp">

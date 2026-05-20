@@ -1,10 +1,14 @@
 package com.fraugz.filemanager;
 
 import android.app.AlertDialog;
+import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -21,36 +25,63 @@ import java.util.concurrent.Executors;
  */
 public class UpdateChecker {
 
-    private static final String PREFS_NAME       = "update_checker";
-    private static final String KEY_LAST_CHECK   = "last_check_ms";
-    private static final long   CHECK_INTERVAL   = 24L * 60L * 60L * 1000L; // 24 h
+    private static final String PREFS_NAME           = "update_checker";
+    private static final String KEY_LAST_CHECK       = "last_check_ms";
+    private static final String KEY_DISMISSED_VERSION = "dismissed_version";
+    private static final long   CHECK_INTERVAL       = 24L * 60L * 60L * 1000L; // 24 h
     private static final String RELEASES_API_URL =
             "https://api.github.com/repos/fraugz/FileManager/releases/latest";
     private static final String RELEASES_PAGE_URL =
             "https://github.com/fraugz/FileManager/releases/latest";
+    private static final String APK_DIRECT_URL_TEMPLATE =
+            "https://github.com/fraugz/FileManager/releases/download/v%s/app-release.apk";
 
     /** Call once from Activity.onCreate — runs off the main thread, safe to ignore errors. */
     public static void checkOnce(Context ctx) {
         SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         long lastCheck = prefs.getLong(KEY_LAST_CHECK, 0L);
         if (System.currentTimeMillis() - lastCheck < CHECK_INTERVAL) return;
+        runCheck(ctx, prefs);
+    }
 
+    /**
+     * Forces an immediate update check regardless of the 24h interval.
+     * Shows a "no updates available" toast when the app is already up to date.
+     */
+    public static void checkNow(Context ctx) {
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        runCheck(ctx, prefs, true);
+    }
+
+    // ── internal ──────────────────────────────────────────────────────────────
+
+    private static void runCheck(Context ctx, SharedPreferences prefs) {
+        runCheck(ctx, prefs, false);
+    }
+
+    private static void runCheck(Context ctx, SharedPreferences prefs, boolean showUpToDate) {
         ExecutorService exec = Executors.newSingleThreadExecutor();
         Handler main = new Handler(Looper.getMainLooper());
         exec.execute(() -> {
             try {
                 String latestTag = fetchLatestTag();
                 prefs.edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply();
-                if (latestTag == null) return;
 
                 String current;
                 try {
                     current = ctx.getPackageManager()
                             .getPackageInfo(ctx.getPackageName(), 0).versionName;
                 } catch (Exception e) { return; }
-                if (!isNewer(latestTag, current)) return;
 
-                main.post(() -> showUpdateDialog(ctx, latestTag));
+                if (latestTag != null && isNewer(latestTag, current)) {
+                    String dismissed = prefs.getString(KEY_DISMISSED_VERSION, "");
+                    if (latestTag.equals(dismissed)) return; // user dismissed this version
+                    main.post(() -> showUpdateDialog(ctx, latestTag, prefs));
+                } else if (showUpToDate) {
+                    main.post(() -> android.widget.Toast.makeText(ctx,
+                            ctx.getString(R.string.update_up_to_date),
+                            android.widget.Toast.LENGTH_SHORT).show());
+                }
             } catch (Exception ignored) {
                 // Network unavailable or any error — silently skip
             } finally {
@@ -119,18 +150,45 @@ public class UpdateChecker {
         return nums;
     }
 
-    private static void showUpdateDialog(Context ctx, String latestVersion) {
+    private static void showUpdateDialog(Context ctx, String latestVersion, SharedPreferences prefs) {
         if (ctx == null) return;
+        String apkUrl = String.format(APK_DIRECT_URL_TEMPLATE, latestVersion);
         new AlertDialog.Builder(ctx)
                 .setTitle(ctx.getString(R.string.update_available_title))
                 .setMessage(ctx.getString(R.string.update_available_message, latestVersion))
-                .setPositiveButton(R.string.update_download, (d, w) -> {
-                    Intent intent = new Intent(Intent.ACTION_VIEW,
-                            Uri.parse(RELEASES_PAGE_URL));
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    ctx.startActivity(intent);
+        .setPositiveButton(R.string.update_download, (d, w) -> {
+                    DownloadManager dm = (DownloadManager) ctx.getSystemService(Context.DOWNLOAD_SERVICE);
+                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(apkUrl))
+                            .setTitle(ctx.getString(R.string.app_name))
+                            .setDescription(latestVersion)
+                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                            .setMimeType("application/vnd.android.package-archive")
+                            .setDestinationInExternalPublicDir(
+                                    Environment.DIRECTORY_DOWNLOADS,
+                                    "filemanager-" + latestVersion + ".apk");
+                    long downloadId = dm.enqueue(request);
+                    BroadcastReceiver receiver = new BroadcastReceiver() {
+                        @Override
+                        public void onReceive(Context context, Intent intent) {
+                            long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                            if (id == downloadId) {
+                                context.unregisterReceiver(this);
+                                Uri apkUri = dm.getUriForDownloadedFile(downloadId);
+                                if (apkUri != null) {
+                                    Intent install = new Intent(Intent.ACTION_VIEW);
+                                    install.setDataAndType(apkUri, "application/vnd.android.package-archive");
+                                    install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                    context.startActivity(install);
+                                }
+                            }
+                        }
+                    };
+                    ctx.registerReceiver(receiver,
+                            new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
                 })
-                .setNegativeButton(R.string.update_later, null)
+                .setNeutralButton(R.string.update_later, null)
+                .setNegativeButton(R.string.update_dismiss, (d, w) ->
+                        prefs.edit().putString(KEY_DISMISSED_VERSION, latestVersion).apply())
                 .show();
     }
 }

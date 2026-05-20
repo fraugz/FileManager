@@ -51,6 +51,28 @@ public class RecentManager {
         prefs.edit().putString(KEY, joinOrderedEntries(entries)).apply();
     }
 
+    /**
+     * Updates the access timestamp of an existing entry WITHOUT changing its position.
+     * Use this when the user re-opens a file that is already in Recents (e.g. from the Recents tab).
+     * If the path is not yet in the list, falls back to {@link #add}.
+     */
+    public static void touch(Context ctx, String path) {
+        if (path == null || path.trim().isEmpty()) return;
+
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String cleanPath = path.trim();
+        List<RecentEntry> entries = parseOrderedEntries(prefs.getString(KEY, ""), prefs);
+
+        for (int i = 0; i < entries.size(); i++) {
+            if (cleanPath.equals(entries.get(i).path)) {
+                // Already in list — do NOT update timestamp so position stays unchanged
+                return;
+            }
+        }
+        // Not found — add normally so it appears at the top
+        add(ctx, path);
+    }
+
     public static boolean mergeAutoDiscovered(Context ctx, List<File> files) {
         if (files == null || files.isEmpty()) return false;
 
@@ -68,6 +90,54 @@ public class RecentManager {
 
             boolean isPinned = isPinned(prefs, path);
             long accessedAt = Math.max(1L, file.lastModified());
+            entries.add(new RecentEntry(path, accessedAt, isPinned));
+            changed = true;
+        }
+
+        if (!changed) return false;
+
+        sortByPinnedAndAccessDesc(entries);
+        if (entries.size() > MAX) {
+            entries = new ArrayList<>(entries.subList(0, MAX));
+        }
+        prefs.edit().putString(KEY, joinOrderedEntries(entries)).apply();
+        return true;
+    }
+
+    /**
+     * Merges MediaStore-discovered files into Recents using the provided {@code dateAddedMs}
+     * timestamps (MediaStore {@code DATE_ADDED}) instead of {@link File#lastModified()}.
+     *
+     * <p>This is important for files received via messaging apps (WhatsApp, Telegram, etc.)
+     * whose filesystem {@code lastModified} may reflect the original creation date of the
+     * media rather than when it arrived on the device. Using {@code DATE_ADDED} ensures that
+     * the {@code autoDiscoverySince} guard (set when the user clears Recents) is compared
+     * against the actual arrival time, not the original photo date.
+     *
+     * @param ctx           context
+     * @param mediaEntries  list of {@link MediaStoreScanner.Entry} with file + dateAddedMs
+     * @return true if any new entry was added and the list was persisted
+     */
+    public static boolean mergeMediaStoreDiscovered(Context ctx, List<MediaStoreScanner.Entry> mediaEntries) {
+        if (mediaEntries == null || mediaEntries.isEmpty()) return false;
+
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        List<RecentEntry> entries = parseOrderedEntries(prefs.getString(KEY, ""), prefs);
+        boolean changed = false;
+        long autoDiscoverySince = prefs.getLong(KEY_AUTO_DISCOVERY_SINCE, 0L);
+
+        for (MediaStoreScanner.Entry msEntry : mediaEntries) {
+            if (msEntry == null || msEntry.file == null) continue;
+            File file = msEntry.file;
+            if (!file.exists() || !file.isFile()) continue;
+            String path = file.getAbsolutePath();
+            if (path.trim().isEmpty()) continue;
+            // Use DATE_ADDED (arrival time) for the since-guard, not lastModified()
+            if (autoDiscoverySince > 0L && msEntry.dateAddedMs < autoDiscoverySince) continue;
+            if (containsPath(entries, path)) continue;
+
+            boolean isPinned = isPinned(prefs, path);
+            long accessedAt = Math.max(1L, msEntry.dateAddedMs);
             entries.add(new RecentEntry(path, accessedAt, isPinned));
             changed = true;
         }

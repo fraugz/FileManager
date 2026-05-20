@@ -50,6 +50,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.core.content.pm.ShortcutInfoCompat;
+import androidx.core.content.pm.ShortcutManagerCompat;
+import androidx.core.graphics.drawable.IconCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.recyclerview.widget.DividerItemDecoration;
@@ -123,11 +126,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private static final int REQ_MANAGE_FILES = 101;
     private static final int REQ_SYSTEM_TRASH = 102;
     private static final int SORT_NAME = 0, SORT_DATE = 1, SORT_SIZE = 2;
-    private static final long AUTO_RECENT_SCAN_INTERVAL_MS = 60_000L;
-    private static final long AUTO_RECENT_LOOKBACK_MS = 14L * 24L * 60L * 60L * 1000L;
-    private static final int AUTO_RECENT_MAX_CANDIDATES = 120;
-    private static final int AUTO_RECENT_MAX_SCAN_DEPTH = 4;
-    private static final int AUTO_RECENT_MAX_VISITED_DIRS = 300;
+    /** @deprecated Auto-discovery disabled — adds noise without reliable intent signal. */
+    @Deprecated private static final long AUTO_RECENT_SCAN_INTERVAL_MS = 60_000L;
+    /** @deprecated Auto-discovery disabled. */
+    @Deprecated private static final long AUTO_RECENT_LOOKBACK_MS = 14L * 24L * 60L * 60L * 1000L;
+    /** @deprecated Auto-discovery disabled. */
+    @Deprecated private static final int AUTO_RECENT_MAX_CANDIDATES = 120;
+    /** @deprecated Auto-discovery disabled. */
+    @Deprecated private static final int AUTO_RECENT_MAX_SCAN_DEPTH = 4;
+    /** @deprecated Auto-discovery disabled. */
+    @Deprecated private static final int AUTO_RECENT_MAX_VISITED_DIRS = 300;
     private int sortMode = SORT_NAME;
     private boolean isDark;
     private float uiScale = ThemeManager.UI_SCALE_DEFAULT;
@@ -150,9 +158,13 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     private ImageView actionSendIcon, actionOpenWithIcon, actionPlayIcon, actionSelectAllIcon, actionMoveIcon, actionCopyIcon, actionDeleteIcon, actionRenameIcon, actionInfoIcon;
     private ProgressBar searchProgress;
     private SwipeRefreshLayout swipeRefresh;
+    private SwipeRefreshLayout swipeRefreshRecent;
     private ImageButton btnClearRecent;
+    private ImageButton btnSelectAllRecent;
+    private ImageButton btnSelectDayRecent;
     private ImageButton btnSelectAllInline;
     private ImageButton btnHomeInline;
+    private TextView selectionCountLabel;
 
     // Custom bottom nav
     private LinearLayout bottomNav, tabRecent, tabStorage;
@@ -162,11 +174,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     // Adapters
     private FileAdapter adapter;
     private FileAdapter recentListAdapter;
+    private RecentAdapter recentGroupAdapter; // burst groups from MediaStore
+    private RecyclerView recyclerRecentGroups;
     private final List<FileItem> fileItems = new ArrayList<>();
     private final List<FileItem> recentFileItems = new ArrayList<>();
     private final List<File> recentFilesCache = new ArrayList<>();
     private final Map<String, Long> recentAccessByPath = new HashMap<>();
     private final Map<String, Boolean> recentPinnedByPath = new HashMap<>();
+    private volatile boolean mediaStoreScanRunning = false;
 
     // State
     private File currentDir;
@@ -217,6 +232,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         setupListeners();
         selectTab(TAB_STORAGE);
         handleIncomingShareIntent(getIntent());
+        handleIncomingViewIntent();
+        handleShortcutStartPath(getIntent());
         requestPermissions();
         UpdateChecker.checkOnce(this);
         Log.d(TAG, "onCreate complete");
@@ -232,12 +249,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     @Override
     protected void onResume() {
         super.onResume();
+        handleIncomingViewIntent();
         if (currentTab == TAB_RECENT) {
             // Skip reload if we're in selection mode (e.g. returning from share chooser)
             boolean inSelection = recentListAdapter != null && recentListAdapter.isSelectionMode();
             if (!inSelection) loadRecentFiles();
-        } else {
-            triggerAutoRecentDiscovery(false);
         }
     }
 
@@ -262,8 +278,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         pageTitle           = findViewById(R.id.page_title);
         recentTitle         = findViewById(R.id.recent_title);
         btnClearRecent      = findViewById(R.id.btn_clear_recent);
+        btnSelectAllRecent  = findViewById(R.id.btn_select_all_recent);
+        btnSelectDayRecent  = findViewById(R.id.btn_select_day_recent);
         btnSelectAllInline  = findViewById(R.id.btn_select_all_inline);
         btnHomeInline       = findViewById(R.id.btn_home_inline);
+        selectionCountLabel = findViewById(R.id.tv_selection_count);
         searchProgress      = findViewById(R.id.search_progress);
         searchStatus        = findViewById(R.id.search_status);
         cancelSearchBtn     = findViewById(R.id.btn_cancel_search);
@@ -287,6 +306,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         actionRenameIcon    = findViewById(R.id.action_rename_icon);
         actionInfoIcon      = findViewById(R.id.action_info_icon);
         swipeRefresh        = findViewById(R.id.swipe_refresh);
+        swipeRefreshRecent  = findViewById(R.id.swipe_refresh_recent);
         bottomNav           = findViewById(R.id.bottom_nav);
         tabRecent           = findViewById(R.id.tab_recent);
         tabStorage          = findViewById(R.id.tab_storage);
@@ -323,6 +343,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         safeSetBg(topActionBar, bgMain);
         safeSetBg(bottomNav, navBg);
         safeSetBg(selectionActionsBar, navBg);
+        if (selectionCountLabel != null) selectionCountLabel.setBackgroundColor(navBg);
         safeSetBg(pasteBar, pasteBg);
         if (recycler != null) recycler.setBackgroundColor(bgMain);
         if (recyclerRecent != null) recyclerRecent.setBackgroundColor(bgMain);
@@ -364,7 +385,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (actionRenameIcon != null) actionRenameIcon.setColorFilter(iconTint);
         if (actionInfoIcon != null) actionInfoIcon.setColorFilter(iconTint);
 
-        int[] iconBtns = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_select_all_inline, R.id.btn_new_folder_inline, R.id.btn_home_inline, R.id.btn_clear_recent};
+        int[] iconBtns = {R.id.btn_search, R.id.btn_filter, R.id.btn_trash, R.id.btn_overflow, R.id.btn_select_all_inline, R.id.btn_new_folder_inline, R.id.btn_home_inline, R.id.btn_clear_recent, R.id.btn_select_all_recent, R.id.btn_select_day_recent};
         for (int id : iconBtns) {
             View v = findViewById(id);
             if (v instanceof ImageButton) ((ImageButton) v).setColorFilter(iconTint);
@@ -376,6 +397,10 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (swipeRefresh != null) {
             swipeRefresh.setColorSchemeColors(accent);
             swipeRefresh.setProgressBackgroundColorSchemeColor(bgCard);
+        }
+        if (swipeRefreshRecent != null) {
+            swipeRefreshRecent.setColorSchemeColors(accent);
+            swipeRefreshRecent.setProgressBackgroundColorSchemeColor(bgCard);
         }
 
         applyUiScale();
@@ -591,6 +616,28 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             recentListAdapter.setRecentMode(true);
             recyclerRecent.setAdapter(recentListAdapter);
         }
+
+        // Burst-groups horizontal strip
+        recyclerRecentGroups = findViewById(R.id.recycler_recent_groups);
+        if (recyclerRecentGroups != null) {
+            recyclerRecentGroups.setLayoutManager(
+                    new androidx.recyclerview.widget.LinearLayoutManager(
+                            this, androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, false));
+            recentGroupAdapter = new RecentAdapter(this, new ArrayList<>(), new RecentAdapter.OnFileClick() {
+                @Override
+                public void onClick(File file) {
+                    try {
+                        RecentManager.add(MainActivity.this, file.getAbsolutePath());
+                        openFile(file);
+                    } catch (Exception e) { Log.e(TAG, "group file click", e); }
+                }
+                @Override
+                public void onLongPress(File file, View anchor) {
+                    // Long-press on individual files inside a group dialog — no-op for now
+                }
+            });
+            recyclerRecentGroups.setAdapter(recentGroupAdapter);
+        }
     }
 
     private void setupListeners() {
@@ -601,12 +648,24 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 finally { swipeRefresh.setRefreshing(false); }
             });
         }
+        if (swipeRefreshRecent != null) {
+            swipeRefreshRecent.setOnRefreshListener(() -> {
+                loadRecentFiles();
+                triggerMediaStoreRecentDiscovery(true); // force scan, bypass throttle
+                // Spinner is hidden by loadRecentFiles completion; hide here as fallback
+                mainHandler.postDelayed(() -> {
+                    if (swipeRefreshRecent != null) swipeRefreshRecent.setRefreshing(false);
+                }, 3000);
+            });
+        }
 
         setClickSafe(R.id.btn_search,            v -> toggleSearch());
         setClickSafe(R.id.btn_filter,            v -> showSortMenu(v));
         setClickSafe(R.id.btn_trash,             v -> startActivity(new Intent(this, TrashActivity.class)));
         setClickSafe(R.id.btn_overflow,          v -> startActivity(new Intent(this, SettingsActivity.class)));
         setClickSafe(R.id.btn_clear_recent,      v -> confirmClearRecents());
+        setClickSafe(R.id.btn_select_all_recent, v -> selectAllRecentFiles());
+        setClickSafe(R.id.btn_select_day_recent, v -> showSelectByDayDialog());
         setClickSafe(R.id.btn_select_all_inline, v -> toggleSelectAllInline());
         setClickSafe(R.id.btn_new_folder_inline, v -> showNewFolderDialog());
         setClickSafe(R.id.btn_home_inline, v -> navigateToStorageRoot());
@@ -823,6 +882,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     // ─────────────────────── VIEWS ───────────────────────────────────
 
     private void showStorageView() {
+        if (currentTab == TAB_RECENT || (viewRecent != null && viewRecent.getVisibility() == View.VISIBLE)) {
+            recentTabLeftAtMs = System.currentTimeMillis();
+        }
         if (viewStorage != null) viewStorage.setVisibility(View.VISIBLE);
         if (viewRecent != null)  viewRecent.setVisibility(View.GONE);
         View sortBtn = findViewById(R.id.btn_filter);
@@ -838,7 +900,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (sortBtn != null) sortBtn.setVisibility(View.GONE);
         View trashBtn = findViewById(R.id.btn_trash);
         if (trashBtn != null) trashBtn.setVisibility(View.VISIBLE);
+        // Force a fresh MediaStore scan if the user was away from Recents for more than 30s
+        boolean forceDiscovery = recentTabLeftAtMs > 0L
+                && (System.currentTimeMillis() - recentTabLeftAtMs) > RECENT_TAB_REENTRY_FORCE_MS;
         loadRecentFiles();
+        if (forceDiscovery) triggerMediaStoreRecentDiscovery(true);
     }
 
     private void loadRecentFiles() {
@@ -887,10 +953,112 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             if (emptyRecentView != null) emptyRecentView.setVisibility(empty ? View.VISIBLE : View.GONE);
             updateClearRecentsButtonState(!files.isEmpty());
             if (!empty && recentListAdapter != null) recentListAdapter.notifyDataSetChanged();
-            triggerAutoRecentDiscovery(false);
         } catch (Exception e) { Log.e(TAG, "loadRecentFiles", e); }
+
+        // Discover files created/downloaded by other apps via MediaStore (persists across restarts).
+        // Called outside the try-catch so it always runs, even when the list is empty.
+        triggerMediaStoreRecentDiscovery();
     }
 
+    // ─── MediaStore exclusion helpers ────────────────────────────────────────
+
+    private static final String MS_PREFS          = "mediastore_exclusions";
+    private static final String MS_KEY_CLEAR_MS   = "last_clear_ms";
+    private static final String MS_KEY_EXCLUDED   = "excluded_paths";
+
+    private void msExcludeAdd(String path) {
+        if (path == null) return;
+        android.content.SharedPreferences p = getSharedPreferences(MS_PREFS, MODE_PRIVATE);
+        java.util.Set<String> set = new java.util.HashSet<>(p.getStringSet(MS_KEY_EXCLUDED, new java.util.HashSet<>()));
+        set.add(path);
+        p.edit().putStringSet(MS_KEY_EXCLUDED, set).apply();
+    }
+
+    private void msExcludeSetClearTimestamp() {
+        getSharedPreferences(MS_PREFS, MODE_PRIVATE)
+                .edit().putLong(MS_KEY_CLEAR_MS, System.currentTimeMillis()).apply();
+    }
+
+    /** Returns true if a file should be skipped by the MediaStore scan. */
+    private boolean msIsExcluded(String path, long fileTimestampMs) {
+        android.content.SharedPreferences p = getSharedPreferences(MS_PREFS, MODE_PRIVATE);
+        long lastClear = p.getLong(MS_KEY_CLEAR_MS, 0L);
+        if (lastClear > 0L && fileTimestampMs <= lastClear) return true;
+        java.util.Set<String> excluded = p.getStringSet(MS_KEY_EXCLUDED, java.util.Collections.emptySet());
+        return excluded.contains(path);
+    }
+
+    // ─── MediaStore scan (deprecated — to restore, call triggerMediaStoreScan() at end of loadRecentFiles()) ───
+
+    /** @deprecated MediaStore scan deprecated. Kept for potential restore. */
+    @Deprecated
+    private void triggerMediaStoreScan() {
+        if (!hasStorageReadAccess()) return;
+        if (mediaStoreScanRunning) return;
+        mediaStoreScanRunning = true;
+        new Thread(() -> {
+            try {
+                List<RecentItem> scanned = MediaStoreScanner.scan(MainActivity.this);
+
+                // Snapshot of paths already in the main list
+                java.util.Set<String> manualPaths = new java.util.HashSet<>();
+                for (File f : recentFilesCache) manualPaths.add(f.getAbsolutePath());
+
+                // Flatten groups and individuals into a single deduplicated list
+                List<File> newFiles = new ArrayList<>();
+                Map<String, Long> newTimestamps = new HashMap<>();
+
+                for (RecentItem ri : scanned) {
+                    List<File> candidates = ri.isGroup ? ri.groupFiles
+                            : (ri.singleFile != null ? Collections.singletonList(ri.singleFile) : new ArrayList<>());
+                    for (File f : candidates) {
+                        if (f == null) continue;
+                        String path = f.getAbsolutePath();
+                        if (manualPaths.contains(path) || newTimestamps.containsKey(path)) continue;
+                        if (msIsExcluded(path, ri.timestamp)) continue;
+                        newFiles.add(f);
+                        newTimestamps.put(path, ri.timestamp);
+                    }
+                }
+
+                if (newFiles.isEmpty()) return;
+
+                mainHandler.post(() -> {
+                    try {
+                        for (File f : newFiles) {
+                            recentFilesCache.add(f);
+                            recentAccessByPath.put(f.getAbsolutePath(),
+                                    newTimestamps.get(f.getAbsolutePath()));
+                            recentPinnedByPath.put(f.getAbsolutePath(), false);
+                        }
+                        Collections.sort(recentFilesCache, (a, b) -> {
+                            Long ta = recentAccessByPath.get(a.getAbsolutePath());
+                            Long tb = recentAccessByPath.get(b.getAbsolutePath());
+                            long va = ta != null ? ta : a.lastModified();
+                            long vb = tb != null ? tb : b.lastModified();
+                            return Long.compare(vb, va);
+                        });
+                        syncRecentItemsWithFiles(recentFilesCache);
+                        if (recentListAdapter != null) {
+                            recentListAdapter.setRecentMetadata(recentAccessByPath, recentPinnedByPath);
+                            recentListAdapter.notifyDataSetChanged();
+                        }
+                        if (recyclerRecent != null) recyclerRecent.setVisibility(View.VISIBLE);
+                        if (emptyRecentView != null) emptyRecentView.setVisibility(View.GONE);
+                        if (recyclerRecentGroups != null) recyclerRecentGroups.setVisibility(View.GONE);
+                        updateClearRecentsButtonState(true);
+                    } catch (Exception e) { Log.e(TAG, "triggerMediaStoreScan post", e); }
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "triggerMediaStoreScan", e);
+            } finally {
+                mediaStoreScanRunning = false;
+            }
+        }, "mediastore-scan").start();
+    }
+
+    /** @deprecated Auto-discovery removed. Kept for potential restore. */
+    @Deprecated
     private void triggerAutoRecentDiscovery(boolean force) {
         if (!hasStorageReadAccess()) return;
         if (autoRecentScanRunning) return;
@@ -942,6 +1110,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         autoRecentScanThread.start();
     }
 
+    /** @deprecated Auto-discovery removed. Kept for potential restore. */
+    @Deprecated
     private List<File> getAutoRecentScanRoots() {
         List<File> roots = new ArrayList<>();
         addScanRoot(roots, Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS));
@@ -956,6 +1126,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         return roots;
     }
 
+    /** @deprecated Auto-discovery removed. Kept for potential restore. */
+    @Deprecated
     private void addScanRoot(List<File> roots, File dir) {
         if (dir == null || !dir.exists() || !dir.isDirectory()) return;
         String abs = dir.getAbsolutePath();
@@ -965,6 +1137,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         roots.add(dir);
     }
 
+    /** @deprecated Auto-discovery removed. Kept for potential restore. */
+    @Deprecated
     private void collectAutoRecentCandidates(File dir,
                                              int depth,
                                              long since,
@@ -999,6 +1173,58 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 if (visitedDirs[0] >= AUTO_RECENT_MAX_VISITED_DIRS) return;
             }
         }
+    }
+
+    // ─── MediaStore recent discovery (unified, no hardcoded paths) ───────────
+
+    private volatile boolean mediaStoreDiscoveryRunning = false;
+    /** Epoch-ms of the last completed MediaStore discovery scan (in-process only, resets on restart). */
+    private long lastMediaStoreDiscoveryAtMs = 0L;
+    private static final long MEDIA_STORE_DISCOVERY_INTERVAL_MS = 5 * 60_000L; // 5 minutes
+    /** Epoch-ms when the user last left the Recents tab. Used to bypass the throttle on re-entry. */
+    private long recentTabLeftAtMs = 0L;
+    private static final long RECENT_TAB_REENTRY_FORCE_MS = 30_000L; // force scan if away >30s
+
+    /**
+     * Queries {@link MediaStoreScanner#queryRecentFiles} in a background thread and merges
+     * results into {@link RecentManager} via {@link RecentManager#mergeAutoDiscovered}.
+     * Results survive app restarts (unlike the deprecated {@link #triggerMediaStoreScan()}).
+     *
+     * <p>Only one scan runs at a time. Safe to call from the main thread.
+     */
+    private void triggerMediaStoreRecentDiscovery() {
+        triggerMediaStoreRecentDiscovery(false);
+    }
+
+    private void triggerMediaStoreRecentDiscovery(boolean force) {
+        if (!hasStorageReadAccess()) return;
+        if (mediaStoreDiscoveryRunning) return;
+        long now = System.currentTimeMillis();
+        if (!force && now - lastMediaStoreDiscoveryAtMs < MEDIA_STORE_DISCOVERY_INTERVAL_MS) return;
+        mediaStoreDiscoveryRunning = true;
+
+        new Thread(() -> {
+            try {
+                long since = System.currentTimeMillis() - MediaStoreScanner.getQueryLookbackMs();
+                List<MediaStoreScanner.Entry> discovered = MediaStoreScanner.queryRecentFiles(MainActivity.this, since);
+                boolean changed = RecentManager.mergeMediaStoreDiscovered(MainActivity.this, discovered);
+                lastMediaStoreDiscoveryAtMs = System.currentTimeMillis();
+                if (changed) {
+                    mainHandler.post(() -> {
+                        if (swipeRefreshRecent != null) swipeRefreshRecent.setRefreshing(false);
+                        if (currentTab == TAB_RECENT) loadRecentFiles();
+                    });
+                } else {
+                    mainHandler.post(() -> {
+                        if (swipeRefreshRecent != null) swipeRefreshRecent.setRefreshing(false);
+                    });
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "triggerMediaStoreRecentDiscovery", e);
+            } finally {
+                mediaStoreDiscoveryRunning = false;
+            }
+        }, "ms-recent-discovery").start();
     }
 
     private boolean hasStorageReadAccess() {
@@ -1181,7 +1407,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         boolean empty = fileItems.isEmpty();
         if (swipeRefresh != null) {
             swipeRefresh.setRefreshing(false);
-            swipeRefresh.setVisibility(empty ? View.GONE : View.VISIBLE);
+            swipeRefresh.setVisibility(View.VISIBLE); // always visible so pull-to-refresh works on empty folders
         }
         if (emptyView != null) emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
         hideLoadingStatus();
@@ -1302,6 +1528,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 .setTitle(R.string.confirm_clear_title)
                 .setMessage(R.string.confirm_clear_recent_message)
                 .setPositiveButton(R.string.clear_all, (d, w) -> {
+                    msExcludeSetClearTimestamp();
                     RecentManager.clearUnpinned(this);
                     loadRecentFiles();
                     toast(getString(R.string.recents_cleared));
@@ -1331,7 +1558,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 fileItems.addAll(results);
                 if (adapter != null) adapter.notifyDataSetChanged();
                 boolean empty = fileItems.isEmpty();
-                if (swipeRefresh != null) swipeRefresh.setVisibility(empty ? View.GONE : View.VISIBLE);
+                if (swipeRefresh != null) swipeRefresh.setVisibility(View.VISIBLE);
                 if (emptyView != null)    emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
                 showSearchProgress(false, "");
             });
@@ -1478,6 +1705,26 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
     }
 
+    private void createFolderShortcut(File folder) {
+        if (!ShortcutManagerCompat.isRequestPinShortcutSupported(this)) {
+            toast(getString(R.string.shortcut_not_supported));
+            return;
+        }
+        String id = "shortcut_" + folder.getAbsolutePath().replace("/", "_");
+        Intent launchIntent = new Intent(this, MainActivity.class);
+        launchIntent.setAction(Intent.ACTION_MAIN);
+        launchIntent.putExtra("EXTRA_START_PATH", folder.getAbsolutePath());
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+        ShortcutInfoCompat shortcut = new ShortcutInfoCompat.Builder(this, id)
+                .setShortLabel(folder.getName())
+                .setLongLabel(folder.getAbsolutePath())
+                .setIcon(IconCompat.createWithResource(this, R.mipmap.ic_launcher))
+                .setIntent(launchIntent)
+                .build();
+        ShortcutManagerCompat.requestPinShortcut(this, shortcut, null);
+    }
+
     @Override
     public void onBackPressed() {
         FileAdapter activeAdapter = getActiveAdapter();
@@ -1493,6 +1740,26 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     public void onItemClick(FileItem item) {
         try {
             if (shouldBlockItemInteraction()) {
+                return;
+            }
+
+            // Picker mode (ACTION_GET_CONTENT): return selected file to caller
+            if (isPickerMode && !item.isDirectory()) {
+                try {
+                    File file = item.getFile();
+                    Uri uri = androidx.core.content.FileProvider.getUriForFile(
+                            this, getPackageName() + ".provider", file);
+                    Intent result = new Intent();
+                    result.setData(uri);
+                    result.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    setResult(RESULT_OK, result);
+                } catch (Exception ex) {
+                    // Fallback to file URI
+                    Intent result = new Intent();
+                    result.setData(android.net.Uri.fromFile(item.getFile()));
+                    setResult(RESULT_OK, result);
+                }
+                finish();
                 return;
             }
             FileAdapter activeAdapter = getActiveAdapter();
@@ -1513,8 +1780,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             }
             if (item.isDirectory()) {
                 if (currentTab == TAB_RECENT) {
-                    // Folder in Recents: update access time, switch to Storage and navigate into it
-                    RecentManager.add(this, item.getFile().getAbsolutePath());
+                    // Folder in Recents: touch in-place (no position change), switch to Storage
+                    RecentManager.touch(this, item.getFile().getAbsolutePath());
                     exitSelectionMode();
                     selectTab(TAB_STORAGE);
                     loadDirectory(item.getFile());
@@ -1522,7 +1789,13 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                     navigateTo(item.getFile());
                 }
             } else {
-                RecentManager.add(this, item.getFile().getAbsolutePath());
+                if (currentTab == TAB_RECENT) {
+                    // Re-opening from Recents: update timestamp but keep position
+                    RecentManager.touch(this, item.getFile().getAbsolutePath());
+                } else {
+                    // Opening from Storage: add to top (first access or promotes it)
+                    RecentManager.add(this, item.getFile().getAbsolutePath());
+                }
                 openFile(item.getFile());
             }
         } catch (Exception e) { Log.e(TAG, "onItemClick", e); toast(getString(R.string.error_with_reason, e.getMessage())); }
@@ -1573,6 +1846,14 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
         if (selectionActionsBar != null) {
             selectionActionsBar.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
+        }
+        if (selectionCountLabel != null) {
+            if (selectionMode) {
+                selectionCountLabel.setText(getString(R.string.selected_count, sel.size()));
+                selectionCountLabel.setVisibility(View.VISIBLE);
+            } else {
+                selectionCountLabel.setVisibility(View.GONE);
+            }
         }
 
         if (isRecentTab) {
@@ -1683,6 +1964,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             String path = file.getAbsolutePath();
             if (path == null || path.trim().isEmpty()) continue;
             RecentManager.remove(this, path);
+            msExcludeAdd(path);
             removed++;
         }
 
@@ -2217,6 +2499,54 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
     }
 
+    private void selectAllRecentFiles() {
+        if (recentFileItems.isEmpty() || recentListAdapter == null) return;
+        boolean allSelected = isAllCurrentSelected() && recentListAdapter.isSelectionMode();
+        if (allSelected) {
+            exitSelectionMode();
+        } else {
+            recentListAdapter.setSelectionMode(true);
+            for (FileItem fi : recentFileItems) fi.setSelected(true);
+            recentListAdapter.notifyDataSetChanged();
+            updateSelectionActionsBar();
+        }
+    }
+
+    private void showSelectByDayDialog() {
+        if (recentFileItems.isEmpty()) return;
+
+        SimpleDateFormat sdf    = new SimpleDateFormat("dd MMM yyyy", Locale.getDefault());
+        SimpleDateFormat dayFmt = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+        String todayStr = dayFmt.format(new Date());
+
+        // Build ordered map: label -> list of FileItem
+        Map<String, List<FileItem>> groups = new LinkedHashMap<>();
+        for (FileItem fi : recentFileItems) {
+            long ts = recentAccessByPath.getOrDefault(fi.getFile().getAbsolutePath(), fi.getFile().lastModified());
+            String d = dayFmt.format(new Date(ts));
+            String label = d.equals(todayStr) ? getString(R.string.today) : sdf.format(new Date(ts));
+            if (!groups.containsKey(label)) groups.put(label, new ArrayList<>());
+            groups.get(label).add(fi);
+        }
+
+        if (groups.isEmpty()) return;
+
+        String[] labels = groups.keySet().toArray(new String[0]);
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.select_day_title))
+                .setItems(labels, (d, which) -> {
+                    String chosen = labels[which];
+                    List<FileItem> dayItems = groups.get(chosen);
+                    if (dayItems == null || dayItems.isEmpty()) return;
+                    recentListAdapter.setSelectionMode(true);
+                    for (FileItem fi : recentFileItems) fi.setSelected(false);
+                    for (FileItem fi : dayItems) fi.setSelected(true);
+                    recentListAdapter.notifyDataSetChanged();
+                    updateSelectionActionsBar();
+                })
+                .show();
+    }
+
     private boolean isAllCurrentSelected() {
         List<FileItem> activeItems = getActiveItems();
         if (activeItems.isEmpty()) return false;
@@ -2227,20 +2557,26 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
     }
 
     private void updateInlineSelectAllVisual() {
-        if (btnSelectAllInline == null) return;
         FileAdapter activeAdapter = getActiveAdapter();
         boolean allSelected = isAllCurrentSelected() && activeAdapter != null && activeAdapter.isSelectionMode();
-        btnSelectAllInline.setImageResource(allSelected ? R.drawable.ic_action_select_all_checked : R.drawable.ic_action_select_all);
-        btnSelectAllInline.setAlpha(1.0f);
 
-        // setImageResource can clear filters on some devices; keep same tone as new-folder button.
-        ImageButton newFolderButton = findViewById(R.id.btn_new_folder_inline);
-        if (newFolderButton != null) {
-            if (newFolderButton.getColorFilter() != null) {
-                btnSelectAllInline.setColorFilter(newFolderButton.getColorFilter());
-            } else if (newFolderButton.getImageTintList() != null) {
-                btnSelectAllInline.setImageTintList(newFolderButton.getImageTintList());
+        if (btnSelectAllInline != null) {
+            btnSelectAllInline.setImageResource(allSelected ? R.drawable.ic_action_select_all_checked : R.drawable.ic_action_select_all);
+            btnSelectAllInline.setAlpha(1.0f);
+            // setImageResource can clear filters on some devices; keep same tone as new-folder button.
+            ImageButton newFolderButton = findViewById(R.id.btn_new_folder_inline);
+            if (newFolderButton != null) {
+                if (newFolderButton.getColorFilter() != null) {
+                    btnSelectAllInline.setColorFilter(newFolderButton.getColorFilter());
+                } else if (newFolderButton.getImageTintList() != null) {
+                    btnSelectAllInline.setImageTintList(newFolderButton.getImageTintList());
+                }
             }
+        }
+
+        if (btnSelectAllRecent != null) {
+            btnSelectAllRecent.setImageResource(allSelected ? R.drawable.ic_action_select_all_checked : R.drawable.ic_action_select_all);
+            btnSelectAllRecent.setAlpha(1.0f);
         }
     }
 
@@ -2421,6 +2757,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             p.getMenu().add(0, 2, 0, getString(R.string.copy));
             p.getMenu().add(0, 5, 0, getString(R.string.rename));
             p.getMenu().add(0, 6, 0, getString(R.string.delete));
+            p.getMenu().add(0, 9, 0, getString(R.string.add_shortcut_to_desktop));
         } else {
             p.getMenu().add(0, 7, 0, getString(R.string.send));
             p.getMenu().add(0, 8, 0, getString(R.string.set_default_app));
@@ -2462,6 +2799,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                         break;
                     case 8:
                         showSetDefaultAppDialog(item.getFile(), true);
+                        break;
+                    case 9:
+                        createFolderShortcut(item.getFile());
                         break;
                 }
             } catch (Exception e) { Log.e(TAG, "fileMenu", e); toast(getString(R.string.error_with_reason, e.getMessage())); }
@@ -2678,6 +3018,90 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 }
             });
         }).start();
+    }
+
+    // ─────────────────────── ACTION_VIEW / ACTION_GET_CONTENT ────────
+
+    /** True when the app was launched by another app to pick a file (ACTION_GET_CONTENT). */
+    private boolean isPickerMode = false;
+
+    /**
+     * Called on onCreate and onResume. Handles:
+     *  - ACTION_VIEW: register the file in Recents and open it, navigating to its parent.
+     *  - ACTION_GET_CONTENT: enter picker mode so tapping a file returns it to the caller.
+     */
+    private void handleIncomingViewIntent() {
+        try {
+            Intent intent = getIntent();
+            if (intent == null) return;
+            String action = intent.getAction();
+
+            if (Intent.ACTION_GET_CONTENT.equals(action)) {
+                if (!isPickerMode) {
+                    isPickerMode = true;
+                    applyPickerModeUi();
+                }
+                return;
+            }
+
+            if (Intent.ACTION_VIEW.equals(action)) {
+                Uri data = intent.getData();
+                if (data == null) return;
+
+                // Resolve to a File path
+                String path = null;
+                if ("file".equals(data.getScheme())) {
+                    path = data.getPath();
+                } else if ("content".equals(data.getScheme())) {
+                    // Try DATA column first
+                    try (android.database.Cursor c = getContentResolver().query(
+                            data, new String[]{android.provider.MediaStore.MediaColumns.DATA},
+                            null, null, null)) {
+                        if (c != null && c.moveToFirst()) path = c.getString(0);
+                    } catch (Exception ignored) {}
+                }
+
+                if (path == null || path.trim().isEmpty()) return;
+                File file = new File(path);
+                if (!file.exists()) return;
+
+                // Register in Recents (add to top — it's a fresh open from outside)
+                RecentManager.add(this, file.getAbsolutePath());
+
+                // Navigate to the file's parent in Storage tab and open the file
+                selectTab(TAB_STORAGE);
+                if (file.getParentFile() != null && file.getParentFile().exists()) {
+                    loadDirectory(file.getParentFile());
+                }
+                openFile(file);
+
+                // Consume the intent so onResume doesn't re-trigger
+                setIntent(new Intent(this, MainActivity.class));
+            }
+        } catch (Exception e) { Log.e(TAG, "handleIncomingViewIntent", e); }
+    }
+
+    private void handleShortcutStartPath(Intent intent) {
+        if (intent == null) return;
+        String startPath = intent.getStringExtra("EXTRA_START_PATH");
+        if (startPath == null || startPath.isEmpty()) return;
+        File dir = new File(startPath);
+        if (dir.exists() && dir.isDirectory()) {
+            mainHandler.post(() -> {
+                selectTab(TAB_STORAGE);
+                loadDirectory(dir);
+            });
+        }
+    }
+
+    /** Adjusts the UI for picker mode (ACTION_GET_CONTENT). */
+    private void applyPickerModeUi() {
+        try {
+            // Show storage tab, hide recent tab, show title hint
+            selectTab(TAB_STORAGE);
+            if (tabRecent != null) tabRecent.setVisibility(View.GONE);
+            if (pageTitle != null) pageTitle.setText(R.string.select_file);
+        } catch (Exception e) { Log.e(TAG, "applyPickerModeUi", e); }
     }
 
     private void handleIncomingShareIntent(Intent intent) {

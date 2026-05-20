@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout for a burst group item in the Recents list -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="100dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="6dp"
+    android:gravity="top"
+    android:background="?attr/selectableItemBackground">
+
+    <FrameLayout
+        android:layout_width="88dp"
+        android:layout_height="88dp">
+
+        <!-- Thumbnail of the first (newest) file in the group -->
+        <ImageView
+            android:id="@+id/group_thumbnail"
+            android:layout_width="88dp"
+            android:layout_height="88dp"
+            android:background="@drawable/bg_thumbnail"
+            android:scaleType="centerCrop"/>
+
+        <!-- Badge showing file count, e.g. "×5" -->
+        <TextView
+            android:id="@+id/group_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_margin="4dp"
+            android:background="#CC000000"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:paddingTop="1dp"
+            android:paddingBottom="1dp"
+            android:textColor="#FFFFFFFF"
+            android:textSize="10sp"
+            android:textStyle="bold"/>
+
+    </FrameLayout>
+
+    <!-- Directory name, e.g. "WhatsApp Images · 5 archivos" -->
+    <TextView
+        android:id="@+id/group_label"
+        android:layout_width="88dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:singleLine="false"
+        android:textColor="#1C1C1E"
+        android:textSize="12sp"
+        android:lineSpacingMultiplier="1.1"/>
+
+    <!-- Date/time of the group -->
+    <TextView
+        android:id="@+id/group_time"
+        android:layout_width="88dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:textColor="#5E6C7A"
+        android:textSize="10sp"
+        android:ellipsize="end"
+        android:maxLines="1"/>
+
+</LinearLayout>

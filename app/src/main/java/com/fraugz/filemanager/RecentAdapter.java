@@ -1,5 +1,6 @@
 package com.fraugz.filemanager;
 
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
@@ -19,6 +20,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.util.TypedValue;
@@ -45,6 +47,7 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
     private static final int TYPE_HEADER = 0;
     private static final int TYPE_FILE = 1;
+    private static final int TYPE_GROUP = 2;
 
     public interface OnFileClick {
         void onClick(File file);
@@ -53,7 +56,7 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
     private final Context ctx;
     private final OnFileClick listener;
-    private List<Object> items = new ArrayList<>(); // String (header) or File
+    private List<Object> items = new ArrayList<>(); // String (header), File, or RecentItem (group)
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final LruCache<String, Bitmap> previewCache = new LruCache<String, Bitmap>(32) {
@@ -70,6 +73,62 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         this.ctx = ctx;
         this.listener = listener;
         setFiles(files);
+    }
+
+    /**
+     * Primary entry point when MediaStore integration is active.
+     * Accepts a mixed list of individual files and burst groups, already ordered
+     * by timestamp descending. Inserts date-section headers automatically.
+     */
+    public void setRecentItems(List<RecentItem> recentItems, Map<String, Long> accessByPath,
+                               Map<String, Boolean> pinnedByPath) {
+        items.clear();
+        if (pinnedByPath != null) this.pinnedByPath = pinnedByPath;
+        else this.pinnedByPath.clear();
+
+        SimpleDateFormat sdf    = new SimpleDateFormat("dd MMM yyyy", Locale.getDefault());
+        SimpleDateFormat dayFmt = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+        String todayStr = dayFmt.format(new Date());
+
+        Map<String, List<Object>> groups = new LinkedHashMap<>();
+        for (RecentItem ri : recentItems) {
+            long ts = ri.timestamp;
+            if (!ri.isGroup && accessByPath != null) {
+                Long mapped = accessByPath.get(ri.singleFile.getAbsolutePath());
+                if (mapped != null && mapped > 0L) ts = mapped;
+            }
+            String d = dayFmt.format(new Date(ts));
+            String label = d.equals(todayStr) ? ctx.getString(R.string.today) : sdf.format(new Date(ts));
+            if (!groups.containsKey(label)) groups.put(label, new ArrayList<>());
+            if (ri.isGroup) {
+                groups.get(label).add(ri);
+            } else {
+                groups.get(label).add(ri.singleFile);
+            }
+        }
+
+        for (Map.Entry<String, List<Object>> e : groups.entrySet()) {
+            List<Object> group = e.getValue();
+            items.add(e.getKey() + "  |  " + ctx.getString(R.string.items_count, group.size()));
+            items.addAll(group);
+        }
+        notifyDataSetChanged();
+    }
+
+    /**
+     * Flat list without date headers — used by the horizontal burst-groups strip.
+     * Each RecentItem is added directly as a group (TYPE_GROUP) or individual file (TYPE_FILE).
+     */
+    public void setGroupItems(List<RecentItem> recentItems) {
+        items.clear();
+        for (RecentItem ri : recentItems) {
+            if (ri.isGroup) {
+                items.add(ri);
+            } else if (ri.singleFile != null) {
+                items.add(ri.singleFile);
+            }
+        }
+        notifyDataSetChanged();
     }
 
     public void setFiles(List<File> files) {
@@ -134,7 +193,10 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
     @Override
     public int getItemViewType(int pos) {
-        return items.get(pos) instanceof String ? TYPE_HEADER : TYPE_FILE;
+        Object item = items.get(pos);
+        if (item instanceof String) return TYPE_HEADER;
+        if (item instanceof RecentItem) return TYPE_GROUP;
+        return TYPE_FILE;
     }
 
     @NonNull
@@ -144,6 +206,9 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         if (viewType == TYPE_HEADER) {
             View v = inf.inflate(R.layout.item_recent_header, parent, false);
             return new HeaderVH(v);
+        } else if (viewType == TYPE_GROUP) {
+            View v = inf.inflate(R.layout.item_recent_group, parent, false);
+            return new GroupVH(v);
         } else {
             View v = inf.inflate(R.layout.item_recent, parent, false);
             return new FileVH(v);
@@ -159,6 +224,8 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             h.text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * uiScale);
             h.collapse.setColorFilter(darkTheme ? 0xFF666666 : 0xFF5E6C7A);
             setSquareSize(h.collapse, dp(32f * uiScale));
+        } else if (holder instanceof GroupVH) {
+            bindGroupVH((GroupVH) holder, (RecentItem) items.get(pos));
         } else {
             File file = (File) items.get(pos);
             FileVH h = (FileVH) holder;
@@ -482,6 +549,194 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             name = v.findViewById(R.id.name);
             size = v.findViewById(R.id.size);
             path = v.findViewById(R.id.path);
+        }
+    }
+
+    static class GroupVH extends RecyclerView.ViewHolder {
+        ImageView thumbnail;
+        TextView badge, label, time;
+        GroupVH(View v) {
+            super(v);
+            thumbnail = v.findViewById(R.id.group_thumbnail);
+            badge     = v.findViewById(R.id.group_badge);
+            label     = v.findViewById(R.id.group_label);
+            time      = v.findViewById(R.id.group_time);
+        }
+    }
+
+    private void bindGroupVH(GroupVH h, RecentItem item) {
+        try {
+            int count = item.groupFiles != null ? item.groupFiles.size() : 0;
+            if (h.badge != null) h.badge.setText("×" + count);
+            if (h.label != null) {
+                h.label.setText(item.groupLabel != null ? item.groupLabel : "");
+                h.label.setTextColor(darkTheme ? 0xFFFFFFFF : 0xFF1C1C1E);
+                h.label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * uiScale);
+            }
+            if (h.time != null) {
+                String timeStr = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                        .format(new java.util.Date(item.timestamp));
+                h.time.setText(timeStr);
+                h.time.setTextColor(darkTheme ? 0xFF555555 : 0xFF768394);
+                h.time.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f * uiScale);
+            }
+
+            // Set up thumbnail from the first (representative) file
+            File representative = item.getRepresentativeFile();
+            if (h.thumbnail != null) {
+                setSquareSize(h.thumbnail, dp(88f * uiScale));
+                h.thumbnail.setBackgroundColor(darkTheme ? 0xFF1C1C1E : 0xFFE7EDF4);
+                if (representative != null) {
+                    String ext = representative.getName();
+                    int dot = ext.lastIndexOf('.');
+                    ext = dot >= 0 ? ext.substring(dot + 1).toLowerCase(Locale.ROOT) : "";
+                    h.thumbnail.setImageResource(getIconRes(ext));
+                    h.thumbnail.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                    int pad = dp(8f * uiScale);
+                    h.thumbnail.setPadding(pad, pad, pad, pad);
+                    loadGroupThumbnail(h.thumbnail, representative);
+                }
+            }
+
+            h.itemView.setOnClickListener(v -> showGroupDetail(item));
+        } catch (Exception e) {
+            android.util.Log.e("RecentAdapter", "bindGroupVH", e);
+        }
+    }
+
+    private void loadGroupThumbnail(ImageView imageView, File file) {
+        if (file == null || imageView == null) return;
+        String name = file.getName().toLowerCase(Locale.ROOT);
+        boolean isImage = name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png")
+                || name.endsWith(".webp") || name.endsWith(".bmp") || name.endsWith(".gif");
+        boolean isVideo = name.endsWith(".mp4") || name.endsWith(".3gp") || name.endsWith(".mkv");
+        if (!isImage && !isVideo) return;
+
+        String key = "grp#" + file.getAbsolutePath() + "#" + file.lastModified();
+        imageView.setTag(key);
+
+        Bitmap cached = previewCache.get(key);
+        if (cached != null) {
+            setBitmapPreview(imageView, cached);
+            return;
+        }
+
+        executor.execute(() -> {
+            try {
+                Bitmap bmp = null;
+                if (isImage) {
+                    BitmapFactory.Options opts = new BitmapFactory.Options();
+                    opts.inSampleSize = 4;
+                    bmp = BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
+                } else {
+                    bmp = ThumbnailUtils.createVideoThumbnail(
+                            file.getAbsolutePath(), MediaStore.Images.Thumbnails.MINI_KIND);
+                }
+                if (bmp != null) {
+                    previewCache.put(key, bmp);
+                    final Bitmap finalBmp = bmp;
+                    mainHandler.post(() -> {
+                        Object tag = imageView.getTag();
+                        if (tag != null && key.equals(tag)) setBitmapPreview(imageView, finalBmp);
+                    });
+                }
+            } catch (Exception ignored) {}
+        });
+    }
+
+    private void showGroupDetail(RecentItem item) {
+        if (item == null || item.groupFiles == null || item.groupFiles.isEmpty()) return;
+        try {
+            // Build a simple grid of thumbnails inside an AlertDialog
+            GridView gridView = new GridView(ctx);
+            gridView.setNumColumns(3);
+            gridView.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
+            int pad = dp(8f);
+            gridView.setPadding(pad, pad, pad, pad);
+            gridView.setHorizontalSpacing(dp(4f));
+            gridView.setVerticalSpacing(dp(4f));
+
+            GroupDetailAdapter detailAdapter = new GroupDetailAdapter(ctx, item.groupFiles, listener);
+            gridView.setAdapter(detailAdapter);
+
+            new AlertDialog.Builder(ctx)
+                    .setTitle(item.groupLabel != null ? item.groupLabel : "")
+                    .setView(gridView)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show();
+        } catch (Exception e) {
+            android.util.Log.e("RecentAdapter", "showGroupDetail", e);
+        }
+    }
+
+    /** Simple BaseAdapter used inside the group-detail AlertDialog grid. */
+    private static class GroupDetailAdapter extends android.widget.BaseAdapter {
+        private final Context ctx;
+        private final List<File> files;
+        private final OnFileClick listener;
+        private final ExecutorService exec = Executors.newFixedThreadPool(2);
+        private final Handler handler = new Handler(Looper.getMainLooper());
+
+        GroupDetailAdapter(Context ctx, List<File> files, OnFileClick listener) {
+            this.ctx = ctx;
+            this.files = files;
+            this.listener = listener;
+        }
+
+        @Override public int getCount() { return files.size(); }
+        @Override public Object getItem(int i) { return files.get(i); }
+        @Override public long getItemId(int i) { return i; }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            ImageView iv;
+            if (convertView instanceof ImageView) {
+                iv = (ImageView) convertView;
+            } else {
+                iv = new ImageView(ctx);
+                int size = dp(88f);
+                iv.setLayoutParams(new ViewGroup.LayoutParams(size, size));
+                iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                iv.setBackgroundColor(0xFF1C1C1E);
+            }
+            File file = files.get(position);
+            iv.setOnClickListener(v -> { if (listener != null) listener.onClick(file); });
+
+            String name = file.getName().toLowerCase(Locale.ROOT);
+            boolean isImage = name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png")
+                    || name.endsWith(".webp") || name.endsWith(".bmp") || name.endsWith(".gif");
+            boolean isVideo = name.endsWith(".mp4") || name.endsWith(".3gp") || name.endsWith(".mkv");
+
+            if (isImage || isVideo) {
+                String key = file.getAbsolutePath();
+                iv.setTag(key);
+                exec.execute(() -> {
+                    try {
+                        Bitmap bmp = null;
+                        if (isImage) {
+                            BitmapFactory.Options opts = new BitmapFactory.Options();
+                            opts.inSampleSize = 4;
+                            bmp = BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
+                        } else {
+                            bmp = ThumbnailUtils.createVideoThumbnail(
+                                    file.getAbsolutePath(), android.provider.MediaStore.Images.Thumbnails.MINI_KIND);
+                        }
+                        final Bitmap finalBmp = bmp;
+                        handler.post(() -> {
+                            Object tag = iv.getTag();
+                            if (tag != null && key.equals(tag) && finalBmp != null) {
+                                iv.setImageBitmap(finalBmp);
+                            }
+                        });
+                    } catch (Exception ignored) {}
+                });
+            }
+            return iv;
+        }
+
+        private int dp(float val) {
+            return Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP,
+                    val, Resources.getSystem().getDisplayMetrics()));
         }
     }
 }
