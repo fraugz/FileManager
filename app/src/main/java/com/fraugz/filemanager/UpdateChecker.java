@@ -183,11 +183,14 @@ public class UpdateChecker {
                             }
                         }
                     };
-                    ctx.registerReceiver(receiver,
-                            new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                            android.os.Build.VERSION.SDK_INT >= 33
-                                    ? android.content.Context.RECEIVER_EXPORTED
-                                    : 0);
+                    if (android.os.Build.VERSION.SDK_INT >= 33) {
+                        ctx.registerReceiver(receiver,
+                                new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                                android.content.Context.RECEIVER_NOT_EXPORTED);
+                    } else {
+                        ctx.registerReceiver(receiver,
+                                new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
+                    }
                 })
                 .setNeutralButton(R.string.update_later, null)
                 .setNegativeButton(R.string.update_dismiss, (d, w) ->
