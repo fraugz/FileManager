@@ -3249,6 +3249,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 nameInput.setSelection(0, text.length());
             }
             nameInput.requestFocus();
+            nameInput.postDelayed(() -> {
+                android.view.inputmethod.InputMethodManager imm =
+                        (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                if (imm != null) imm.showSoftInput(nameInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+            }, 100);
 
             Button btn = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
             btn.setOnClickListener(v -> {
