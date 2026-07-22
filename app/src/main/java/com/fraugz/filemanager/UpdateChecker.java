@@ -184,7 +184,10 @@ public class UpdateChecker {
                         }
                     };
                     ctx.registerReceiver(receiver,
-                            new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
+                            new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                            android.os.Build.VERSION.SDK_INT >= 33
+                                    ? android.content.Context.RECEIVER_EXPORTED
+                                    : 0);
                 })
                 .setNeutralButton(R.string.update_later, null)
                 .setNegativeButton(R.string.update_dismiss, (d, w) ->

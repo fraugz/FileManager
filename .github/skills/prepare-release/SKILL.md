@@ -137,14 +137,16 @@ Get-Item "release-assets\filemanager-vX.Y.Z.apk" | Select-Object Name, Length
 
 ## Step 9 — Publish GitHub release
 
-```powershell
-gh release create vX.Y.Z "release-assets\filemanager-vX.Y.Z.apk" `
-  --title "vX.Y.Z" `
-  --notes "## What's new
+> ⚠️ **IMPORTANT**: `UpdateChecker` downloads `app-release.apk` from the release assets.
+> The release **must** include an asset named exactly `app-release.apk` in addition to the
+> human-readable `filemanager-vX.Y.Z.apk`. Use `--clobber` so re-runs are safe.
 
-- Change 1
-- Change 2
-..."
+```powershell
+gh release create vX.Y.Z `
+  "release-assets\filemanager-vX.Y.Z.apk" `
+  "release-assets\filemanager-vX.Y.Z.apk#app-release.apk" `
+  --title "vX.Y.Z" `
+  --notes-file "release-assets\notes-vX.Y.Z.md"
 ```
 
 The command prints the release URL on success:
