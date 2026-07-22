@@ -2970,9 +2970,22 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         clipboardFiles.clear();
         updatePasteBar();
 
+        final boolean isCopy = clipboardIsCopy;
+
+        // Single file: let user confirm / edit the destination name before pasting
+        if (sources.size() == 1 && sources.get(0).isFile()) {
+            String currentName = sources.get(0).getName();
+            showRenameBeforeSaveDialog(currentName, newName ->
+                    doClipboardPaste(sources, isCopy, newName));
+            return;
+        }
+        doClipboardPaste(sources, isCopy, null);
+    }
+
+    private void doClipboardPaste(List<File> sources, boolean isCopy, String singleFileOverrideName) {
         final AtomicBoolean cancelled = new AtomicBoolean(false);
         final ProgressDialogHolder holder = showProgressDialog(
-                clipboardIsCopy ? R.string.copying_files : R.string.moving_files,
+                isCopy ? R.string.copying_files : R.string.moving_files,
                 Math.max(1, sources.size()),
                 cancelled
         );
@@ -2988,10 +3001,28 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             for (File source : sources) {
                 if (cancelled.get()) break;
                 try {
-                    if (clipboardIsCopy) {
-                        copySourceWithProgress(source, currentDir, cancelled, holder, processedUnits);
+                    if (singleFileOverrideName != null && sources.size() == 1 && source.isFile()) {
+                        File dest = buildUniqueDestination(currentDir, singleFileOverrideName);
+                        if (isCopy) {
+                            copyFileWithProgress(source, dest, cancelled, holder, processedUnits);
+                        } else {
+                            String sourcePath = source.getAbsolutePath();
+                            if (!source.renameTo(dest)) {
+                                copyFileWithProgress(source, dest, cancelled, holder, processedUnits);
+                                if (!FileOperations.delete(source)) {
+                                    throw new Exception("Unable to delete source after move: " + source.getName());
+                                }
+                            } else {
+                                addProgressUnits(1, holder, processedUnits);
+                            }
+                            RecentManager.remove(MainActivity.this, sourcePath);
+                        }
                     } else {
-                        moveSourceWithProgress(source, currentDir, cancelled, holder, processedUnits);
+                        if (isCopy) {
+                            copySourceWithProgress(source, currentDir, cancelled, holder, processedUnits);
+                        } else {
+                            moveSourceWithProgress(source, currentDir, cancelled, holder, processedUnits);
+                        }
                     }
                     ok++;
                 } catch (Exception e) {
@@ -3007,7 +3038,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                     toast(getString(R.string.operation_cancelled));
                 } else {
                     if (copiedCount > 0) {
-                        toast(getString(clipboardIsCopy ? R.string.copied_result : R.string.moved_result, copiedCount));
+                        toast(getString(isCopy ? R.string.copied_result : R.string.moved_result, copiedCount));
                     }
                     if (error != null) {
                         toast(getString(R.string.paste_partial_error, error));
@@ -3189,6 +3220,49 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             unique.add(trimmed);
         }
         return new ArrayList<>(unique);
+    }
+
+    private void showRenameBeforeSaveDialog(String currentName, java.util.function.Consumer<String> onConfirmed) {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(20), dp(12), dp(20), dp(4));
+
+        EditText nameInput = new EditText(this);
+        nameInput.setSingleLine(true);
+        nameInput.setText(currentName);
+        layout.addView(nameInput);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.rename_before_save_title)
+                .setView(layout)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.save_here, null)
+                .create();
+
+        dialog.setOnShowListener(d -> {
+            // Select base name (before extension) so user can type replacement immediately
+            String text = nameInput.getText().toString();
+            int dot = text.lastIndexOf('.');
+            if (dot > 0) {
+                nameInput.setSelection(0, dot);
+            } else {
+                nameInput.setSelection(0, text.length());
+            }
+            nameInput.requestFocus();
+
+            Button btn = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            btn.setOnClickListener(v -> {
+                String name = sanitizeFilename(
+                        nameInput.getText() == null ? "" : nameInput.getText().toString().trim());
+                if (name.isEmpty()) {
+                    toast(getString(R.string.shared_text_invalid_name));
+                    return;
+                }
+                dialog.dismiss();
+                onConfirmed.accept(name);
+            });
+        });
+        dialog.show();
     }
 
     private void showSharedTextSaveDialog(List<String> textPayloads, Runnable onConfigured) {
@@ -3477,6 +3551,19 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             return;
         }
 
+        // Single file: let user confirm / edit the destination name before saving
+        if (incomingSharedItems.size() == 1) {
+            IncomingSharedItem single = incomingSharedItems.get(0);
+            showRenameBeforeSaveDialog(single.displayName, newName -> {
+                incomingSharedItems.set(0, new IncomingSharedItem(single.uri, newName));
+                doImportSharedItems();
+            });
+            return;
+        }
+        doImportSharedItems();
+    }
+
+    private void doImportSharedItems() {
         final List<IncomingSharedItem> items = new ArrayList<>(incomingSharedItems);
         final AtomicBoolean cancelled = new AtomicBoolean(false);
         final ProgressDialogHolder holder = showProgressDialog(
