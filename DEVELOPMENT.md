@@ -58,7 +58,7 @@ app/
 
 - Storage, Recents, and Trash share `FastScrollRecyclerView`.
 - Scrollable lists display a slim pill thumb on the right: 6 x 48 dp (8 dp wide and accent-coloured while held), with a 48 dp wide touch target. It grows with larger UI scales.
-- While the thumb is dragged, a bubble beside it names the row it is passing, using whatever the list is ordered by: the initial (sorted by name), the date (sorted by date, and always in Recents), the file size (sorted by size) or the deletion date (Trash). Adapters supply the text through `FastScrollRecyclerView.LabelProvider`.
+- While the thumb is dragged, a teardrop-shaped bubble points at it from the left, set back from the edge so the finger does not cover the text. It names the row being passed, using whatever the list is ordered by: the initial (sorted by name), the date (sorted by date, and always in Recents), the file size (sorted by size) or the deletion date (Trash). Adapters supply the text through `FastScrollRecyclerView.LabelProvider`.
 - Sorted by name, an initial is useless when many files start the same way (`IMG_…`, `Screenshot_…`, `20261114-…`). When more than 30 consecutive rows share a start, `NameLabels` skips it and labels them by what changes next: the date written in the name (`yyyyMMdd` or `yyyy-MM-dd`, shown like in Recents) or, failing that, the first differing characters (`Factura_Enero` → `E`, `informe_137` → `13`). Shorter runs keep the initial.
 - Dragging jumps through the list without laying out every intermediate item. The handle is hidden for empty lists and lists that fit on screen.
 - Handle drags suppress pull-to-refresh and horizontal tab switching; normal gestures and selection remain available outside the handle.

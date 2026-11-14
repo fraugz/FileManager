@@ -61,6 +61,11 @@ public class FastScrollRecyclerViewTest {
             assertTrue(fixture.alphaAt(bubbleX, fixture.dp(28)) > 0);
             assertEquals(0, fixture.rows.lastLabelled);
 
+            // Teardrop: it narrows to a tip that reaches towards the thumb.
+            float nearTip = fixture.list.getWidth() - fixture.dp(26);
+            assertTrue(fixture.alphaAt(nearTip, fixture.dp(30)) > 0);
+            assertEquals(0, fixture.alphaAt(nearTip, fixture.dp(14)));
+
             fixture.touch(MotionEvent.ACTION_MOVE, fixture.list.getHeight() + fixture.dp(100));
             assertTrue(fixture.alphaAt(bubbleX, bottomY) > 0);
             assertEquals(199, fixture.rows.lastLabelled);

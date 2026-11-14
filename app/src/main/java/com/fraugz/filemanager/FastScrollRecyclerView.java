@@ -3,6 +3,7 @@ package com.fraugz.filemanager;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.text.format.DateUtils;
@@ -30,6 +31,7 @@ public class FastScrollRecyclerView extends RecyclerView {
     private final Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF thumb = new RectF();
     private final RectF bubble = new RectF();
+    private final Path bubblePath = new Path();
     private final int activeColor;
     private final float density;
     private final float scale;
@@ -48,7 +50,7 @@ public class FastScrollRecyclerView extends RecyclerView {
         bubblePaint.setColor(activeColor);
         labelPaint.setColor(0xFFFFFFFF);
         labelPaint.setTextAlign(Paint.Align.CENTER);
-        labelPaint.setTextSize(dp(18));
+        labelPaint.setTextSize(dp(20));
         labelPaint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         setVerticalScrollBarEnabled(false);
     }
@@ -123,16 +125,31 @@ public class FastScrollRecyclerView extends RecyclerView {
     }
 
     private void drawLabel(Canvas canvas) {
-        float height = dp(44);
-        float width = Math.max(height, labelPaint.measureText(label) + dp(32));
-        float right = thumb.left - dp(16);
+        // A teardrop whose tip points at the thumb, with the text set back from the edge so the
+        // finger dragging the thumb does not cover it.
+        float height = dp(52);
+        float radius = height / 2f;
+        float tip = thumb.left - dp(8);
+        float right = tip - dp(20);
+        float left = right - Math.max(height, labelPaint.measureText(label) + dp(32));
         float top = Math.max(dp(4),
-                Math.min(getHeight() - dp(4) - height, thumb.centerY() - height / 2f));
-        bubble.set(right - width, top, right, top + height);
-        canvas.drawRoundRect(bubble, height / 2f, height / 2f, bubblePaint);
+                Math.min(getHeight() - dp(4) - height, thumb.centerY() - radius));
+        float bottom = top + height;
+
+        bubble.set(left, top, left + height, bottom);
+        bubblePath.rewind();
+        bubblePath.moveTo(left + radius, top);
+        bubblePath.lineTo(right - radius, top);
+        bubblePath.quadTo(right, top, tip, top + radius);
+        bubblePath.quadTo(right, bottom, right - radius, bottom);
+        bubblePath.lineTo(left + radius, bottom);
+        bubblePath.arcTo(bubble, 90, 180);
+        bubblePath.close();
+        canvas.drawPath(bubblePath, bubblePaint);
+
         Paint.FontMetrics metrics = labelPaint.getFontMetrics();
-        canvas.drawText(label, bubble.centerX(),
-                bubble.centerY() - (metrics.ascent + metrics.descent) / 2f, labelPaint);
+        canvas.drawText(label, (left + right) / 2f,
+                top + radius - (metrics.ascent + metrics.descent) / 2f, labelPaint);
     }
 
     @Override
