@@ -933,14 +933,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 }
             }
 
-            Collections.sort(files, (a, b) -> {
-                Long ta = recentAccessByPath.get(a.getAbsolutePath());
-                Long tb = recentAccessByPath.get(b.getAbsolutePath());
-                long va = ta != null ? ta : a.lastModified();
-                long vb = tb != null ? tb : b.lastModified();
-                return Long.compare(vb, va);
-            });
-
+            // The entries already come ordered: pinned first, then most recent first.
             recentFilesCache.clear();
             recentFilesCache.addAll(files);
 
@@ -1500,14 +1493,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 filtered.add(f);
             }
         }
-
-        Collections.sort(filtered, (a, b) -> {
-            Long ta = recentAccessByPath.get(a.getAbsolutePath());
-            Long tb = recentAccessByPath.get(b.getAbsolutePath());
-            long va = ta != null ? ta : a.lastModified();
-            long vb = tb != null ? tb : b.lastModified();
-            return Long.compare(vb, va);
-        });
 
         syncRecentItemsWithFiles(filtered);
         if (recentListAdapter != null) {

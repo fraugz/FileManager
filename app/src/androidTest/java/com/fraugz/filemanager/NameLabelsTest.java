@@ -75,21 +75,41 @@ public class NameLabelsTest {
             for (int n = 1; n <= 3; n++) invoices.add("Factura_" + month + "_" + n + ".pdf");
         }
         String[] labels = labels(invoices);
-        assertEquals("E", labels[invoices.indexOf("Factura_Enero_1.pdf")]);
-        assertEquals("M", labels[invoices.indexOf("Factura_Mayo_3.pdf")]);
+        assertEquals("F…E", labels[invoices.indexOf("Factura_Enero_1.pdf")]);
+        assertEquals("F…M", labels[invoices.indexOf("Factura_Mayo_3.pdf")]);
 
         List<String> reports = new ArrayList<>();
         for (int n = 1; n <= 250; n++) reports.add(String.format(Locale.US, "informe_%03d.txt", n));
         labels = labels(reports);
-        assertEquals("00", labels[4]);
-        assertEquals("13", labels[136]);
-        assertEquals("25", labels[249]);
+        assertEquals("I…00", labels[4]);
+        assertEquals("I…13", labels[136]);
+        assertEquals("I…25", labels[249]);
 
         // Every photo is from the same day, so the date says nothing: the time is what changes.
         List<String> sameDay = new ArrayList<>();
         for (int h = 10; h < 50; h++) sameDay.add("IMG_20211114_" + h + "3000.jpg");
         labels = labels(sameDay);
-        assertEquals("1", labels[0]);
-        assertEquals("4", labels[39]);
+        assertEquals("I…1", labels[0]);
+        assertEquals("I…4", labels[39]);
+    }
+
+    @Test
+    public void aSharedFirstWordStaysInTheLabel() {
+        // More than 30 titles start with "La ": the label must still begin with L, not jump to
+        // the first letter of the second word.
+        List<String> titles = new ArrayList<>(Arrays.asList(
+                "Kafka en la orilla.epub", "Las uvas de la ira.epub", "Lolita.epub", "Momo.epub"));
+        for (char c = 'a'; c <= 'p'; c++) {
+            titles.add("La " + c + "lameda.epub");
+            titles.add("La " + c + "rilla.epub");
+        }
+        titles.add("La ciudad y los perros.epub");
+        String[] labels = labels(titles);
+        assertEquals("K", labels[0]);
+        assertEquals("LA C", labels[titles.indexOf("La ciudad y los perros.epub")]);
+        assertEquals("LA P", labels[titles.indexOf("La prilla.epub")]);
+        assertEquals("LAS", labels[titles.indexOf("Las uvas de la ira.epub")]);
+        assertEquals("LO", labels[titles.indexOf("Lolita.epub")]);
+        assertEquals("M", labels[titles.indexOf("Momo.epub")]);
     }
 }

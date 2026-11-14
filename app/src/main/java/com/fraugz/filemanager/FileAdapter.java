@@ -97,6 +97,9 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder>
     public String getFastScrollLabel(Context context, int position) {
         if (position < 0 || position >= items.size()) return null;
         FileItem item = items.get(position);
+        if (recentMode && isPinned(item.getFile())) {
+            return context.getString(R.string.pinned_section);
+        }
         if (recentMode || fastScrollLabelMode == LABEL_DATE) {
             return FastScrollRecyclerView.dateLabel(context, getAccessTimestamp(item.getFile()));
         }
@@ -116,6 +119,10 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder>
         recentPinnedByPath.clear();
         if (accessByPath != null) recentAccessByPath.putAll(accessByPath);
         if (pinnedByPath != null) recentPinnedByPath.putAll(pinnedByPath);
+    }
+
+    private boolean isPinned(File file) {
+        return Boolean.TRUE.equals(recentPinnedByPath.get(file.getAbsolutePath()));
     }
 
     @NonNull
@@ -151,16 +158,17 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder>
         h.meta.setText(formatDateTime(accessTs) + "  ·  " + item.getFormattedSize(h.itemView.getContext()));
 
         if (recentMode && h.recentDayHeader != null) {
-            String currentDayKey = formatDayKey(accessTs);
-            String previousDayKey = null;
-            if (pos > 0) {
-                File prev = items.get(pos - 1).getFile();
-                previousDayKey = formatDayKey(getAccessTimestamp(prev));
-            }
-            boolean showHeader = pos == 0 || !currentDayKey.equals(previousDayKey);
+            // Pinned rows form one section at the top; the rest are grouped by day.
+            boolean pinned = isPinned(file);
+            File prev = pos > 0 ? items.get(pos - 1).getFile() : null;
+            boolean showHeader = prev == null || pinned != isPinned(prev)
+                    || (!pinned && !formatDayKey(accessTs).equals(formatDayKey(getAccessTimestamp(prev))));
             h.recentDayHeader.setVisibility(showHeader ? View.VISIBLE : View.GONE);
             if (showHeader) {
-                h.recentDayHeader.setText(formatDayLabel(accessTs, h.itemView.getContext()));
+                Context context = h.itemView.getContext();
+                h.recentDayHeader.setText(pinned
+                        ? context.getString(R.string.pinned_section)
+                        : formatDayLabel(accessTs, context));
                 h.recentDayHeader.setTextColor(darkTheme ? 0xFF8FA3B8 : 0xFF5E6C7A);
                 h.recentDayHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * uiScale);
             }
@@ -169,7 +177,7 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder>
         }
 
         if (h.pinBadge != null) {
-            boolean isPinned = recentMode && Boolean.TRUE.equals(recentPinnedByPath.get(file.getAbsolutePath()));
+            boolean isPinned = recentMode && isPinned(file);
             h.pinBadge.setVisibility(isPinned ? View.VISIBLE : View.GONE);
             if (isPinned) {
                 h.pinBadge.setColorFilter(darkTheme ? 0xFFFFD54F : 0xFFFFA000);

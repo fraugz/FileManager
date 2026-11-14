@@ -46,9 +46,19 @@ public class RecentManager {
         // Check if it's pinned to preserve pin status
         boolean wasPinned = isPinned(prefs, cleanPath);
         entries.add(0, new RecentEntry(cleanPath, System.currentTimeMillis(), wasPinned));
-        if (entries.size() > MAX) entries = new ArrayList<>(entries.subList(0, MAX));
+        entries = trim(entries);
 
         prefs.edit().putString(KEY, joinOrderedEntries(entries)).apply();
+    }
+
+    /** Keeps every pinned entry plus the first MAX others, so pins never crowd out the recent files. */
+    static List<RecentEntry> trim(List<RecentEntry> entries) {
+        List<RecentEntry> kept = new ArrayList<>();
+        int unpinned = 0;
+        for (RecentEntry entry : entries) {
+            if (entry.isPinned || unpinned++ < MAX) kept.add(entry);
+        }
+        return kept;
     }
 
     /**
@@ -97,9 +107,7 @@ public class RecentManager {
         if (!changed) return false;
 
         sortByPinnedAndAccessDesc(entries);
-        if (entries.size() > MAX) {
-            entries = new ArrayList<>(entries.subList(0, MAX));
-        }
+        entries = trim(entries);
         prefs.edit().putString(KEY, joinOrderedEntries(entries)).apply();
         return true;
     }
@@ -145,9 +153,7 @@ public class RecentManager {
         if (!changed) return false;
 
         sortByPinnedAndAccessDesc(entries);
-        if (entries.size() > MAX) {
-            entries = new ArrayList<>(entries.subList(0, MAX));
-        }
+        entries = trim(entries);
         prefs.edit().putString(KEY, joinOrderedEntries(entries)).apply();
         return true;
     }

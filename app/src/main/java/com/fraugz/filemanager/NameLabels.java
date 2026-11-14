@@ -10,13 +10,16 @@ import java.util.Locale;
  * Fast-scroll labels for a list ordered by name. A row normally gets its initial, but when more
  * rows than fit on a couple of screens start the same way, that shared start is skipped and the
  * label becomes what changes next: the date written in the name ("IMG_20261114_…"), or else the
- * first differing characters ("Factura_Enero" → "E", "informe_137" → "13").
+ * first differing characters after the name's own beginning ("La ciudad" → "LA C",
+ * "Factura_Enero" → "F…E", "informe_137" → "I…13").
  */
 final class NameLabels {
 
     /** Longest run of rows that may share one label before it is refined. */
     private static final int MAX_RUN = 30;
     private static final int MAX_CHARS = 4;
+    /** A shared start up to this long, differing character included, is shown whole. */
+    private static final int MAX_START = 5;
 
     private NameLabels() {}
 
@@ -133,12 +136,19 @@ final class NameLabels {
         return value;
     }
 
-    /** The name from {@code from} up to and including the character at {@code p}; the initial if that is blank. */
+    /**
+     * The label of a name whose rows are told apart by the character at {@code p}. It always starts
+     * with the name's own beginning, so it never reads as the initial of some other letter: the
+     * whole start when it is short ("La ciudad" → "LA C"), otherwise the initial, an ellipsis and
+     * what changes ("Factura_Enero" → "F…E"). {@code from} is where the skipped shared start ends.
+     */
     private static String text(String name, int from, int p) {
         int end = p < name.length() ? name.offsetByCodePoints(p, 1) : name.length();
         String label = name.substring(Math.max(from, end - MAX_CHARS), end).trim();
-        if (label.isEmpty() && !name.isEmpty()) {
-            label = name.substring(0, name.offsetByCodePoints(0, 1));
+        if (label.isEmpty() || (from > 0 && end <= MAX_START)) {
+            label = name.substring(0, label.isEmpty() ? Math.min(1, name.length()) : end).trim();
+        } else if (from > 0) {
+            label = name.substring(0, name.offsetByCodePoints(0, 1)) + "…" + label;
         }
         return label.toUpperCase(Locale.getDefault());
     }
