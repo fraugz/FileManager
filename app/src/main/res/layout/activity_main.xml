@@ -201,13 +201,10 @@
                     android:id="@+id/swipe_refresh"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent">
-                    <androidx.recyclerview.widget.RecyclerView
+                    <com.fraugz.filemanager.FastScrollRecyclerView
                         android:id="@+id/recycler"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:scrollbars="vertical"
-                        android:fadeScrollbars="false"
-                        android:fastScrollEnabled="true"/>
+                        android:layout_height="match_parent"/>
                 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
                 <!-- Empty state overlaid in same FrameLayout -->
@@ -314,13 +311,10 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent">
 
-                        <androidx.recyclerview.widget.RecyclerView
+                        <com.fraugz.filemanager.FastScrollRecyclerView
                             android:id="@+id/recycler_recent"
                             android:layout_width="match_parent" android:layout_height="match_parent"
                             android:paddingBottom="8dp" android:clipToPadding="false"
-                            android:scrollbars="vertical"
-                            android:fadeScrollbars="false"
-                            android:fastScrollEnabled="true"
                             android:visibility="gone"/>
 
                     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

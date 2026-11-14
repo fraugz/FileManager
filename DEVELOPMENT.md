@@ -20,7 +20,7 @@ This document contains technical information for developers working on FileManag
 - **Platform:** Android
 - **Build:** Gradle (Android Application plugin)
 - **UI:** AppCompat, RecyclerView, SwipeRefreshLayout
-- **Min SDK:** 24 (Android 7.0)
+- **Min SDK:** 30 (Android 11)
 - **Target SDK:** 34
 - **Namespace/ApplicationId:** com.fraugz.filemanager
 
@@ -53,6 +53,15 @@ app/
 ---
 
 ## Application Behavior
+
+### Fast Scrolling
+
+- Storage, Recents, and Trash share `FastScrollRecyclerView`.
+- Scrollable lists display a slim pill thumb on the right: 6 x 48 dp (8 dp wide and accent-coloured while held), with a 48 dp wide touch target. It grows with larger UI scales.
+- While the thumb is dragged, a bubble beside it names the row it is passing, using whatever the list is ordered by: the initial (sorted by name), the date (sorted by date, and always in Recents), the file size (sorted by size) or the deletion date (Trash). Adapters supply the text through `FastScrollRecyclerView.LabelProvider`.
+- Sorted by name, an initial is useless when many files start the same way (`IMG_…`, `Screenshot_…`, `20261114-…`). When more than 30 consecutive rows share a start, `NameLabels` skips it and labels them by what changes next: the date written in the name (`yyyyMMdd` or `yyyy-MM-dd`, shown like in Recents) or, failing that, the first differing characters (`Factura_Enero` → `E`, `informe_137` → `13`). Shorter runs keep the initial.
+- Dragging jumps through the list without laying out every intermediate item. The handle is hidden for empty lists and lists that fit on screen.
+- Handle drags suppress pull-to-refresh and horizontal tab switching; normal gestures and selection remain available outside the handle.
 
 ### Default Apps
 
@@ -186,6 +195,7 @@ Visible actions in the bottom bar depend on the active tab and what is selected.
 - **v1.3.2:** Critical fix: files now move to app trash instead of being deleted directly. Fixed multi-selection also deleting permanently. Multi-selection in Trash screen (long-press to select, tap to toggle, batch Restore/Delete actions). Trash thumbnails now use original filename for media type detection. Visited folders now appear in Recents sorted by last access.
 - **v1.3.3:** System trash now detected via MediaStore query (same approach as Google Photos), fixing items missing from the Trash screen. Folder item counts now include both system and app trash. Only pinned folders appear in Recents automatically; non-pinned folders are no longer added on scan. Trash icon visible in both Storage and Recents tabs. New once-a-day update checker dialog.
 - **v1.3.4:** App registered as ACTION_VIEW handler — appears in "Open with…" from any app; the opened file is added to Recents and the browser navigates to its parent folder. App registered as ACTION_GET_CONTENT handler — appears as a file picker when other apps request an attachment or upload (messaging, email, cloud storage, etc.); selecting a file returns its URI to the caller via setResult and closes the app. Recents auto-discovery and MediaStore background scan removed (deprecated); only manually opened or pinned items appear. Re-opening a file already in Recents updates its access timestamp without changing its position (new RecentManager.touch()).- **v1.3.5:** Recents auto-discovery restored via a single `MediaStore.Files` query — no hardcoded paths; covers images, video, audio, documents (MEDIA_TYPE_DOCUMENT), and MEDIA_TYPE_NONE files with a known-extension whitelist (zip, apk, pdf, docx, epub, etc.). `DATE_ADDED` from MediaStore used as the arrival timestamp instead of `File.lastModified()`, fixing WhatsApp/Telegram photos with historic mtimes. Pull-to-refresh gesture in Recents forces an immediate scan (bypasses 5-minute throttle). Returning to Recents after ≥30 seconds also triggers a forced scan. Fixed `LruCache` size (was 20 KB hard cap — smaller than one thumbnail; now 1/8 of heap). Fixed discovery-loop bug (scan re-triggered on every `loadRecentFiles`, causing `notifyDataSetChanged` cycles and multi-tap to open). Fixed pull-to-refresh on empty folders and empty search results (`SwipeRefreshLayout` was set to `GONE`).- **v1.3.1:** Trash screen UX overhaul: thumbnail previews for image/video/audio/APK items; click opens file with the preferred app (honouring DefaultAppsManager, same as main browser); long-press shows a bottom action bar (Restore / Info / Delete) with icons matching the main selection bar; both app-trash and system-trash sections are always visible with an empty-state placeholder when each is empty; section headers carry a ? info badge (theme-aware); Empty trash covers both sections with a combined count confirmation dialog; folder item counts now exclude hidden files and flag trashed items separately; fixed image opening via MediaStore URI so gallery apps can swipe between siblings; auto-delete countdown shown in item rows and Info dialog; Info dialog also shows the original file path; typo fix in Spanish "Tamaño total en papelera".
+- **v1.3.9:** Fast scrolling: `FastScrollRecyclerView` (Storage, Recents, Trash) draws a slim draggable thumb and, while dragged, a bubble supplied by the adapter through `LabelProvider`; `NameLabels` skips the shared start of long runs of similar names and labels them by the date in the name or the first differing characters. `FileOperations.rename()` refuses to replace a different existing item. "Save as" no longer truncates confirmed names to 80 characters, and the clipboard is consumed only when the paste is confirmed. `onNewIntent()` handles folder shortcuts. `UpdateChecker`: download receiver registered as `RECEIVER_EXPORTED` on the application context (the completion broadcast comes from the system download provider, so a non-exported receiver never gets it), failed checks reported on manual checks, dismissed versions offered again on manual checks, no dialog on a finished activity. Cancelled or failed copies remove their partial destination. Single-item delete and trash run on the background path. Thumbnail caches in `TrashActivity` and `RecentAdapter` sized to 1/8 of the heap. Instrumented tests added under `app/src/androidTest`.
 - **v1.3.8:** Fix: `DownloadManager` `BroadcastReceiver` registered without `RECEIVER_EXPORTED` flag caused the auto-install to silently fail on Android 13+ (API 33+, `targetSdkVersion >= 33`). Fixed by passing `Context.RECEIVER_EXPORTED` when `Build.VERSION.SDK_INT >= 33`, falling back to flag `0` on older versions.
 - **v1.3.7:** When saving a single shared file or pasting a single file from the clipboard (copy or move), a "Save as" dialog now lets the user confirm or edit the destination filename before the operation runs. The base name (before the extension) is pre-selected so the user can type a replacement immediately. The rename dialog is shown via the new `showRenameBeforeSaveDialog` helper; the shared-items import path was refactored into `doImportSharedItems()` and the clipboard paste path into `doClipboardPaste()` to keep each entry point small. Multiple-file operations are unaffected.
 - **v1.3.6:** App removed from the system "Open with…" picker for arbitrary file types; only ACTION_SEND, ACTION_SEND_MULTIPLE and ACTION_GET_CONTENT intents remain registered. Selection count label (`tv_selection_count`) added above the action bar, showing the number of selected items with the same background colour as the bar to avoid a visible line. "Select all" (`btn_select_all_recent`) and "Select by day" (`btn_select_day_recent`) buttons added to the Recent tab header; select-all now toggles — a second tap calls `exitSelectionMode()` and the button switches to a check icon when all items are selected (mirrors the Storage tab behaviour). Folder long-press context menu includes a new "Add shortcut to home screen" option via `ShortcutManagerCompat.requestPinShortcut`. Update dialog redesigned with three buttons: Download APK (positive), Remind me later (neutral), Dismiss update (negative — stores dismissed version in SharedPreferences). APK update download replaced with `DownloadManager` for a direct in-app download; a one-shot `BroadcastReceiver` listens for `ACTION_DOWNLOAD_COMPLETE` and launches the system installer automatically.
@@ -242,26 +252,23 @@ git config core.autocrlf true
 
 ### Gradle Wrapper
 
-This repository does not include `gradlew`/`gradlew.bat` wrapper files. You can:
-
-1. Use a local Gradle installation
-2. Generate wrapper files with: `gradle wrapper`
+The repository includes the Gradle wrapper (Gradle 8.7), so no local Gradle installation is needed. On Windows use `.\gradlew.bat` instead of `./gradlew`.
 
 ### Build Commands
 
 **Debug APK:**
 ```bash
-gradle :app:assembleDebug
+./gradlew :app:assembleDebug
 ```
 
-**Release APK (unsigned):**
+**Release APK** (signed with the `FM_*` keystore if configured, otherwise with the local debug keystore):
 ```bash
-gradle :app:assembleRelease
+./gradlew :app:assembleRelease
 ```
 
 **Output location:**
 - Debug: `app/build/outputs/apk/debug/app-debug.apk`
-- Release: `app/build/outputs/apk/release/app-release-unsigned.apk`
+- Release: `app/build/outputs/apk/release/app-release.apk` (`app-release-unsigned.apk` when no keystore is available)
 
 ---
 

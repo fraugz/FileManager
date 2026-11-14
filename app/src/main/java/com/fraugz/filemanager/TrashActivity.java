@@ -58,7 +58,8 @@ public class TrashActivity extends AppCompatActivity {
     // Thumbnail support
     private final ExecutorService thumbExecutor = Executors.newFixedThreadPool(2);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final LruCache<String, Bitmap> previewCache = new LruCache<String, Bitmap>(20) {
+    private final LruCache<String, Bitmap> previewCache = new LruCache<String, Bitmap>(
+            (int) (Runtime.getRuntime().maxMemory() / 1024L / 8L)) {
         @Override protected int sizeOf(String key, Bitmap v) {
             return Math.max(1, v.getByteCount() / 1024);
         }
@@ -652,7 +653,25 @@ public class TrashActivity extends AppCompatActivity {
     // Adapter
     // -------------------------------------------------------------------------
 
-    class TrashAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+    class TrashAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
+            implements FastScrollRecyclerView.LabelProvider {
+
+        // App trash is ordered by deletion date; system entries only have the file date their row shows.
+        @Override
+        public String getFastScrollLabel(android.content.Context context, int position) {
+            if (position < 0 || position >= allItems.size()) return null;
+            Object item = allItems.get(position);
+            if (item instanceof TrashManager.TrashEntry) {
+                return FastScrollRecyclerView.dateLabel(context,
+                        ((TrashManager.TrashEntry) item).getDeletedAt());
+            }
+            if (item instanceof SystemTrashEntry) {
+                return FastScrollRecyclerView.dateLabel(context,
+                        ((SystemTrashEntry) item).file.lastModified());
+            }
+            return null;
+        }
+
         private static final int TYPE_HEADER  = 0;
         private static final int TYPE_APP     = 1;
         private static final int TYPE_SYSTEM  = 2;

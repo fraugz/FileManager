@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 
 public class FileOperations {
 
@@ -26,10 +27,21 @@ public class FileOperations {
         return file.delete();
     }
 
-    /** Rename a file or directory */
+    /** Rename a file or directory. Never replaces a different existing item. */
     public static boolean rename(File file, String newName) {
         File dest = new File(file.getParent(), newName);
+        if (isTaken(dest, file)) return false;
         return file.renameTo(dest);
+    }
+
+    /** True when {@code dest} exists and is not {@code source} itself (a case-only rename reaches the same file). */
+    static boolean isTaken(File dest, File source) {
+        if (!dest.exists()) return false;
+        try {
+            return !Files.isSameFile(dest.toPath(), source.toPath());
+        } catch (IOException e) {
+            return true;
+        }
     }
 
     /** Copy file to destination directory */

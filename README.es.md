@@ -3,7 +3,7 @@
 > Un gestor de archivos Android limpio y ligero, con papelera, previsualizaciones enriquecidas, archivos recientes e interfaz bilingüe.
 
 [![Release](https://img.shields.io/github/v/release/fraugz/FileManager)](https://github.com/fraugz/FileManager/releases/latest)
-[![Android](https://img.shields.io/badge/Android-7.0%2B-green)](https://github.com/fraugz/FileManager/releases/latest)
+[![Android](https://img.shields.io/badge/Android-11%2B-green)](https://github.com/fraugz/FileManager/releases/latest)
 [![License](https://img.shields.io/github/license/fraugz/FileManager)](LICENSE)
 [![Language](https://img.shields.io/badge/language-Java-orange)](https://github.com/fraugz/FileManager/search?l=java)
 
@@ -43,7 +43,7 @@
 - 📤 Destino de compartir: recibe archivos de otras apps y guárdalos en cualquier carpeta
 - 🎨 Ajustes de apariencia: tema oscuro/claro, escala de interfaz (4 tamaños), idioma
 - 🌐 Soporte bilingüe completo: español e inglés
-- 📱 Android 7.0 mínimo (API 24)
+- 📱 Android 11 mínimo (API 30)
 
 ---
 
@@ -73,14 +73,14 @@
 1. Clona el repositorio.
 2. Abre el proyecto en Android Studio.
 3. Espera a que Gradle sincronice.
-4. Ejecuta en un dispositivo o emulador (API 24+).
+4. Ejecuta en un dispositivo o emulador (API 30+).
 
 ### Línea de comandos
 
-> **Nota:** Este repositorio no incluye el wrapper de Gradle (`gradlew`/`gradlew.bat`). Usa una instalación local de Gradle o genera los archivos del wrapper.
+> **Nota:** El repositorio incluye el wrapper de Gradle, así que no hace falta una instalación local de Gradle. En Windows usa `.\gradlew.bat` en lugar de `./gradlew`.
 
 ```bash
-gradle :app:assembleDebug
+./gradlew :app:assembleDebug
 ```
 
 Salida: `app/build/outputs/apk/debug/app-debug.apk`
@@ -102,6 +102,7 @@ Todo el feedback es bienvenido — el proyecto está en desarrollo activo.
 ---
 
 ## Versiones & changelog
+- **v1.3.9** — Nueva barra de desplazamiento rápido en el borde derecho de Almacenamiento, Recientes y Papelera: una barra fina que se arrastra por las listas largas, con una burbuja que muestra la inicial, la fecha o el tamaño según el orden; cuando muchos ficheros empiezan igual (`IMG_`, `PXL_`, `Screenshot_`, `20261114-`) muestra la fecha escrita en el nombre o la primera parte que cambia. Renombrar ya no sustituye a otro fichero con el mismo nombre. "Guardar como" conserva completos los nombres largos y cancelarlo ya no descarta el pegado pendiente. Los accesos directos de carpeta funcionan con la app ya abierta. Actualizador: el instalador vuelve a abrirse tras la descarga, una comprobación fallida se avisa en lugar de decir "al día" y una versión descartada se vuelve a ofrecer en la comprobación manual. Las copias canceladas no dejan ficheros a medias; eliminar un único elemento se hace en segundo plano.
 - **v1.3.8** — Corrección: la actualización automática desde la app ahora funciona correctamente en dispositivos con Android 13+ (flag `RECEIVER_EXPORTED` añadida al receptor de DownloadManager).
 - **v1.3.7** — Al guardar un único fichero compartido o al pegar un único fichero del portapapeles, aparece un diálogo "Guardar como" para confirmar o editar el nombre de destino antes de ejecutar la operación. El nombre base queda preseleccionado para teclear uno nuevo de inmediato. Las operaciones con varios ficheros no se ven afectadas.
 - **v1.3.6** — La app ya no aparece en "Abrir con…" para tipos de fichero arbitrarios (solo intents de compartir y selector de archivos). Contador de elementos seleccionados encima de la barra de acciones. Botones "Seleccionar todo" y "Seleccionar por día" en Recientes; seleccionar todo alterna (segundo toque deselecciona, icono de verificación cuando todo está seleccionado). Menú contextual de carpeta con opción de añadir acceso directo al escritorio. Diálogo de actualización con tres opciones: Descargar APK, Recordar más tarde, Descartar actualización. La descarga usa DownloadManager para una descarga directa en la app con apertura automática del instalador al completarse.

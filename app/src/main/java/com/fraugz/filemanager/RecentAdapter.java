@@ -59,7 +59,8 @@ public class RecentAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     private List<Object> items = new ArrayList<>(); // String (header), File, or RecentItem (group)
     private final ExecutorService executor = Executors.newFixedThreadPool(3);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final LruCache<String, Bitmap> previewCache = new LruCache<String, Bitmap>(32) {
+    private final LruCache<String, Bitmap> previewCache = new LruCache<String, Bitmap>(
+            (int) (Runtime.getRuntime().maxMemory() / 1024L / 8L)) {
         @Override
         protected int sizeOf(String key, Bitmap value) {
             return Math.max(1, value.getByteCount() / 1024);

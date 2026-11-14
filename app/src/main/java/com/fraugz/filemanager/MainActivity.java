@@ -244,6 +244,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         super.onNewIntent(intent);
         setIntent(intent);
         handleIncomingShareIntent(intent);
+        handleShortcutStartPath(intent);
     }
 
     @Override
@@ -584,7 +585,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (recycler != null) {
             recycler.setLayoutManager(new LinearLayoutManager(this));
             recycler.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
-            recycler.setVerticalScrollBarEnabled(true);
             adapter = new FileAdapter(fileItems, this);
             adapter.setDarkTheme(isDark);
             adapter.setUiScale(uiScale);
@@ -594,7 +594,6 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (recyclerRecent != null) {
             recyclerRecent.setLayoutManager(new LinearLayoutManager(this));
             recyclerRecent.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
-            recyclerRecent.setVerticalScrollBarEnabled(true);
             recentListAdapter = new FileAdapter(recentFileItems, new FileAdapter.Listener() {
                 @Override
                 public void onItemClick(FileItem item) {
@@ -721,6 +720,16 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (ev == null || tabTransitionRunning) return;
         switch (ev.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                RecyclerView activeList = currentTab == TAB_STORAGE ? recycler : recyclerRecent;
+                if (activeList instanceof FastScrollRecyclerView) {
+                    int[] location = new int[2];
+                    activeList.getLocationOnScreen(location);
+                    if (((FastScrollRecyclerView) activeList).hitsFastScrollThumb(
+                            ev.getRawX() - location[0], ev.getRawY() - location[1])) {
+                        tabSwipeTracking = false;
+                        break;
+                    }
+                }
                 tabSwipeTracking = true;
                 tabSwipeActive = false;
                 tabSwipeToTab = -1;
@@ -2107,7 +2116,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 if (cancelled.get()) {
                     toast(getString(R.string.operation_cancelled));
                 } else if (movedFinal == sel.size()) {
-                    toast(getString(deleteForever ? R.string.deleted_count : R.string.moved_to_trash_count, movedFinal));
+                    if (sel.size() == 1) {
+                        toast(getString(deleteForever ? R.string.deleted_done : R.string.moved_to_trash_done));
+                    } else {
+                        toast(getString(deleteForever ? R.string.deleted_count : R.string.moved_to_trash_count, movedFinal));
+                    }
                 } else {
                     String reason = (errorFinal == null || errorFinal.trim().isEmpty())
                             ? getString(R.string.unknown_reason)
@@ -2333,12 +2346,18 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         return sanitizeFilename(baseName) + "_" + timestamp + ".m3u";
     }
 
+    /** For names the app generates: also capped at 80 characters. */
     private String sanitizeFilename(String input) {
-        if (input == null) return "file";
-        String cleaned = input.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
-        if (cleaned.isEmpty()) cleaned = "file";
+        String cleaned = replaceIllegalFilenameChars(input);
         if (cleaned.length() > 80) cleaned = cleaned.substring(0, 80);
         return cleaned;
+    }
+
+    /** For names the user confirms: keeps the full length so long names keep their extension. */
+    private String replaceIllegalFilenameChars(String input) {
+        if (input == null) return "file";
+        String cleaned = input.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
+        return cleaned.isEmpty() ? "file" : cleaned;
     }
 
     private boolean shouldUsePlainPathsForPlaylist(String pkg) {
@@ -2870,7 +2889,15 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         String[] labels = {getString(R.string.name), getString(R.string.date), getString(R.string.size)};
         for (int i = 0; i < labels.length; i++)
             p.getMenu().add(0, i, i, (sortMode == i ? "✓ " : "") + labels[i]);
-        p.setOnMenuItemClickListener(mi -> { sortMode = mi.getItemId(); if (currentDir != null) loadDirectory(currentDir); return true; });
+        p.setOnMenuItemClickListener(mi -> {
+            sortMode = mi.getItemId();
+            if (adapter != null) {
+                adapter.setFastScrollLabelMode(sortMode == SORT_DATE ? FileAdapter.LABEL_DATE
+                        : sortMode == SORT_SIZE ? FileAdapter.LABEL_SIZE : FileAdapter.LABEL_INITIAL);
+            }
+            if (currentDir != null) loadDirectory(currentDir);
+            return true;
+        });
         p.show();
     }
 
@@ -2966,20 +2993,24 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         }
 
         final List<File> sources = new ArrayList<>(clipboardFiles);
-        // Paste is single-use: clear clipboard as soon as paste starts.
-        clipboardFiles.clear();
-        updatePasteBar();
-
         final boolean isCopy = clipboardIsCopy;
 
         // Single file: let user confirm / edit the destination name before pasting
         if (sources.size() == 1 && sources.get(0).isFile()) {
             String currentName = sources.get(0).getName();
             showRenameBeforeSaveDialog(currentName, newName ->
-                    doClipboardPaste(sources, isCopy, newName));
+                    startClipboardPaste(sources, isCopy, newName));
             return;
         }
-        doClipboardPaste(sources, isCopy, null);
+        startClipboardPaste(sources, isCopy, null);
+    }
+
+    private void startClipboardPaste(List<File> sources, boolean isCopy, String singleFileOverrideName) {
+        // Paste is single-use, but only once it really starts: cancelling the name dialog keeps the clipboard.
+        if (clipboardFiles.isEmpty()) return;
+        clipboardFiles.clear();
+        updatePasteBar();
+        doClipboardPaste(sources, isCopy, singleFileOverrideName);
     }
 
     private void doClipboardPaste(List<File> sources, boolean isCopy, String singleFileOverrideName) {
@@ -3004,11 +3035,11 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                     if (singleFileOverrideName != null && sources.size() == 1 && source.isFile()) {
                         File dest = buildUniqueDestination(currentDir, singleFileOverrideName);
                         if (isCopy) {
-                            copyFileWithProgress(source, dest, cancelled, holder, processedUnits);
+                            copyToNewDestination(source, dest, cancelled, holder, processedUnits);
                         } else {
                             String sourcePath = source.getAbsolutePath();
                             if (!source.renameTo(dest)) {
-                                copyFileWithProgress(source, dest, cancelled, holder, processedUnits);
+                                copyToNewDestination(source, dest, cancelled, holder, processedUnits);
                                 if (!FileOperations.delete(source)) {
                                     throw new Exception("Unable to delete source after move: " + source.getName());
                                 }
@@ -3257,7 +3288,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
 
             Button btn = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
             btn.setOnClickListener(v -> {
-                String name = sanitizeFilename(
+                String name = replaceIllegalFilenameChars(
                         nameInput.getText() == null ? "" : nameInput.getText().toString().trim());
                 if (name.isEmpty()) {
                     toast(getString(R.string.shared_text_invalid_name));
@@ -3505,10 +3536,28 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
         if (cancelled.get()) throw new Exception("cancelled");
 
         File dest = buildUniqueDestination(destDir, source.getName());
-        if (source.isDirectory()) {
-            copyDirectoryWithProgress(source, dest, cancelled, holder, processedUnits);
-        } else {
-            copyFileWithProgress(source, dest, cancelled, holder, processedUnits);
+        copyToNewDestination(source, dest, cancelled, holder, processedUnits);
+    }
+
+    /**
+     * Copies into a destination that did not exist before the call. A cancelled or failed copy
+     * removes what it wrote, so no truncated file is left under the final name. Callers delete
+     * the source of a move only after this returns.
+     */
+    private void copyToNewDestination(File source,
+                                      File dest,
+                                      AtomicBoolean cancelled,
+                                      ProgressDialogHolder holder,
+                                      int[] processedUnits) throws Exception {
+        try {
+            if (source.isDirectory()) {
+                copyDirectoryWithProgress(source, dest, cancelled, holder, processedUnits);
+            } else {
+                copyFileWithProgress(source, dest, cancelled, holder, processedUnits);
+            }
+        } catch (Exception e) {
+            FileOperations.delete(dest);
+            throw e;
         }
     }
 
@@ -3532,11 +3581,7 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             return;
         }
 
-        if (source.isDirectory()) {
-            copyDirectoryWithProgress(source, dest, cancelled, holder, processedUnits);
-        } else {
-            copyFileWithProgress(source, dest, cancelled, holder, processedUnits);
-        }
+        copyToNewDestination(source, dest, cancelled, holder, processedUnits);
 
         if (!FileOperations.delete(source)) {
             throw new Exception("Unable to delete source after move: " + source.getName());
@@ -3585,7 +3630,12 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 if (cancelled.get()) break;
                 try {
                     File target = buildUniqueDestination(currentDir, item.displayName);
-                    copyUriToFile(item.uri, target, cancelled);
+                    try {
+                        copyUriToFile(item.uri, target, cancelled);
+                    } catch (Exception e) {
+                        target.delete();
+                        throw e;
+                    }
                     imported++;
                     int progress = imported;
                     mainHandler.post(() -> updateProgressDialog(holder, progress));
@@ -3919,14 +3969,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 .setMessage(getString(R.string.confirm_delete_single_message, file.getName()))
                 .setPositiveButton(R.string.delete_forever, (d, w) -> showDeleteForeverWarningForSingle(file))
                 .setNegativeButton(R.string.cancel, null)
-                .setNeutralButton(R.string.move_to_trash, (d, w) -> {
-                    if (TrashManager.moveToTrash(this, file)) {
-                        if (currentTab == TAB_RECENT) loadRecentFiles(); else loadDirectory(currentDir);
-                        toast(getString(R.string.moved_to_trash_done));
-                    } else {
-                        toast(getString(R.string.error_deleting_item));
-                    }
-                })
+                // Same background path as a selection: big folders must not block the UI thread.
+                .setNeutralButton(R.string.move_to_trash, (d, w) ->
+                        runDeleteSelectionWithProgress(Collections.singletonList(file), false))
                 .create();
         dialog.setOnShowListener(d -> {
             Button deleteForever = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
@@ -3941,14 +3986,8 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
                 .setIcon(android.R.drawable.ic_dialog_alert)
                 .setTitle(R.string.warning_title)
                 .setMessage(getString(R.string.warning_delete_forever_single_message, file.getName()))
-                .setPositiveButton(R.string.delete_forever, (d, w) -> {
-                    if (FileOperations.delete(file)) {
-                        loadDirectory(currentDir);
-                        toast(getString(R.string.deleted_done));
-                    } else {
-                        toast(getString(R.string.error_deleting_item));
-                    }
-                })
+                .setPositiveButton(R.string.delete_forever, (d, w) ->
+                        runDeleteSelectionWithProgress(Collections.singletonList(file), true))
                 .setNegativeButton(R.string.cancel, null)
                 .show();
     }
@@ -4585,7 +4624,9 @@ public class MainActivity extends AppCompatActivity implements FileAdapter.Liste
             if (currentTab == TAB_RECENT) loadRecentFiles();
             toast(getString(R.string.renamed));
         } else {
-            toast(getString(R.string.rename_error));
+            File target = new File(source.getParentFile(), newName);
+            toast(getString(FileOperations.isTaken(target, source)
+                    ? R.string.name_already_exists : R.string.rename_error));
         }
     }
 

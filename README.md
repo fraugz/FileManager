@@ -3,7 +3,7 @@
 > A clean, lightweight Android file manager with trash support, rich previews, recent files, and bilingual UI.
 
 [![Release](https://img.shields.io/github/v/release/fraugz/FileManager)](https://github.com/fraugz/FileManager/releases/latest)
-[![Android](https://img.shields.io/badge/Android-7.0%2B-green)](https://github.com/fraugz/FileManager/releases/latest)
+[![Android](https://img.shields.io/badge/Android-11%2B-green)](https://github.com/fraugz/FileManager/releases/latest)
 [![License](https://img.shields.io/github/license/fraugz/FileManager)](LICENSE)
 [![Language](https://img.shields.io/badge/language-Java-orange)](https://github.com/fraugz/FileManager/search?l=java)
 
@@ -43,7 +43,7 @@
 - 📤 Share target: receive files from other apps and save to any folder
 - 🎨 Appearance settings: dark/light theme, UI scale (4 sizes), language
 - 🌐 Full bilingual support: English and Spanish
-- 📱 Minimum Android 7.0 (API 24)
+- 📱 Minimum Android 11 (API 30)
 
 ---
 
@@ -73,14 +73,14 @@
 1. Clone the repository.
 2. Open the project in Android Studio.
 3. Wait for Gradle sync to complete.
-4. Run on a device or emulator (API 24+).
+4. Run on a device or emulator (API 30+).
 
 ### Command line
 
-> **Note:** This repository does not include Gradle wrapper (`gradlew`/`gradlew.bat`). Use a local Gradle installation or generate the wrapper files.
+> **Note:** The repository includes the Gradle wrapper, so no local Gradle installation is needed. On Windows use `.\gradlew.bat` instead of `./gradlew`.
 
 ```bash
-gradle :app:assembleDebug
+./gradlew :app:assembleDebug
 ```
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`
@@ -113,6 +113,7 @@ All feedback is welcome — the project is actively maintained.
 ---
 
 ## Versions & changelog
+- **v1.3.9** — New fast-scroll thumb on the right edge of Storage, Recents and Trash: a slim bar you can drag through long lists, with a bubble that shows the initial, date or size depending on the sort order; when many files start the same way (`IMG_`, `PXL_`, `Screenshot_`, `20261114-`) it shows the date written in the name or the first part that changes. Renaming no longer replaces another file with the same name. "Save as" keeps long names complete and cancelling it no longer discards the pending paste. Folder shortcuts work with the app already open. Updater: the installer opens again after the download, a failed check is reported instead of "up to date", and a dismissed version is offered again on a manual check. Cancelled copies leave no partial files; deleting a single item runs in the background.
 - **v1.3.8** — Fix: in-app update auto-install now works correctly on Android 13+ devices (added `RECEIVER_EXPORTED` flag to the DownloadManager broadcast receiver).
 - **v1.3.7** — When saving a single shared file or pasting a single file from the clipboard, a "Save as" dialog now lets you confirm or edit the destination filename before the operation runs. The base name is pre-selected so you can type a new name immediately. Multiple-file operations are unaffected.
 - **v1.3.6** — App no longer appears in "Open with…" for arbitrary file types (only shares and file-picker intents remain). Selection count label above the action bar. "Select all" and "Select by day" buttons in the Recent tab; select-all toggles (second tap deselects, check icon when all selected). Folder context menu now has "Add shortcut to home screen". Update dialog has three choices: Download APK, Remind me later, Dismiss update. APK update download uses DownloadManager for a direct in-app download with automatic installer launch on completion.

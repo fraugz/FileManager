@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -37,7 +38,10 @@ import java.util.concurrent.Executors;
 import android.content.res.Resources;
 import android.util.TypedValue;
 
-public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
+public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder>
+        implements FastScrollRecyclerView.LabelProvider {
+
+    public static final int LABEL_INITIAL = 0, LABEL_DATE = 1, LABEL_SIZE = 2;
 
     public interface Listener {
         void onItemClick(FileItem item);
@@ -50,6 +54,8 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     private boolean darkTheme = true;
     private float uiScale = 1.0f;
     private boolean recentMode = false;
+    private int fastScrollLabelMode = LABEL_INITIAL;
+    private String[] nameLabels;
     private final Map<String, Long> recentAccessByPath = new HashMap<>();
     private final Map<String, Boolean> recentPinnedByPath = new HashMap<>();
     private final Listener listener;
@@ -69,6 +75,14 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     public FileAdapter(List<FileItem> items, Listener listener) {
         this.items = items;
         this.listener = listener;
+        // Name labels depend on the whole list, so any change to it makes them stale.
+        registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+            @Override public void onChanged() { nameLabels = null; }
+            @Override public void onItemRangeChanged(int start, int count) { nameLabels = null; }
+            @Override public void onItemRangeInserted(int start, int count) { nameLabels = null; }
+            @Override public void onItemRangeRemoved(int start, int count) { nameLabels = null; }
+            @Override public void onItemRangeMoved(int from, int to, int count) { nameLabels = null; }
+        });
     }
 
     public void setSelectionMode(boolean mode) { this.selectionMode = mode; notifyDataSetChanged(); }
@@ -76,6 +90,26 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     public void setDarkTheme(boolean dark) { this.darkTheme = dark; }
     public void setUiScale(float scale) { this.uiScale = Math.max(0.90f, Math.min(1.30f, scale)); notifyDataSetChanged(); }
     public void setRecentMode(boolean mode) { this.recentMode = mode; }
+    public void setFastScrollLabelMode(int mode) { this.fastScrollLabelMode = mode; }
+
+    /** Labels a row with whatever the list is ordered by, so the drag shows how far it has got. */
+    @Override
+    public String getFastScrollLabel(Context context, int position) {
+        if (position < 0 || position >= items.size()) return null;
+        FileItem item = items.get(position);
+        if (recentMode || fastScrollLabelMode == LABEL_DATE) {
+            return FastScrollRecyclerView.dateLabel(context, getAccessTimestamp(item.getFile()));
+        }
+        if (fastScrollLabelMode == LABEL_SIZE && !item.isDirectory()) {
+            return item.getFormattedSize(context);
+        }
+        if (nameLabels == null || nameLabels.length != items.size()) {
+            List<String> names = new ArrayList<>(items.size());
+            for (FileItem each : items) names.add(each.getName());
+            nameLabels = NameLabels.compute(context, names);
+        }
+        return nameLabels[position];
+    }
 
     public void setRecentMetadata(Map<String, Long> accessByPath, Map<String, Boolean> pinnedByPath) {
         recentAccessByPath.clear();

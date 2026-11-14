@@ -1,5 +1,6 @@
 package com.fraugz.filemanager;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.BroadcastReceiver;
@@ -12,7 +13,10 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 
+import androidx.core.content.ContextCompat;
+
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -67,23 +71,24 @@ public class UpdateChecker {
                 String latestTag = fetchLatestTag();
                 prefs.edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply();
 
-                String current;
-                try {
-                    current = ctx.getPackageManager()
-                            .getPackageInfo(ctx.getPackageName(), 0).versionName;
-                } catch (Exception e) { return; }
+                String current = ctx.getPackageManager()
+                        .getPackageInfo(ctx.getPackageName(), 0).versionName;
 
-                if (latestTag != null && isNewer(latestTag, current)) {
-                    String dismissed = prefs.getString(KEY_DISMISSED_VERSION, "");
-                    if (latestTag.equals(dismissed)) return; // user dismissed this version
+                if (shouldOffer(latestTag, current,
+                        prefs.getString(KEY_DISMISSED_VERSION, ""), showUpToDate)) {
                     main.post(() -> showUpdateDialog(ctx, latestTag, prefs));
                 } else if (showUpToDate) {
                     main.post(() -> android.widget.Toast.makeText(ctx,
                             ctx.getString(R.string.update_up_to_date),
                             android.widget.Toast.LENGTH_SHORT).show());
                 }
-            } catch (Exception ignored) {
-                // Network unavailable or any error — silently skip
+            } catch (Exception e) {
+                // Automatic checks stay silent; a manual check must not pass a failure off as "up to date".
+                if (showUpToDate) {
+                    main.post(() -> android.widget.Toast.makeText(ctx,
+                            ctx.getString(R.string.update_check_failed),
+                            android.widget.Toast.LENGTH_SHORT).show());
+                }
             } finally {
                 exec.shutdown();
             }
@@ -92,36 +97,40 @@ public class UpdateChecker {
 
     // -------------------------------------------------------------------------
 
-    private static String fetchLatestTag() throws Exception {
-        URL url = new URL(RELEASES_API_URL);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        conn.setConnectTimeout(8_000);
-        conn.setReadTimeout(8_000);
-        conn.setRequestProperty("Accept", "application/vnd.github+json");
-        conn.setRequestProperty("X-GitHub-Api-Version", "2022-11-28");
+    private static String fetchLatestTag() throws IOException {
+        HttpURLConnection conn = (HttpURLConnection) new URL(RELEASES_API_URL).openConnection();
+        try {
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(8_000);
+            conn.setReadTimeout(8_000);
+            conn.setRequestProperty("Accept", "application/vnd.github+json");
+            conn.setRequestProperty("X-GitHub-Api-Version", "2022-11-28");
 
-        int code = conn.getResponseCode();
-        if (code != 200) return null;
-
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(conn.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) sb.append(line);
+            int code = conn.getResponseCode();
+            StringBuilder sb = new StringBuilder();
+            if (code == 200) {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) sb.append(line);
+                }
+            }
+            return parseLatestTag(code, sb.toString());
+        } finally {
+            conn.disconnect();
         }
-        conn.disconnect();
+    }
+
+    /** A failed or unreadable response is an error: only a parsed tag may lead to "up to date". */
+    static String parseLatestTag(int httpCode, String json) throws IOException {
+        if (httpCode != 200) throw new IOException("HTTP " + httpCode);
 
         // Minimal JSON parse: find "tag_name":"v1.2.3"
-        String json = sb.toString();
         int idx = json.indexOf("\"tag_name\"");
-        if (idx < 0) return null;
-        int colon = json.indexOf(':', idx);
-        if (colon < 0) return null;
-        int open = json.indexOf('"', colon + 1);
-        if (open < 0) return null;
-        int close = json.indexOf('"', open + 1);
-        if (close < 0) return null;
+        int colon = idx < 0 ? -1 : json.indexOf(':', idx);
+        int open = colon < 0 ? -1 : json.indexOf('"', colon + 1);
+        int close = open < 0 ? -1 : json.indexOf('"', open + 1);
+        if (close < 0) throw new IOException("tag_name not found");
         return json.substring(open + 1, close).replace("v", "").trim();
     }
 
@@ -150,14 +159,24 @@ public class UpdateChecker {
         return nums;
     }
 
+    /** A dismissed version stays quiet on automatic checks; an explicit check still offers it. */
+    static boolean shouldOffer(String latest, String current, String dismissed, boolean manual) {
+        return isNewer(latest, current) && (manual || !latest.equals(dismissed));
+    }
+
     private static void showUpdateDialog(Context ctx, String latestVersion, SharedPreferences prefs) {
         if (ctx == null) return;
+        // The check runs in the background: the screen that asked may be gone by now.
+        if (ctx instanceof Activity
+                && (((Activity) ctx).isFinishing() || ((Activity) ctx).isDestroyed())) return;
         String apkUrl = String.format(APK_DIRECT_URL_TEMPLATE, latestVersion);
         new AlertDialog.Builder(ctx)
                 .setTitle(ctx.getString(R.string.update_available_title))
                 .setMessage(ctx.getString(R.string.update_available_message, latestVersion))
         .setPositiveButton(R.string.update_download, (d, w) -> {
-                    DownloadManager dm = (DownloadManager) ctx.getSystemService(Context.DOWNLOAD_SERVICE);
+                    // Application context: the download can outlive the screen that started it.
+                    Context app = ctx.getApplicationContext();
+                    DownloadManager dm = (DownloadManager) app.getSystemService(Context.DOWNLOAD_SERVICE);
                     DownloadManager.Request request = new DownloadManager.Request(Uri.parse(apkUrl))
                             .setTitle(ctx.getString(R.string.app_name))
                             .setDescription(latestVersion)
@@ -172,25 +191,22 @@ public class UpdateChecker {
                         public void onReceive(Context context, Intent intent) {
                             long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
                             if (id == downloadId) {
-                                context.unregisterReceiver(this);
+                                app.unregisterReceiver(this);
                                 Uri apkUri = dm.getUriForDownloadedFile(downloadId);
                                 if (apkUri != null) {
                                     Intent install = new Intent(Intent.ACTION_VIEW);
                                     install.setDataAndType(apkUri, "application/vnd.android.package-archive");
                                     install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                                    context.startActivity(install);
+                                    app.startActivity(install);
                                 }
                             }
                         }
                     };
-                    if (android.os.Build.VERSION.SDK_INT >= 33) {
-                        ctx.registerReceiver(receiver,
-                                new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                                android.content.Context.RECEIVER_NOT_EXPORTED);
-                    } else {
-                        ctx.registerReceiver(receiver,
-                                new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
-                    }
+                    // The completion broadcast comes from the system download service, a different
+                    // app, so it only reaches an exported receiver.
+                    ContextCompat.registerReceiver(app, receiver,
+                            new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                            ContextCompat.RECEIVER_EXPORTED);
                 })
                 .setNeutralButton(R.string.update_later, null)
                 .setNegativeButton(R.string.update_dismiss, (d, w) ->
